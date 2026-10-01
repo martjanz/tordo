@@ -111,7 +111,8 @@ func (s *Store) PlayTracks(ids []int64) ([]PlayItem, error) {
 // shows them: subfolders first (natural order, recursively), then the
 // folder's albums (collection order) with their tracks in order, then its
 // loose tracks. An album whose discs are in subfolders (CD1, CD2) belongs to
-// the folder above them, so it is played once, whole.
+// the folder above them, so it is played once, whole; inside a disc folder
+// itself, that disc's tracks are played.
 func (s *Store) PlayFolder(p string) ([]PlayItem, error) {
 	items, err := s.playItems(`WHERE t.dir = ?1 OR substr(t.dir, 1, length(?1) + 1) = ?1 || '/'`, p)
 	if err != nil {
@@ -121,12 +122,20 @@ func (s *Store) PlayFolder(p string) ([]PlayItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	inside := map[int64]bool{}
+	for _, a := range albums {
+		inside[a.ID] = true
+	}
 	byAlbum := map[int64][]PlayItem{}
 	looseIn := map[string][]PlayItem{}
+	strayIn := map[string][]PlayItem{} // tracks of an album whose folder is above p (a disc folder)
 	for _, it := range items {
-		if it.AlbumID != 0 {
+		switch {
+		case it.AlbumID != 0 && inside[it.AlbumID]:
 			byAlbum[it.AlbumID] = append(byAlbum[it.AlbumID], it)
-		} else {
+		case it.AlbumID != 0:
+			strayIn[it.dir] = append(strayIn[it.dir], it)
+		default:
 			looseIn[it.dir] = append(looseIn[it.dir], it)
 		}
 	}
@@ -148,6 +157,9 @@ func (s *Store) PlayFolder(p string) ([]PlayItem, error) {
 	for d := range looseIn {
 		addDir(d)
 	}
+	for d := range strayIn {
+		addDir(d)
+	}
 	out := []PlayItem{}
 	var walk func(d string)
 	walk = func(d string) {
@@ -163,6 +175,9 @@ func (s *Store) PlayFolder(p string) ([]PlayItem, error) {
 			slices.SortStableFunc(tracks, albumOrder)
 			out = append(out, tracks...)
 		}
+		stray := strayIn[d]
+		slices.SortStableFunc(stray, albumOrder)
+		out = append(out, stray...)
 		loose := looseIn[d]
 		slices.SortFunc(loose, func(a, b PlayItem) int { return natCompare(a.path, b.path) })
 		out = append(out, loose...)

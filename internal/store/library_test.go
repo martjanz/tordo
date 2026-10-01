@@ -15,7 +15,7 @@ func titles(items []PlayItem) []string {
 	return out
 }
 
-func albumID(t *testing.T, s *Store, title string) int64 {
+func albumNamed(t *testing.T, s *Store, title string) int64 {
 	t.Helper()
 	as, err := s.Albums("")
 	if err != nil {
@@ -49,7 +49,7 @@ func library(t *testing.T) *Store {
 
 func TestPlayAlbum(t *testing.T) {
 	s := library(t)
-	items, err := s.PlayAlbum(albumID(t, s, "Obras completas"))
+	items, err := s.PlayAlbum(albumNamed(t, s, "Obras completas"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +81,8 @@ func TestPlayFolder(t *testing.T) {
 		t.Fatalf("a loose track has album %d", items[len(items)-1].AlbumID)
 	}
 	items, err = s.PlayFolder(tango + "/CD1")
-	if err != nil || len(items) != 0 {
-		t.Fatalf("a disc folder plays its album from the folder above: %q, err %v", titles(items), err)
+	if got := titles(items); err != nil || !reflect.DeepEqual(got, []string{"Che bandoneón", "Barrio de tango"}) {
+		t.Fatalf("a disc folder plays its own tracks: %q, err %v", got, err)
 	}
 	items, _ = s.PlayFolder("../mus") // a prefix of a name is not a folder
 	if len(items) != 0 {
@@ -92,7 +92,7 @@ func TestPlayFolder(t *testing.T) {
 
 func TestPlayTracksAndTrackFile(t *testing.T) {
 	s := library(t)
-	album, _ := s.PlayAlbum(albumID(t, s, "Signos"))
+	album, _ := s.PlayAlbum(albumNamed(t, s, "Signos"))
 	items, err := s.PlayTracks([]int64{album[1].ID, 9999, album[0].ID})
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +111,7 @@ func TestPlayTracksAndTrackFile(t *testing.T) {
 
 func TestAlbumPictures(t *testing.T) {
 	s := library(t)
-	signos := albumID(t, s, "Signos")
+	signos := albumNamed(t, s, "Signos")
 	files, err := s.AlbumPictureFiles(signos)
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +123,7 @@ func TestAlbumPictures(t *testing.T) {
 	if err != nil || !ok || cover != la+"/[LA-10] Soda Stereo - Signos/cover.jpg" {
 		t.Fatalf("cover %q, ok %v, err %v", cover, ok, err)
 	}
-	if files, _ := s.AlbumPictureFiles(albumID(t, s, "Locura")); len(files) != 0 {
+	if files, _ := s.AlbumPictureFiles(albumNamed(t, s, "Locura")); len(files) != 0 {
 		t.Fatalf("Locura has no pictures: %q", files)
 	}
 	if _, ok, _ := s.AlbumCover(9999); ok {
@@ -138,12 +138,12 @@ func TestFolderArt(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Only Signos has a picture; Tangos holds an album without one, deeper.
-	want := map[string][]int64{"../musica/Latinoamérica 600": {albumID(t, s, "Signos")}}
+	want := map[string][]int64{"../musica/Latinoamérica 600": {albumNamed(t, s, "Signos")}}
 	if !reflect.DeepEqual(art, want) {
 		t.Fatalf("art = %v, want %v", art, want)
 	}
 	art, _ = s.FolderArt(la)
-	if got := art[la+"/[LA-11] Virus - Locura"]; !reflect.DeepEqual(got, []int64{albumID(t, s, "Locura")}) {
+	if got := art[la+"/[LA-11] Virus - Locura"]; !reflect.DeepEqual(got, []int64{albumNamed(t, s, "Locura")}) {
 		t.Fatalf("an album's own folder, even without a picture: %v", got)
 	}
 	if art, _ := s.FolderArt(""); len(art) != 0 {
