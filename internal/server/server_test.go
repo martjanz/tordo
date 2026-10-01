@@ -115,6 +115,11 @@ func TestLocalOnly(t *testing.T) {
 	if rec := do(t, h, "GET", "/api/status", "", "Sec-Fetch-Site", "cross-site", "Sec-Fetch-Mode", "no-cors"); rec.Code != http.StatusForbidden {
 		t.Fatalf("cross-site fetch: %d", rec.Code)
 	}
+	for _, p := range []string{"/stream/1", "/api/covers/album/1"} {
+		if rec := do(t, h, "GET", p, "", "Sec-Fetch-Site", "cross-site", "Sec-Fetch-Mode", "no-cors"); rec.Code != http.StatusForbidden {
+			t.Fatalf("cross-site %s: %d", p, rec.Code)
+		}
+	}
 }
 
 func TestScanEndpoint(t *testing.T) {

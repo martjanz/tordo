@@ -172,9 +172,7 @@ func (c *Covers) picture(srcs []source, size int, tag string) ([]byte, string, e
 	if err != nil || size == 0 {
 		return data, mime, err
 	}
-	c.sem <- struct{}{}
-	thumb, err := shrinkJPEG(data, size)
-	<-c.sem
+	thumb, err := c.shrinkLimited(data, size)
 	if err != nil {
 		return data, mime, nil // a format the standard library does not decode (WebP…): send it whole
 	}
@@ -214,9 +212,29 @@ func original(srcs []source) ([]byte, string, error) {
 	return nil, "", errNone
 }
 
+// shrinkLimited runs shrinkJPEG holding one slot of the decode semaphore.
+func (c *Covers) shrinkLimited(data []byte, size int) ([]byte, error) {
+	c.sem <- struct{}{}
+	defer func() { <-c.sem }()
+	return shrinkJPEG(data, size)
+}
+
+// maxPixels is the largest picture worth decoding for a thumbnail: decoding
+// takes about four bytes per pixel.
+const maxPixels = 40_000_000
+
+var errTooLarge = errors.New("picture too large to decode")
+
 // shrinkJPEG decodes a picture and, when its longer side exceeds size,
 // scales it down and encodes it as JPEG.
 func shrinkJPEG(data []byte, size int) ([]byte, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Width*cfg.Height > maxPixels {
+		return nil, errTooLarge
+	}
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, err

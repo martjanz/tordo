@@ -3,6 +3,8 @@ package covers
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -213,5 +215,19 @@ func TestShrinkKeepsSmallImages(t *testing.T) {
 	}
 	if b := shrink(image.NewRGBA(image.Rect(0, 0, 50, 1000)), 160).Bounds(); b.Dx() != 8 || b.Dy() != 160 {
 		t.Fatalf("tall image: %v", b)
+	}
+}
+
+func TestShrinkRefusesHugePictures(t *testing.T) {
+	data := pngImage(t, 4, 4)
+	// Claim 10000×10000 in the IHDR chunk (bytes 16–24) and fix its CRC.
+	binary.BigEndian.PutUint32(data[16:], 10000)
+	binary.BigEndian.PutUint32(data[20:], 10000)
+	binary.BigEndian.PutUint32(data[29:], crc32.ChecksumIEEE(data[12:29]))
+	if _, err := shrinkJPEG(data, 160); !errors.Is(err, errTooLarge) {
+		t.Fatalf("a picture of 100 megapixels: %v", err)
+	}
+	if _, err := shrinkJPEG(pngImage(t, 8, 8), 160); err != nil {
+		t.Fatalf("a small picture: %v", err)
 	}
 }
