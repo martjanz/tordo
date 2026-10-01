@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -25,6 +26,7 @@ type Server struct {
 	AppDir   string          // where catalog paths are relative to
 	Streamer stream.Streamer // FFmpeg "" when there is none
 	Covers   *covers.Covers  // nil: no pictures
+	Static   fs.FS           // the web app; nil: the embedded build
 	ReadOnly bool
 }
 
@@ -40,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
 	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
 	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
+	mux.Handle("GET /", s.static())
 	return localOnly(mux)
 }
 

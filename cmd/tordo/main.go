@@ -1,4 +1,5 @@
-// Command tordo catalogs a music library and serves the catalog on localhost.
+// Command tordo catalogs a music library and serves it, to browse and
+// listen, on localhost: it opens the browser at start.
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 	"tordo/internal/appdir"
 	"tordo/internal/config"
 	"tordo/internal/covers"
+	"tordo/internal/platform"
 	"tordo/internal/scan"
 	"tordo/internal/server"
 	"tordo/internal/store"
@@ -28,8 +30,9 @@ const dbName = "tordo.db"
 func main() {
 	dir := flag.String("dir", os.Getenv("TORDO_DIR"), "carpeta de la app (por defecto, la del ejecutable)")
 	port := flag.Int("port", 0, "puerto HTTP (0 = uno libre)")
+	noBrowser := flag.Bool("no-browser", false, "no abrir el navegador")
 	flag.Parse()
-	if err := run(*dir, *port); err != nil {
+	if err := run(*dir, *port, !*noBrowser); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -40,7 +43,7 @@ type app struct {
 	close   func() error
 }
 
-func run(dirOverride string, port int) error {
+func run(dirOverride string, port int, browser bool) error {
 	a, err := setup(dirOverride)
 	if err != nil {
 		return err
@@ -57,7 +60,13 @@ func run(dirOverride string, port int) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Tordo en http://%s/api/status (Ctrl+C para salir)", ln.Addr())
+	url := "http://" + ln.Addr().String() + "/"
+	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
+	if browser {
+		if err := platform.Open(url); err != nil {
+			log.Printf("no se pudo abrir el navegador: %v", err)
+		}
+	}
 	return http.Serve(ln, a.server.Handler())
 }
 

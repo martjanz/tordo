@@ -4,3 +4,7 @@
 *.db
 .worktrees/
 .claude/
+node_modules/
+# The web app's build is embedded by the Go server but not committed.
+/internal/server/dist/*
+!/internal/server/dist/.gitkeep

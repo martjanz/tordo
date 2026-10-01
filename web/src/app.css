@@ -1,0 +1,167 @@
+:root {
+  --bg: #15171b;
+  --surface: #1c1f24;
+  --surface-2: #24282e;
+  --line: #2b3037;
+  --line-strong: #3b424b;
+  --text: #d9dde2;
+  --strong: #ffffff;
+  --muted: #9ba3ac;
+  --faint: #6d7680;
+  --accent: #f0a830;
+  --on-accent: #1a1204;
+  --warn: #e0a040;
+  --radius: 4px;
+  --gutter: 16px;
+  --player-h: 72px;
+  --tabs-h: 0px; /* the bottom tabs, on phones */
+  color-scheme: dark;
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --player-h: 60px;
+    --tabs-h: 56px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: calc(var(--player-h) + var(--tabs-h) + env(safe-area-inset-bottom));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--strong);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 4px 12px;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* A button that is only an icon. */
+button.icon {
+  border: none;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+button.icon:hover:not(:disabled) {
+  color: var(--strong);
+}
+
+button.icon.on {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--gutter) 48px;
+}
+
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  color: var(--strong);
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 600;
+  margin: 32px 0 12px;
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.path {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  color: var(--faint);
+  word-break: break-all;
+}
+
+.empty {
+  color: var(--muted);
+  padding: 48px 0;
+  text-align: center;
+}
+
+/* A grid of square cards: covers first. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px 16px;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 16px 12px;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
