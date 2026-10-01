@@ -17,9 +17,11 @@ import (
 )
 
 type Server struct {
-	Store    *store.Store
-	Scanner  *scan.Scanner // nil in browse-only mode
-	ReadOnly bool
+	Store      *store.Store
+	Scanner    *scan.Scanner // nil in browse-only mode
+	Identifier Identifier    // nil in browse-only mode
+	AppDir     string        // where cache paths are relative to
+	ReadOnly   bool
 }
 
 func (s *Server) Handler() http.Handler {
@@ -30,6 +32,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/albums/{id}", s.album)
 	mux.HandleFunc("GET /api/folders", s.folder)
 	mux.HandleFunc("GET /api/collections", s.collections)
+	mux.HandleFunc("POST /api/identify", jsonOnly(s.identify))
+	mux.HandleFunc("GET /api/review/unidentified", s.unidentified)
+	mux.HandleFunc("PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification))
+	mux.HandleFunc("DELETE /api/albums/{id}/identification", s.resetIdentification)
+	mux.HandleFunc("GET /api/albums/{id}/cover", s.cover)
+	mux.HandleFunc("GET /api/genres", s.genreTaxonomy)
+	mux.HandleFunc("GET /api/genres/unmapped", s.unmappedGenres)
+	mux.HandleFunc("GET /api/genres/aliases", s.genreAliases)
+	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
 	return localOnly(mux)
 }
 
@@ -91,7 +102,11 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "counts": counts})
+	var ident any = map[string]string{"state": "off"}
+	if s.Identifier != nil {
+		ident = s.Identifier.Status()
+	}
+	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "counts": counts})
 }
 
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
