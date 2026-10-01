@@ -35,6 +35,9 @@ type AlbumIdentity struct {
 // ApplyIdentities writes the identity of every album, and the raw genre
 // values nothing maps with how many albums use each. ids must cover all
 // albums: track titles and genres not in ids are cleared.
+// The identities are computed outside this transaction, so a scan may have
+// regrouped meanwhile: rows for albums that are gone, and tracks that moved to
+// another album, are skipped.
 func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -52,12 +55,13 @@ func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) er
 		return err
 	}
 	defer al.Close()
-	gi, err := tx.Prepare(`INSERT OR IGNORE INTO album_genres (album_id, genre, style, source) VALUES (?, ?, ?, ?)`)
+	gi, err := tx.Prepare(`INSERT OR IGNORE INTO album_genres (album_id, genre, style, source)
+		SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM albums WHERE id = ?)`)
 	if err != nil {
 		return err
 	}
 	defer gi.Close()
-	ti, err := tx.Prepare(`UPDATE tracks SET mb_title = ?, recording_id = ? WHERE file_id = ?`)
+	ti, err := tx.Prepare(`UPDATE tracks SET mb_title = ?, recording_id = ? WHERE file_id = ? AND album_id = ?`)
 	if err != nil {
 		return err
 	}
@@ -68,12 +72,12 @@ func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) er
 			return err
 		}
 		for _, g := range id.Genres {
-			if _, err := gi.Exec(id.AlbumID, g.Genre, g.Style, g.Source); err != nil {
+			if _, err := gi.Exec(id.AlbumID, g.Genre, g.Style, g.Source, id.AlbumID); err != nil {
 				return err
 			}
 		}
 		for _, t := range id.Tracks {
-			if _, err := ti.Exec(t.Title, t.RecordingID, t.FileID); err != nil {
+			if _, err := ti.Exec(t.Title, t.RecordingID, t.FileID, id.AlbumID); err != nil {
 				return err
 			}
 		}

@@ -119,3 +119,28 @@ func TestGenreAliases(t *testing.T) {
 		t.Fatalf("aliases = %+v, err %v", got, err)
 	}
 }
+
+func TestApplyIdentitiesSkipsStaleRows(t *testing.T) {
+	s := sample(t)
+	signos, clics := albumID(t, s, "Signos"), albumID(t, s, "Clics modernos")
+	sg, _, _ := s.Album(signos)
+	// A scan regrouped meanwhile: album 9999 no longer exists, and a file now
+	// belongs to another album than the one the identity was computed for.
+	err := s.ApplyIdentities([]AlbumIdentity{
+		{AlbumID: 9999, Status: StatusAuto, ReleaseID: "gone", Genres: []GenreLink{{Genre: "Rock", Source: "mb"}},
+			Tracks: []TrackIdentity{{FileID: sg.Tracks[0].ID, Title: "Gone", RecordingID: "rec-gone"}}},
+		{AlbumID: clics, Status: StatusAuto, ReleaseID: "r2", Genres: []GenreLink{{Genre: "Pop", Source: "mb"}},
+			Tracks: []TrackIdentity{{FileID: sg.Tracks[0].ID, Title: "Stolen", RecordingID: "rec-stolen"}}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, _, _ := s.Album(signos)
+	if tr := after.Tracks[0]; tr.Title != "Signos" || tr.RecordingID != "" {
+		t.Fatalf("a track of another album was labelled: %+v", tr)
+	}
+	c, _, _ := s.Album(clics)
+	if c.ReleaseID != "r2" || len(c.Genres) != 1 || c.Genres[0].Genre != "Pop" {
+		t.Fatalf("the valid identity was not applied: %+v", c)
+	}
+}
