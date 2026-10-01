@@ -11,8 +11,8 @@ import (
 )
 
 // MaxPlay caps the tracks one play request returns: the player keeps its
-// queue in the browser's storage.
-const MaxPlay = 5000
+// queue in the browser's storage. A variable so tests can lower it.
+var MaxPlay = 5000
 
 // playItem is a track as the player gets it: how the server will deliver it.
 type playItem struct {
@@ -87,7 +87,7 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 		rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] })
 	}
 	out := []playItem{}
-	skipped := 0
+	skipped, truncated := 0, 0
 	for _, it := range items {
 		mode, mime := s.Streamer.Plan(stream.Format{Container: it.Format, Codec: it.Codec, Lossless: it.Lossless})
 		if mode == stream.Unplayable {
@@ -96,9 +96,11 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(out) < MaxPlay {
 			out = append(out, playItem{PlayItem: it, MIME: mime, Transcoded: mode == stream.Transcode})
+		} else {
+			truncated++
 		}
 	}
-	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "ffmpeg": s.Streamer.FFmpeg != ""})
+	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""})
 }
 
 func (s *Server) albumCover(w http.ResponseWriter, r *http.Request) {

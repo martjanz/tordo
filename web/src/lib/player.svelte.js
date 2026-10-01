@@ -82,7 +82,7 @@ function makeAudio() {
   a.addEventListener('timeupdate', mine(onTime))
   a.addEventListener('loadedmetadata', mine(onMetadata))
   a.addEventListener('ended', mine(onEnded))
-  a.addEventListener('play', mine(() => (player.playing = true)))
+  a.addEventListener('play', mine(onPlay))
   a.addEventListener('pause', mine(onPause))
   a.addEventListener('waiting', mine(() => (player.loading = true)))
   a.addEventListener('playing', mine(() => ((player.loading = false), (errors = 0))))
@@ -131,8 +131,26 @@ function onMetadata() {
   startAt = 0
 }
 
+function setPlaybackState(state) {
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = state
+}
+
+// release empties an element so that a fetch or transcode it had under way
+// is cancelled.
+function release(a) {
+  a.removeAttribute('src')
+  a.dataset.key = ''
+  a.load()
+}
+
+function onPlay() {
+  player.playing = true
+  setPlaybackState('playing')
+}
+
 function onPause() {
   player.playing = false
+  setPlaybackState('paused')
   const entry = Q.current(player.queue)
   if (entry) save(TIME_KEY, JSON.stringify({ key: entry.key, time: active.currentTime }))
 }
@@ -150,8 +168,7 @@ function onEnded() {
   if (standby.dataset.key === String(entry.key) && !standby.error) {
     // The next track is loaded and usable: swap the elements.
     ;[active, standby] = [standby, active]
-    standby.removeAttribute('src')
-    standby.dataset.key = ''
+    release(standby)
     show(entry, active.dataset.seekable === '1')
     // media errors arrive through the element's error event (mine); autoplay
     // refusal is ignored here and will pause the element if the user retries.
@@ -171,11 +188,13 @@ function onError() {
     return
   }
   const q = Q.next(player.queue)
-  if (q) {
-    player.queue = q
-    persist()
-    start(Q.current(q), 0, true)
+  if (!q) {
+    player.playing = false
+    return
   }
+  player.queue = q
+  persist()
+  start(Q.current(q), 0, true)
 }
 
 // show updates what the page shows for entry: duration, seekability, the
@@ -192,8 +211,7 @@ function show(entry, seekable) {
 function start(entry, at, play) {
   audios()
   const src = source(entry)
-  standby.removeAttribute('src')
-  standby.dataset.key = ''
+  release(standby)
   active.src = src.url
   active.dataset.key = String(entry.key)
   active.dataset.seekable = src.seekable ? '1' : ''
@@ -227,14 +245,18 @@ function setQueue(q, play = true) {
 export async function play(what, { shuffle = false, startId = null } = {}) {
   let res
   try {
-    res = await api.play({ ...what, shuffle })
+    res = await api.play(what) // the queue does the shuffling
   } catch (e) {
     notify(e.message)
     return
   }
   player.ffmpeg = res.ffmpeg
   if (res.skipped > 0) notify(`${count(res.skipped, 'pista no se puede', 'pistas no se pueden')} reproducir: falta ffmpeg.`)
-  if (res.items.length === 0) return
+  if (res.items.length === 0) {
+    if (res.skipped === 0) notify('No hay nada para reproducir acá.')
+    return
+  }
+  if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
   const at = startId == null ? 0 : Math.max(0, res.items.findIndex((it) => it.id === startId))
   setQueue(Q.replace({ ...player.queue, shuffle }, res.items, shuffle ? Math.floor(Math.random() * res.items.length) : at))
 }
@@ -250,11 +272,15 @@ export async function enqueue(what, { next = false } = {}) {
     return
   }
   player.ffmpeg = res.ffmpeg
-  if (res.items.length === 0) return
+  if (res.items.length === 0) {
+    if (res.skipped === 0) notify('No hay nada para reproducir acá.')
+    return
+  }
   const wasEmpty = !Q.current(player.queue)
   player.queue = next ? Q.playNext(player.queue, res.items) : Q.append(player.queue, res.items)
   persist()
-  notify(next ? 'Suena a continuación.' : `${count(res.items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
+  if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
+  else notify(next ? 'Suena a continuación.' : `${count(res.items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
   if (wasEmpty) start(Q.current(player.queue), 0, false)
 }
 
@@ -302,17 +328,13 @@ export function removeAt(pos) {
 export function clearUpcoming() {
   player.queue = Q.clearUpcoming(player.queue)
   persist()
-  if (standby) {
-    standby.removeAttribute('src')
-    standby.dataset.key = ''
-  }
+  if (standby) release(standby)
 }
 
 function stop() {
   if (active) {
     active.pause()
-    active.removeAttribute('src')
-    active.dataset.key = ''
+    release(active)
   }
   player.playing = false
   player.time = 0
@@ -381,8 +403,8 @@ function positionState() {
 
 if ('mediaSession' in navigator) {
   const handlers = {
-    play: toggle,
-    pause: toggle,
+    play: () => player.playing || toggle(),
+    pause: () => player.playing && toggle(),
     previoustrack: prev,
     nexttrack: next,
     seekto: (d) => seek(d.seekTime),

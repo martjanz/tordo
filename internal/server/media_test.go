@@ -70,8 +70,9 @@ type playResponse struct {
 		MIME       string `json:"mime"`
 		Transcoded bool   `json:"transcoded"`
 	} `json:"items"`
-	Skipped int  `json:"skipped"`
-	FFmpeg  bool `json:"ffmpeg"`
+	Skipped   int  `json:"skipped"`
+	Truncated int  `json:"truncated"`
+	FFmpeg    bool `json:"ffmpeg"`
 }
 
 func TestPlayEndpoint(t *testing.T) {
@@ -86,8 +87,16 @@ func TestPlayEndpoint(t *testing.T) {
 	s.Streamer.FFmpeg = "ffmpeg"
 	p = playResponse{}
 	decode(t, do(t, h, "GET", "/api/play?album="+itoa(onlyAlbum(t, s)), ""), &p)
-	if len(p.Items) != 2 || p.Skipped != 0 || !p.FFmpeg || !p.Items[1].Transcoded || p.Items[1].MIME != "audio/mpeg" {
+	if len(p.Items) != 2 || p.Skipped != 0 || p.Truncated != 0 || !p.FFmpeg || !p.Items[1].Transcoded || p.Items[1].MIME != "audio/mpeg" {
 		t.Fatalf("with ffmpeg: %+v", p)
+	}
+	maxPlay := MaxPlay
+	MaxPlay = 1
+	p = playResponse{}
+	decode(t, do(t, h, "GET", "/api/play?album="+itoa(onlyAlbum(t, s)), ""), &p)
+	MaxPlay = maxPlay
+	if len(p.Items) != 1 || p.Truncated != 1 {
+		t.Fatalf("capped: %d items, truncated %d", len(p.Items), p.Truncated)
 	}
 	p = playResponse{}
 	decode(t, do(t, h, "GET", "/api/play?track="+itoa(ids[1])+"&track="+itoa(ids[0])+"&shuffle=0", ""), &p)

@@ -17,6 +17,7 @@
 
   let folder = $state(null)
   let error = $state('')
+  let restoredFor = null // the folder whose scroll position was restored: reloads after a scan keep the page where it is
 
   $effect(() => {
     const p = path
@@ -33,7 +34,10 @@
         }
         folder = f
         error = ''
-        requestAnimationFrame(() => window.scrollTo(0, savedScroll()))
+        if (restoredFor !== p) {
+          restoredFor = p
+          requestAnimationFrame(() => window.scrollTo(0, savedScroll()))
+        }
       })
       .catch((e) => {
         if (!stale) error = e.message
