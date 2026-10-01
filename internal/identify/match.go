@@ -49,15 +49,25 @@ func Identify(ctx context.Context, api API, q Query, fetched map[string]musicbra
 	best := map[string]store.Candidate{}
 	lookedUp := make(map[string]bool)
 	keep := func(c store.Candidate, isLookup bool) {
-		if isLookup {
-			// A looked-up score always replaces any hit score
-			best[c.ReleaseID] = c
-			lookedUp[c.ReleaseID] = true
-		} else if !lookedUp[c.ReleaseID] {
-			// For hit scores, keep the max only if not already looked up
-			if old, ok := best[c.ReleaseID]; !ok || c.Score > old.Score {
-				best[c.ReleaseID] = c
+		old, ok := best[c.ReleaseID]
+		switch {
+		case !ok:
+		case isLookup && lookedUp[c.ReleaseID]:
+			// the same release looked up under another variant: keep the best score
+			if c.Score <= old.Score {
+				return
 			}
+		case isLookup:
+			// a looked-up score always replaces a hit score
+		default:
+			// a hit score only counts while nothing was looked up, and as a max
+			if lookedUp[c.ReleaseID] || c.Score <= old.Score {
+				return
+			}
+		}
+		best[c.ReleaseID] = c
+		if isLookup {
+			lookedUp[c.ReleaseID] = true
 		}
 	}
 	lookups := 0

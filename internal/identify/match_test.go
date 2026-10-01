@@ -160,11 +160,44 @@ func TestIdentifyUsesLookupScoreNotHitScore(t *testing.T) {
 	// not the hitScore (high due to 2 matching tracks)
 	hitScoreVal := hitScore(q.Variants[0], q, badHit)
 	lookupScoreVal := releaseScore(q.Variants[0], q, badRelease)
-	if hitScoreVal >= Threshold && lookupScoreVal < Threshold {
-		// Verify the hit score alone would pass but the lookup score doesn't
-		if m.Candidates[0].Score != round(lookupScoreVal) {
-			t.Fatalf("candidate score %v should equal round(releaseScore) %v, not round(hitScore) %v",
-				m.Candidates[0].Score, round(lookupScoreVal), round(hitScoreVal))
-		}
+	if hitScoreVal+durationsWeight < Threshold || lookupScoreVal >= Threshold || hitScoreVal <= lookupScoreVal {
+		t.Fatalf("precondition: hit score %v must be worth a lookup and exceed lookup score %v, which must stay below the threshold", hitScoreVal, lookupScoreVal)
+	}
+	if m.Candidates[0].Score != round(lookupScoreVal) {
+		t.Fatalf("candidate score %v should equal round(releaseScore) %v, not round(hitScore) %v",
+			m.Candidates[0].Score, round(lookupScoreVal), round(hitScoreVal))
+	}
+}
+
+func TestIdentifyKeepsBestLookupScoreAcrossVariants(t *testing.T) {
+	const badID = "a1b2c3d4-0000-4000-8000-000000000099"
+	hit := func(title string) musicbrainz.ReleaseHit {
+		return musicbrainz.ReleaseHit{ID: badID, Title: title, Artist: "Soda Stereo",
+			ArtistNames: []string{"Soda Stereo"}, Year: 1986, Country: "AR", Tracks: 2, Score: 100}
+	}
+	rel := musicbrainz.Release{ID: badID, Title: "Signos (Extended)", Artist: "Soda Stereo",
+		ArtistNames: []string{"Soda Stereo"}, Year: 1986, Country: "AR", Tracks: make([]musicbrainz.Track, 12)}
+	for i := range rel.Tracks {
+		rel.Tracks[i] = musicbrainz.Track{Disc: 1, Position: i + 1, LengthMs: 100000}
+	}
+	mb := &fakeMB{
+		search: map[string][]musicbrainz.ReleaseHit{
+			"Signos|Soda Stereo|false":     {hit("Signos")},
+			"Disco Otro|Soda Stereo|false": {hit("Disco Otro")},
+		},
+		releases: map[string]musicbrainz.Release{badID: rel},
+	}
+	q := Query{Variants: []Variant{{Title: "Signos", Artist: "Soda Stereo"}, {Title: "Disco Otro", Artist: "Soda Stereo"}},
+		Year: 1986, Durations: []int64{231500, 209000}}
+	first, second := releaseScore(q.Variants[0], q, rel), releaseScore(q.Variants[1], q, rel)
+	if first >= Threshold || second >= first {
+		t.Fatalf("precondition: want second %v < first %v < threshold", second, first)
+	}
+	m, err := Identify(context.Background(), mb, q, map[string]musicbrainz.Release{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mb.count("search ") != 2 || len(m.Candidates) != 1 || m.Candidates[0].Score != round(first) {
+		t.Fatalf("searches %d, candidates %+v, want score %v", mb.count("search "), m.Candidates, round(first))
 	}
 }
