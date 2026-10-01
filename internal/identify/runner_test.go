@@ -413,3 +413,30 @@ func TestBadTokenStopsDiscogsCallsEvenWithURLs(t *testing.T) {
 		t.Fatalf("status.Discogs should be %q, got %q", DiscogsBadToken, r.Status().Discogs)
 	}
 }
+
+func TestRunAppliesBeforeNetworkWork(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	r, _ := newRunner(t, st, mb, nil)
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// A scan regroups (wiping the MusicBrainz titles) and finds a new album.
+	other := file{"../musica/Otro/01.mp3", "fp-o", 1000, audiofile.Tags{Title: "Uno", Artist: "Otro", Album: "Otro"}}
+	load(t, st, append(signosFiles(), other)...)
+	var during store.AlbumDetail
+	mb.onSearch = func() {
+		as, _ := st.Albums("")
+		for _, a := range as {
+			if a.Title == "Signos" {
+				during, _, _ = st.Album(a.ID)
+			}
+		}
+	}
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(during.Tracks) != 2 || during.Tracks[1].Title != "Sin sobresaltos" || len(during.Genres) == 0 {
+		t.Fatalf("identity not restored before the first request: %+v", during)
+	}
+}

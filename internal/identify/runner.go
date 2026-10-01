@@ -189,7 +189,12 @@ func (r *Runner) run(ctx context.Context) error {
 
 	// Releases looked up while matching, reused by enrichment in this run.
 	fetched := map[string]musicbrainz.Release{}
-	err := r.identifyAll(ctx, fetched)
+	// What is stored comes first (local and cheap): a scan wipes track titles
+	// and leaves new albums without genres until the next apply.
+	err := r.Apply()
+	if err == nil {
+		err = r.identifyAll(ctx, fetched)
+	}
 	if err == nil {
 		err = r.Apply()
 	}
