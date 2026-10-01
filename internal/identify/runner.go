@@ -385,13 +385,13 @@ func (r *Runner) fetchArtist(ctx context.Context, id string) (store.Artist, erro
 }
 
 func (r *Runner) needsDiscogs(rel store.Release) bool {
-	if r.Discogs == nil {
+	if r.Discogs == nil || r.tokenRejected() {
 		return false
 	}
 	if !rel.Discogs.Done {
 		return true
 	}
-	return len(rel.Discogs.Genres) == 0 && !rel.Discogs.Searched && r.Discogs.HasToken() && !r.tokenRejected()
+	return len(rel.Discogs.Genres) == 0 && !rel.Discogs.Searched && r.Discogs.HasToken()
 }
 
 // discogsFor fills a release's Discogs genres and styles: from MusicBrainz's
@@ -461,7 +461,11 @@ func (r *Runner) followDiscogs(ctx context.Context, urls []string) (discogs.Info
 		if kind == "release" {
 			info, err = r.Discogs.Release(ctx, id)
 			if err == nil && len(info.Genres) == 0 && info.MasterID != 0 {
-				if m, merr := r.Discogs.Master(ctx, info.MasterID); merr == nil {
+				m, merr := r.Discogs.Master(ctx, info.MasterID)
+				if fatal(merr) || errors.Is(merr, discogs.ErrUnauthorized) {
+					return discogs.Info{}, merr
+				}
+				if merr == nil {
 					info.Genres, info.Styles = m.Genres, m.Styles
 				}
 			}

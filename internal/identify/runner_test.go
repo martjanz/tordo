@@ -377,3 +377,39 @@ func TestDiscogsBadTokenOnlyDisablesDiscogs(t *testing.T) {
 		t.Fatalf("album %+v, status %+v", a.AlbumView, r.Status())
 	}
 }
+
+func TestBadTokenStopsDiscogsCallsEvenWithURLs(t *testing.T) {
+	// Album with a release that has DiscogsURLs; run twice to verify
+	// token rejection stops Discogs calls on both runs
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	rel := signosRelease() // Has DiscogsURLs: "https://www.discogs.com/release/1234-..."
+	mb.releases[signosID] = rel
+	// Discogs rejects the token on any call
+	dg := &fakeDiscogs{token: true, err: discogs.ErrUnauthorized}
+	r, _ := newRunner(t, st, mb, dg)
+	// First run identifies the album and tries to enrich with Discogs,
+	// which fails with 401
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Second run should not make any more Discogs calls because badToken
+	// prevents needsDiscogs from returning true
+	firstRunCalls := len(dg.calls)
+	if firstRunCalls != 1 {
+		t.Fatalf("expected 1 Discogs call in first run (the 401), got %d: %q", firstRunCalls, dg.calls)
+	}
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(dg.calls) != 1 {
+		t.Fatalf("expected no additional Discogs calls in second run, got %d total: %q", len(dg.calls), dg.calls)
+	}
+	a := onlyAlbum(t, st)
+	if a.Status != store.StatusAuto || a.ReleaseID != signosID {
+		t.Fatalf("album should be auto-identified, got status=%q release=%q", a.Status, a.ReleaseID)
+	}
+	if r.Status().Discogs != DiscogsBadToken {
+		t.Fatalf("status.Discogs should be %q, got %q", DiscogsBadToken, r.Status().Discogs)
+	}
+}
