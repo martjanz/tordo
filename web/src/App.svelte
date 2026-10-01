@@ -1,11 +1,12 @@
 <script>
-  import Album from './pages/Album.svelte'
-  import Carpetas from './pages/Carpetas.svelte'
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
+  import Album from './pages/Album.svelte'
+  import Carpetas from './pages/Carpetas.svelte'
+  import Listas from './pages/Listas.svelte'
 
   const current = $derived(resolve(route.path, route.search))
 
@@ -35,10 +36,10 @@
     {#key current.id}
       <Album id={current.id} />
     {/key}
-  {:else if current.page === 'notfound'}
-    <p class="empty">No existe esta página. <a href="/carpetas">Ir a Carpetas</a></p>
+  {:else if current.page === 'listas'}
+    <Listas />
   {:else}
-    <p class="empty">Esta sección llega en las próximas tareas.</p>
+    <p class="empty">No existe esta página. <a href="/carpetas">Ir a Carpetas</a></p>
   {/if}
 </main>
 
