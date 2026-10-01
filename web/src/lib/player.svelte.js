@@ -147,13 +147,13 @@ function onEnded() {
   player.queue = q
   persist()
   const entry = Q.current(q)
-  if (standby.dataset.key === String(entry.key)) {
-    // The next track is loaded: swap the elements.
+  if (standby.dataset.key === String(entry.key) && !standby.error) {
+    // The next track is loaded and usable: swap the elements.
     ;[active, standby] = [standby, active]
     standby.removeAttribute('src')
     standby.dataset.key = ''
     show(entry, active.dataset.seekable === '1')
-    active.play().catch(() => {})
+    active.play().catch((e) => { if (active.error) onError() })
     return
   }
   start(entry, 0, true)
@@ -260,8 +260,10 @@ export function toggle() {
   const entry = Q.current(player.queue)
   if (!entry) return
   audios()
-  if (active.dataset.key !== String(entry.key)) {
-    start(entry, player.time, true) // after a reload: start where it was
+  if (active.dataset.key !== String(entry.key) || active.error) {
+    // after a reload or after a failure: start fresh with error counter reset
+    errors = 0
+    start(entry, player.time, true)
     return
   }
   if (active.paused) active.play().catch(() => {})
