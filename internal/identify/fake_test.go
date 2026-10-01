@@ -49,7 +49,7 @@ type fakeMB struct {
 	covers   map[string][]byte // "kind/id"
 	err      error             // returned by every call when set
 	calls    []string
-	onSearch func() // called before every search answers, outside the lock
+	onSearch func() // called when a search arrives, before it is recorded and answered
 }
 
 func (f *fakeMB) record(call string) error {
@@ -73,11 +73,11 @@ func (f *fakeMB) count(prefix string) int {
 
 func (f *fakeMB) SearchReleases(ctx context.Context, q musicbrainz.SearchQuery) ([]musicbrainz.ReleaseHit, error) {
 	key := fmt.Sprintf("%s|%s|%t", q.Title, q.Artist, q.Various)
-	if err := f.record("search " + key); err != nil {
-		return nil, err
-	}
 	if f.onSearch != nil {
 		f.onSearch()
+	}
+	if err := f.record("search " + key); err != nil {
+		return nil, err
 	}
 	return f.search[key], nil
 }

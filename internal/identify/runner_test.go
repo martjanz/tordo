@@ -440,3 +440,122 @@ func TestRunAppliesBeforeNetworkWork(t *testing.T) {
 		t.Fatalf("identity not restored before the first request: %+v", during)
 	}
 }
+
+// blockingSearch makes the fake's searches announce themselves on started and
+// wait for a token on release. The searches fail offline, so every run
+// searches again.
+func blockingSearch(mb *fakeMB) (started chan struct{}, release chan struct{}) {
+	started, release = make(chan struct{}, 10), make(chan struct{}, 10)
+	mb.err = fmt.Errorf("%w: prueba", httpx.ErrOffline)
+	mb.onSearch = func() {
+		started <- struct{}{}
+		<-release
+	}
+	return started, release
+}
+
+func recv(t *testing.T, ch chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+func waitIdle(t *testing.T, r *Runner) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+		r.mu.Lock()
+		running := r.running
+		r.mu.Unlock()
+		if !running {
+			return
+		}
+	}
+	t.Fatal("the runner never went idle")
+}
+
+func TestTriggerDuringRunFollowsWithOneMoreRun(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	started, release := blockingSearch(mb)
+	r, _ := newRunner(t, st, mb, nil)
+	r.Trigger()
+	recv(t, started, "the first run's search")
+	r.Trigger() // during the run
+	r.Trigger() // coalesced with the previous one
+	release <- struct{}{}
+	recv(t, started, "the follow-up run's search")
+	release <- struct{}{}
+	waitIdle(t, r)
+	if n := mb.count("search "); n != 2 {
+		t.Fatalf("searches = %d, want 2 (one run plus exactly one follow-up)", n)
+	}
+}
+
+func TestCloseCancelsPendingRetry(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	mb.err = fmt.Errorf("%w: prueba", httpx.ErrOffline)
+	r, _ := newRunner(t, st, mb, nil)
+	cancelled := 0
+	r.After = func(d time.Duration, f func()) func() { return func() { cancelled++ } }
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if r.Status().State != StateOffline {
+		t.Fatalf("state = %q", r.Status().State)
+	}
+	r.Close()
+	if cancelled != 1 {
+		t.Fatalf("pending retry cancelled %d times, want 1", cancelled)
+	}
+}
+
+func TestCloseWaitsForRunInProgress(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	started, release := blockingSearch(mb)
+	r, _ := newRunner(t, st, mb, nil)
+	r.Trigger()
+	recv(t, started, "the run's search")
+	closed := make(chan struct{})
+	go func() { r.Close(); close(closed) }()
+	select {
+	case <-closed:
+		t.Fatal("Close returned while a run was in progress")
+	case <-time.After(50 * time.Millisecond):
+	}
+	release <- struct{}{}
+	recv(t, closed, "Close to return")
+	if r.Status().State == StateRunning {
+		t.Fatalf("state = %q after Close", r.Status().State)
+	}
+}
+
+func TestTriggerAfterCloseDoesNothing(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	r, _ := newRunner(t, st, mb, nil)
+	r.Close()
+	r.Trigger()
+	r.Close() // would wait for a run the Trigger had wrongly started
+	if len(mb.calls) != 0 || r.Status().State != StateIdle {
+		t.Fatalf("calls %q, state %q", mb.calls, r.Status().State)
+	}
+}
+
+func TestRunDuringBackgroundRunIsBusy(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	started, release := blockingSearch(mb)
+	r, _ := newRunner(t, st, mb, nil)
+	r.Trigger()
+	recv(t, started, "the run's search")
+	if err := r.Run(context.Background()); !errors.Is(err, ErrBusy) {
+		t.Fatalf("err = %v, want ErrBusy", err)
+	}
+	release <- struct{}{}
+	waitIdle(t, r)
+}
