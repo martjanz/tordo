@@ -26,6 +26,9 @@ func Norm(s string) string {
 	var b strings.Builder
 	space := false
 	for _, r := range s {
+		if unicode.Is(unicode.Mn, r) { // the accent of a decomposed letter
+			continue
+		}
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			if space && b.Len() > 0 {
 				b.WriteByte(' ')

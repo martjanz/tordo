@@ -1,10 +1,13 @@
 package grouping
 
 import (
+	"path"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"tordo/internal/audiofile"
+	"tordo/internal/nameparse"
 )
 
 var roots = []string{"../musica"}
@@ -65,15 +68,18 @@ func TestDiscFoldersMergeIntoOneAlbum(t *testing.T) {
 	r := Build([]Track{
 		tr(1, base+"/Noel Rosa - Noel pela primeira vez Cd 01/01 - x.mp3", audiofile.Tags{Title: "x", Artist: "Noel Rosa", Album: "Noel pela primeira vez", Track: 1}),
 		tr(2, base+"/Noel Rosa - Noel pela primeira vez Cd 02 -x/16 - y.mp3", audiofile.Tags{Title: "y", Artist: "Noel Rosa", Album: "Noel pela primeira vez CD 2", Track: 16}),
+		// Real tags on other discs of the same set: the disc folder, not the tag, names the album.
+		tr(3, base+"/Noel Rosa - Noel pela primeira vez Cd 03 -x/05 - z.mp3", audiofile.Tags{Title: "z", Artist: "Noel Rosa", Album: "Noel Pela Primeira Vez (03)", Track: 5}),
+		tr(4, base+"/Noel Rosa - Noel pela primeira vez Cd 05 -x/05 - w.mp3", audiofile.Tags{Title: "w", Artist: "Noel Rosa", Album: "Noel Pela Primeira Vez - disc", Track: 5}),
 	}, nil, roots)
 	if len(r.Albums) != 1 {
 		t.Fatalf("albums = %+v", r.Albums)
 	}
 	a := r.Albums[0]
-	if a.Dir != base || a.Discs != 2 || a.Tracks != 2 || a.Title != "Noel pela primeira vez" {
+	if a.Dir != base || a.Discs != 5 || a.Tracks != 4 || a.Title != "Noel pela primeira vez" {
 		t.Fatalf("album = %+v", a)
 	}
-	if r.Tracks[0].Disc != 1 || r.Tracks[1].Disc != 2 {
+	if r.Tracks[0].Disc != 1 || r.Tracks[1].Disc != 2 || r.Tracks[2].Disc != 3 || r.Tracks[3].Disc != 5 {
 		t.Fatalf("discs = %+v", r.Tracks)
 	}
 }
@@ -125,5 +131,88 @@ func TestPositionFromFolderPrefix(t *testing.T) {
 	r := Build([]Track{tr(1, d+"/01.mp3", audiofile.Tags{Title: "a", Artist: "Rata Blanca", Album: "Magos, Espadas y Rosas"})}, nil, roots)
 	if r.Albums[0].Position != 599 {
 		t.Fatalf("Position = %d", r.Albums[0].Position)
+	}
+}
+
+func TestStrayAlbumTagsJoinTheFolderAlbum(t *testing.T) {
+	d := "../musica/Brasil/Elza Soares/(1964-1965) Na Roda Do Samba , Um Show De Elza"
+	main := audiofile.Tags{Artist: "Elza Soares", AlbumArtist: "Elza Soares", Album: "Na Roda do Samba / Um Show de Elza"}
+	var tracks []Track
+	for i := int64(1); i <= 5; i++ {
+		tracks = append(tracks, tr(i, d+"/0"+string(rune('0'+i))+".mp3", main))
+	}
+	tracks = append(tracks,
+		tr(6, d+"/06.mp3", audiofile.Tags{Artist: "Elza Soares", Album: "Na Roda do Samba"}),
+		tr(7, d+"/07.mp3", audiofile.Tags{Artist: "Elza Soares", Album: "Um Show de Elza"}))
+	r := Build(tracks, nil, roots)
+	if len(r.Albums) != 1 || r.Albums[0].Tracks != 7 || r.Albums[0].Title != "Na Roda do Samba / Um Show de Elza" {
+		t.Fatalf("albums = %+v", r.Albums)
+	}
+	for _, x := range r.Tracks {
+		if x.AlbumKey != r.Albums[0].Key {
+			t.Fatalf("track %d in %q", x.FileID, x.AlbumKey)
+		}
+	}
+}
+
+func TestSeveralRealAlbumsInOneFolderStaySeparate(t *testing.T) {
+	d := "../musica/USA/Anthology of American Folk Music, Volumes 1-3"
+	var tracks []Track
+	for i, vol := range []string{"Volume 1: Ballads", "Volume 2: Social Music", "Volume 3: Songs"} {
+		for j := 0; j < 3; j++ {
+			id := int64(i*3 + j + 1)
+			tracks = append(tracks, tr(id, d+"/"+strconv.FormatInt(id, 10)+".flac", audiofile.Tags{Artist: "x", AlbumArtist: "Various Artists", Album: "Anthology of American Folk Music, " + vol}))
+		}
+	}
+	if r := Build(tracks, nil, roots); len(r.Albums) != 3 {
+		t.Fatalf("albums = %+v", r.Albums)
+	}
+}
+
+func TestSelectionFolderIsOneAlbum(t *testing.T) {
+	d := "../musica/Uruguay/Selección de murgas"
+	r := Build([]Track{
+		tr(1, d+"/a1.mp3", audiofile.Tags{Artist: "Asaltantes con Patente", Album: "Asaltantes"}),
+		tr(2, d+"/a2.mp3", audiofile.Tags{Artist: "Asaltantes con Patente", Album: "Asaltantes"}),
+		tr(3, d+"/a3.mp3", audiofile.Tags{Artist: "Asaltantes con Patente", Album: "Asaltantes"}),
+		tr(4, d+"/m1.mp3", audiofile.Tags{Artist: "La Nueva ola", AlbumArtist: "La Nueva ola", Album: "Carnaval uruguayo vol 3 (macondo)"}),
+		tr(5, d+"/m2.mp3", audiofile.Tags{Artist: "Curtidores", AlbumArtist: "Curtidores", Album: "Carnaval uruguayo vol 3 (macondo)"}),
+		tr(6, d+"/b.mp3", audiofile.Tags{Artist: "Araca la Cana", Album: "Araca la Cana 1973"}),
+		tr(7, d+"/c.mp3", audiofile.Tags{Artist: "Don Timoteo", Album: "Don Timoteo 1985"}),
+		tr(8, d+"/e.mp3", audiofile.Tags{Artist: "La Mojigata", Album: "La Mojigata 2002"}),
+	}, nil, roots)
+	if len(r.Albums) != 1 {
+		t.Fatalf("albums = %+v", r.Albums)
+	}
+	a := r.Albums[0]
+	if a.Title != "Selección de murgas" || a.Artist != Various || !a.Compilation || a.Tracks != 8 {
+		t.Fatalf("album = %+v", a)
+	}
+}
+
+func TestOneTrackAlbumTagsMakeOneFolderAlbum(t *testing.T) {
+	d := "../musica/Uruguay/Alfredo Zitarrosa/[1980-1981] Casi en privado (programa de Radio Educación - Mexico)"
+	r := Build([]Track{
+		tr(1, d+"/01.mp3", audiofile.Tags{Artist: "Alfredo Zitarrosa", Album: "P.1"}),
+		tr(2, d+"/02.mp3", audiofile.Tags{Artist: "Alfredo Zitarrosa", Album: "P.2"}),
+		tr(3, d+"/03.mp3", audiofile.Tags{Artist: "Alfredo Zitarrosa", Album: "P.3"}),
+	}, nil, roots)
+	if len(r.Albums) != 1 {
+		t.Fatalf("albums = %+v", r.Albums)
+	}
+	a := r.Albums[0]
+	if want := nameparse.ParseFolder(path.Base(d)).Album; a.Title != want || a.Artist != "Alfredo Zitarrosa" || a.Compilation || a.Tracks != 3 {
+		t.Fatalf("album = %+v, want title %q", a, want)
+	}
+}
+
+func TestDiscFolderNotesDoNotSplitTheSet(t *testing.T) {
+	base := "../musica/Uruguay"
+	r := Build([]Track{
+		tr(1, base+"/Varios - Candombe de llamadas CD 1 (selección, falta tema 20)/01.mp3", audiofile.Tags{Artist: "Senegal", Album: "Candombe de llamadas CD 1"}),
+		tr(2, base+"/Varios - Candombe de llamadas CD 2/01.mp3", audiofile.Tags{Artist: "Nicolás Arnicho", Album: "Candombe de llamadas CD 2"}),
+	}, nil, roots)
+	if len(r.Albums) != 1 || r.Albums[0].Discs != 2 || r.Albums[0].Artist != Various {
+		t.Fatalf("albums = %+v", r.Albums)
 	}
 }

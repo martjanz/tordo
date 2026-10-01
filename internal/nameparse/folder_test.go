@@ -36,6 +36,9 @@ func TestParseFolder(t *testing.T) {
 		{"15 discos de los 60", Folder{Album: "15 discos de los 60"}},
 		{"Latinoamérica 600", Folder{Album: "Latinoamérica 600"}},
 		{"07 - Soda Stereo - Signos", Folder{Position: 7, Artist: "Soda Stereo", Album: "Signos"}},
+		{"[1980-1981] Casi en privado (programa de Radio Educación - Mexico)",
+			Folder{Album: "Casi en privado (programa de Radio Educación - Mexico)", Year: 1980}},
+		{"[1962] en Radio Centenario", Folder{Album: "en Radio Centenario", Year: 1962}},
 	}
 	for _, c := range cases {
 		if got := ParseFolder(c.in); got != c.want {
@@ -51,6 +54,7 @@ func TestNorm(t *testing.T) {
 		"Nelson_Cavaquinho":   "nelson cavaquinho",
 		"Ñandú & Çedilla":     "nandu cedilla",
 		"Os Originais do Sam": "os originais do sam",
+		"Império Serrano":    "imperio serrano", // macOS hands out decomposed (NFD) names
 		"":                    "",
 	}
 	for in, want := range cases {

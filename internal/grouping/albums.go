@@ -2,6 +2,7 @@ package grouping
 
 import (
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -74,13 +75,19 @@ func buildAlbums(tracks []Track, images []Image, isRoot map[string]bool) Result 
 			loose = append(loose, m)
 			continue
 		}
-		key := albumDir + "\x00" + nameparse.Norm(m.album)
+		keyName := m.album
+		if albumDir != dir { // disc folders of one set disagree in their tags and notes
+			keyName = firstOf(tidyNotes(af.Album), keyName)
+		}
+		key := albumDir + "\x00" + nameparse.Norm(keyName)
 		m.out.AlbumKey = key
 		if _, ok := groups[key]; !ok {
 			order = append(order, key)
 		}
 		groups[key] = append(groups[key], m)
 	}
+
+	order = settleFolders(groups, order, isRoot)
 
 	covers := indexImages(images)
 	var res Result
@@ -100,6 +107,87 @@ func buildAlbums(tracks []Track, images []Image, isRoot map[string]bool) Result 
 	}
 	return res
 }
+
+// settleFolders fixes folders whose album tags disagree. Stray tags (groups
+// of one or two tracks) join the folder's main album when it holds two
+// thirds of the folder. Otherwise, a folder made mostly of one- or two-track
+// albums is a selection: one album named after the folder. Disc sets and
+// root folders are left alone. It returns the new album order.
+func settleFolders(groups map[string][]*member, order []string, isRoot map[string]bool) []string {
+	byDir := map[string][]string{}
+	var dirs []string
+	for _, k := range order {
+		m := groups[k][0]
+		if m.out.Dir != m.albumDir || isRoot[m.albumDir] {
+			continue
+		}
+		if _, ok := byDir[m.albumDir]; !ok {
+			dirs = append(dirs, m.albumDir)
+		}
+		byDir[m.albumDir] = append(byDir[m.albumDir], k)
+	}
+	renamed := map[string]string{} // old key → new key ("" drops it from the order)
+	for _, d := range dirs {
+		keys := byDir[d]
+		if len(keys) < 2 {
+			continue
+		}
+		n, main, small := 0, keys[0], 0
+		for _, k := range keys {
+			n += len(groups[k])
+			if len(groups[k]) > len(groups[main]) {
+				main = k
+			}
+			if len(groups[k]) <= 2 {
+				small++
+			}
+		}
+		switch {
+		case len(groups[main])*3 >= n*2:
+			for _, k := range keys {
+				if k != main && len(groups[k]) <= 2 {
+					for _, m := range groups[k] {
+						m.out.AlbumKey = main
+					}
+					groups[main] = append(groups[main], groups[k]...)
+					delete(groups, k)
+					renamed[k] = ""
+				}
+			}
+		case len(keys) >= 3 && small*2 >= len(keys):
+			var ms []*member
+			for _, k := range keys {
+				ms = append(ms, groups[k]...)
+				delete(groups, k)
+				renamed[k] = ""
+			}
+			title := firstOf(ms[0].folder.Album, path.Base(d))
+			key := d + "\x00" + nameparse.Norm(title)
+			for _, m := range ms {
+				m.album, m.tags.AlbumArtist, m.out.AlbumKey = title, "", key
+			}
+			groups[key] = ms
+			renamed[keys[0]] = key
+		}
+	}
+	if len(renamed) == 0 {
+		return order
+	}
+	var out []string
+	for _, k := range order {
+		if nk, ok := renamed[k]; !ok {
+			out = append(out, k)
+		} else if nk != "" {
+			out = append(out, nk)
+		}
+	}
+	return out
+}
+
+var reNotes = regexp.MustCompile(`\s*[(\[][^)\]]*[)\]]`)
+
+// tidyNotes drops bracketed notes: "Candombe de llamadas (selección)".
+func tidyNotes(s string) string { return strings.TrimSpace(reNotes.ReplaceAllString(s, "")) }
 
 func memberLess(a, b *member) bool {
 	if a.out.Disc != b.out.Disc {

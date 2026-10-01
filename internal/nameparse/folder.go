@@ -20,7 +20,8 @@ var (
 	rePosBracket = regexp.MustCompile(`^\[\s*(?:[A-Za-z]{1,5}\s*[-_ ]?\s*)?(\d{1,4})\s*\]\s*`)
 	rePosNumber  = regexp.MustCompile(`^(\d{1,3})\s*[.)\-_]\s*`)
 	reNoise      = regexp.MustCompile(`(?i)\s*[\[(]\s*(?:\d{2,3}\s*k(?:b|bps)?|v0|v2|320|aac[^)\]]*|mp3[^)\]]*|flac[^)\]]*|ogg[^)\]]*|digital|lp|vinyl|web|cd|cdrip|hi-?res|\d{2}\s*[-/ ]\s*\d{2,3}(?:[.,]\d)?(?:\s*khz)?|\d{2}\s*bits?[^)\]]*)\s*[\])]`)
-	reYearParen  = regexp.MustCompile(`\s*[\[(]((?:19|20)\d{2})[\])]`)
+	reYearParen  = regexp.MustCompile(`\s*[\[(]((?:19|20)\d{2})(?:\s*[-–/]\s*(?:19|20)?\d{2})?[\])]`)
+	reYear       = regexp.MustCompile(`^(?:19|20)\d{2}$`)
 	reYearLead   = regexp.MustCompile(`^((?:19|20)\d{2})\s*[-–.]\s*`)
 	reYearMiddle = regexp.MustCompile(`\s+[-–]\s*((?:19|20)\d{2})\s*[-–]\s*`)
 	reYearTail   = regexp.MustCompile(`(?:\s*[-–]\s*|\s+)((?:19|20)\d{2})$`)
@@ -33,7 +34,7 @@ var (
 func ParseFolder(name string) Folder {
 	var f Folder
 	s := strings.ReplaceAll(name, "_", " ")
-	if m := rePosBracket.FindStringSubmatchIndex(s); m != nil {
+	if m := rePosBracket.FindStringSubmatchIndex(s); m != nil && !(m[2] == 1 && reYear.MatchString(s[m[2]:m[3]])) { // "[1962] …" is a year
 		f.Position, _ = strconv.Atoi(s[m[2]:m[3]])
 		s = s[m[1]:]
 	} else if m := rePosNumber.FindStringSubmatchIndex(s); m != nil {
@@ -44,7 +45,7 @@ func ParseFolder(name string) Folder {
 	s, f.Disc = StripDisc(s)
 	s, f.Year = stripYear(s)
 	s = tidy(reSeparators.ReplaceAllString(s, " - "))
-	if loc := reSplit.FindStringIndex(s); loc != nil {
+	if loc := splitOutside(s); loc != nil {
 		f.Artist, f.Album = tidy(s[:loc[0]]), tidy(s[loc[1]:])
 	} else {
 		f.Album = s
@@ -53,6 +54,26 @@ func ParseFolder(name string) Folder {
 		f.Various, f.Artist = true, ""
 	}
 	return f
+}
+
+// splitOutside finds the first "Artist - Album" separator that is not
+// inside brackets: "Casi en privado (… - Mexico)" is not split.
+func splitOutside(s string) []int {
+	for _, loc := range reSplit.FindAllStringIndex(s, -1) {
+		depth := 0
+		for _, r := range s[:loc[0]] {
+			switch r {
+			case '(', '[':
+				depth++
+			case ')', ']':
+				depth--
+			}
+		}
+		if depth <= 0 {
+			return loc
+		}
+	}
+	return nil
 }
 
 // stripYear takes the release year out of a name: "(1990)", "[1980]",
