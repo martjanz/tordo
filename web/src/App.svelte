@@ -1,5 +1,6 @@
 <script>
   import Nav from './components/Nav.svelte'
+  import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
@@ -30,6 +31,8 @@
     <p class="empty">Esta sección llega en las próximas tareas.</p>
   {/if}
 </main>
+
+<Reproductor />
 
 <div class="notices" aria-live="polite">
   {#each app.notices as n (n.id)}
