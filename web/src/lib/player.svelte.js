@@ -153,7 +153,9 @@ function onEnded() {
     standby.removeAttribute('src')
     standby.dataset.key = ''
     show(entry, active.dataset.seekable === '1')
-    active.play().catch((e) => { if (active.error) onError() })
+    // media errors arrive through the element's error event (mine); autoplay
+    // refusal is ignored here and will pause the element if the user retries.
+    active.play().catch(() => {})
     return
   }
   start(entry, 0, true)
