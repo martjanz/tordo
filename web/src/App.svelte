@@ -1,4 +1,5 @@
 <script>
+  import Album from './pages/Album.svelte'
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
@@ -25,7 +26,11 @@
 <Nav page={current.page} />
 
 <main>
-  {#if current.page === 'notfound'}
+  {#if current.page === 'album'}
+    {#key current.id}
+      <Album id={current.id} />
+    {/key}
+  {:else if current.page === 'notfound'}
     <p class="empty">No existe esta página. <a href="/carpetas">Ir a Carpetas</a></p>
   {:else}
     <p class="empty">Esta sección llega en las próximas tareas.</p>
