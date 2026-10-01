@@ -67,7 +67,7 @@ func migrate(db *sql.DB) error {
 	if err := db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		return err
 	}
-	if v < 2 {
+	if v < schemaVersion {
 		if _, err := db.Exec(`DROP TABLE IF EXISTS tracks; DROP TABLE IF EXISTS album_genres;
 			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders`); err != nil {
 			return err
