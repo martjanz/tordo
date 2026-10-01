@@ -47,9 +47,17 @@ func Identify(ctx context.Context, api API, q Query, fetched map[string]musicbra
 		}
 	}
 	best := map[string]store.Candidate{}
-	keep := func(c store.Candidate) {
-		if old, ok := best[c.ReleaseID]; !ok || c.Score > old.Score {
+	lookedUp := make(map[string]bool)
+	keep := func(c store.Candidate, isLookup bool) {
+		if isLookup {
+			// A looked-up score always replaces any hit score
 			best[c.ReleaseID] = c
+			lookedUp[c.ReleaseID] = true
+		} else if !lookedUp[c.ReleaseID] {
+			// For hit scores, keep the max only if not already looked up
+			if old, ok := best[c.ReleaseID]; !ok || c.Score > old.Score {
+				best[c.ReleaseID] = c
+			}
 		}
 	}
 	lookups := 0
@@ -66,10 +74,13 @@ variants:
 		scores := make(map[string]float64, len(hits))
 		for _, h := range hits {
 			scores[h.ID] = hitScore(v, q, h)
-			keep(candidateOfHit(h, scores[h.ID]))
+			keep(candidateOfHit(h, scores[h.ID]), false)
 		}
-		sort.SliceStable(hits, func(i, j int) bool { return scores[hits[i].ID] > scores[hits[j].ID] })
-		for _, h := range hits {
+		// Sort a copy to avoid mutating the API's returned slice
+		sortedHits := make([]musicbrainz.ReleaseHit, len(hits))
+		copy(sortedHits, hits)
+		sort.SliceStable(sortedHits, func(i, j int) bool { return scores[sortedHits[i].ID] > scores[sortedHits[j].ID] })
+		for _, h := range sortedHits {
 			if scores[h.ID]+durationsWeight < Threshold {
 				break
 			}
@@ -87,7 +98,7 @@ variants:
 				continue
 			}
 			s := releaseScore(v, q, rel)
-			keep(candidateOf(rel, s))
+			keep(candidateOf(rel, s), true)
 			if s >= Threshold {
 				m.Status, m.ReleaseID, m.Confidence = store.StatusAuto, rel.ID, round(s)
 				break variants

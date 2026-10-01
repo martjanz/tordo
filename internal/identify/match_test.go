@@ -128,3 +128,43 @@ func TestIdentifyWithoutVariants(t *testing.T) {
 		t.Fatalf("match = %+v, err %v, calls %q", m, err, mb.calls)
 	}
 }
+
+func TestIdentifyUsesLookupScoreNotHitScore(t *testing.T) {
+	const badID = "a1b2c3d4-0000-4000-8000-000000000099"
+	// Hit claims 2 tracks matching the query
+	badHit := musicbrainz.ReleaseHit{ID: badID, Title: "Signos", Artist: "Soda Stereo",
+		ArtistNames: []string{"Soda Stereo"}, Year: 1986, Country: "AR", Tracks: 2, Score: 100}
+	// But the release actually has 12 tracks with mismatched durations
+	badRelease := musicbrainz.Release{ID: badID, Title: "Signos (Extended)", Artist: "Soda Stereo",
+		ArtistNames: []string{"Soda Stereo"}, Year: 1986, Country: "AR",
+		Tracks: make([]musicbrainz.Track, 12)}
+	for i := 0; i < 12; i++ {
+		badRelease.Tracks[i] = musicbrainz.Track{Disc: 1, Position: i + 1, LengthMs: 100000}
+	}
+	mb := &fakeMB{
+		search:   map[string][]musicbrainz.ReleaseHit{"Signos|Soda Stereo|false": {badHit}},
+		releases: map[string]musicbrainz.Release{badID: badRelease},
+	}
+	q := Query{Variants: []Variant{{Title: "Signos", Artist: "Soda Stereo"}}, Year: 1986, Durations: []int64{231500, 209000}}
+	m, err := Identify(context.Background(), mb, q, map[string]musicbrainz.Release{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Status != store.StatusUnmatched {
+		t.Fatalf("expected unmatched, got status %v", m.Status)
+	}
+	if len(m.Candidates) == 0 {
+		t.Fatalf("expected candidates, got none")
+	}
+	// The candidate's score should be based on releaseScore (low due to track mismatch),
+	// not the hitScore (high due to 2 matching tracks)
+	hitScoreVal := hitScore(q.Variants[0], q, badHit)
+	lookupScoreVal := releaseScore(q.Variants[0], q, badRelease)
+	if hitScoreVal >= Threshold && lookupScoreVal < Threshold {
+		// Verify the hit score alone would pass but the lookup score doesn't
+		if m.Candidates[0].Score != round(lookupScoreVal) {
+			t.Fatalf("candidate score %v should equal round(releaseScore) %v, not round(hitScore) %v",
+				m.Candidates[0].Score, round(lookupScoreVal), round(hitScoreVal))
+		}
+	}
+}
