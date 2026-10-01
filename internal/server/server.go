@@ -1,26 +1,33 @@
-// Package server exposes the catalog as a JSON API. It only answers requests
-// addressed to localhost (LAN access and its PIN come in M5).
+// Package server exposes the catalog as a JSON API, the tracks' audio and
+// pictures, and the embedded web app. It only answers requests addressed to
+// localhost (LAN access and its PIN come in M5).
 package server
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"tordo/internal/covers"
 	"tordo/internal/scan"
 	"tordo/internal/store"
+	"tordo/internal/stream"
 )
 
 type Server struct {
 	Store      *store.Store
-	Scanner    *scan.Scanner // nil in browse-only mode
-	Identifier Identifier    // nil in browse-only mode
-	AppDir     string        // where cache paths are relative to
+	Scanner    *scan.Scanner   // nil in browse-only mode
+	Identifier Identifier      // nil in browse-only mode
+	AppDir     string          // where catalog and cache paths are relative to
+	Streamer   stream.Streamer // FFmpeg "" when there is none
+	Covers     *covers.Covers  // nil: no pictures
+	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
 }
 
@@ -41,6 +48,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/genres/unmapped", s.unmappedGenres)
 	mux.HandleFunc("GET /api/genres/aliases", s.genreAliases)
 	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
+	mux.HandleFunc("GET /api/play", s.play)
+	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
+	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
+	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
+	mux.Handle("GET /", s.static())
 	return localOnly(mux)
 }
 
@@ -167,7 +179,23 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carpeta no encontrada", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, f)
+	art, err := s.Store.FolderArt(f.Path)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	trail, err := s.Store.FolderTrail(f.Path)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	// art: up to four album ids per subfolder, for its card's picture;
+	// trail: the folders from the root down to this one.
+	writeJSON(w, struct {
+		store.FolderView
+		Art   map[string][]int64 `json:"art"`
+		Trail []store.Crumb      `json:"trail"`
+	}{f, art, trail})
 }
 
 func (s *Server) collections(w http.ResponseWriter, r *http.Request) {

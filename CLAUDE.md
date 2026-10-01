@@ -27,7 +27,9 @@ Sibling project of Cinexplorer (`/Users/martin/x-projects/cinexplorer`), same st
 
 ```bash
 go test ./...                       # full suite (no network)
-go run ./cmd/tordo -dir .run        # run with config and catalog in .run/
+(cd web && npm test)                # web app tests (Vitest)
+(cd web && npm run build)           # web app into internal/server/dist/ (embedded; not committed)
+go run ./cmd/tordo -dir .run        # run with config and catalog in .run/ (build the web app first)
 bash scripts/build.sh               # cross-compile into dist/tordo/
 TORDO_CORPUS=/path/to/music go test ./internal/audiofile -run Corpus -v -timeout 0   # native reader vs ffprobe
 ```

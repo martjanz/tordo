@@ -105,7 +105,7 @@ func readASF(s source) (Info, error) {
 			if err != nil {
 				return info, err
 			}
-			readASFExtContent(d, &info.Tags)
+			readASFExtContent(d, &info.Tags, s.pic)
 		}
 		off += size
 	}
@@ -145,7 +145,7 @@ func readASFContent(d []byte, t *Tags) {
 
 // readASFExtContent reads the Extended Content Description object: named
 // attributes such as WM/AlbumTitle, WM/TrackNumber or MusicBrainz/Album Id.
-func readASFExtContent(d []byte, t *Tags) {
+func readASFExtContent(d []byte, t *Tags, pic *picture) {
 	if len(d) < 2 {
 		return
 	}
@@ -174,6 +174,7 @@ func readASFExtContent(d []byte, t *Tags) {
 		case 1: // bytes
 			if name == "WM/Picture" {
 				t.HasCover = true
+				pic.offerASF(v)
 			}
 		case 2, 3: // bool, dword
 			if len(v) >= 4 {

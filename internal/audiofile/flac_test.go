@@ -67,7 +67,7 @@ func TestFLACBadMagic(t *testing.T) {
 func TestVorbisCommentTruncated(t *testing.T) {
 	b := vorbisComment("v", "TITLE=x")
 	var tg Tags
-	if err := parseVorbisComment(b[:len(b)-3], &tg); !errors.Is(err, ErrFormat) {
+	if err := parseVorbisComment(b[:len(b)-3], &tg, nil); !errors.Is(err, ErrFormat) {
 		t.Fatalf("err = %v, want ErrFormat", err)
 	}
 }

@@ -1,10 +1,11 @@
 # Tordo
 
 A local, portable catalog and player for a music collection spread over a few
-folders of one drive. **Status: M2 (identification)** — scanning, native tag reading,
+folders of one drive. **Status: M3a (player)** — scanning, native tag reading,
 audio fingerprints, albums, folders and collections, automatic MusicBrainz and
-Discogs identification, and a localhost JSON API. The web interface and the player
-come in later milestones; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
+Discogs identification, a localhost JSON API, and the web interface with the
+player. Explorar, search and the review pages come next (M3b); see
+`docs/superpowers/specs/2026-10-01-tordo-design.md`.
 
 - **Read-only** on your music: it never moves, renames, re-tags or deletes files.
 - **Portable:** one executable per OS; the catalog (`tordo.db`) and
@@ -15,7 +16,8 @@ come in later milestones; see `docs/superpowers/specs/2026-10-01-tordo-design.md
 
 Put the `tordo/` folder on the drive, next to your music folders, and run the
 binary for your system. The first run creates `config.json` with the sibling
-folders as roots, scans them and prints the API address.
+folders as roots, scans them and opens Tordo in the browser (`-no-browser`
+to skip that; the address is in the log).
 
 ```json
 {
@@ -33,6 +35,17 @@ Soulseek's `downloading`, Apple Music libraries) are always skipped.
 `ffprobe`, when on the `PATH`, reads the formats the built-in readers don't
 (APE, WavPack, raw AAC…).
 
+### Listening
+
+Browse the folders as they are on disk (collections show their albums in
+order), open an album and play it, shuffle a folder, queue tracks. The queue
+and the volume are kept in the browser, per device. MP3, FLAC, AAC, Opus,
+Vorbis and WAV play as they are, with seeking; WMA, ALAC, AIFF, APE and
+WavPack need `ffmpeg` on the `PATH` and are converted on the fly (lossless to
+FLAC, lossy to MP3), without seeking. Covers come from the album folder's
+image or the files' embedded pictures; thumbnails are cached in
+`cache/thumbs/`.
+
 | Method and path | What it returns |
 |---|---|
 | `GET /api/status` | scan progress and catalog counts |
@@ -44,6 +57,10 @@ Soulseek's `downloading`, Apple Music libraries) are always skipped.
 | `GET /api/genres` | the taxonomy of genres and styles |
 | `GET /api/review/unidentified` | albums awaiting identification review |
 | `PUT /api/albums/{id}/identification` | choose the identification for an album |
+| `GET /api/play?album=&folder=&track=&shuffle=1` | the tracks to queue, in order (at most 5000) |
+| `GET /stream/{trackId}` | a track's audio (`Range` for seeking; `?transcode=1` converts it) |
+| `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
+| `GET /api/covers/track/{id}?size=` | the picture embedded in a track's file |
 
 ## Identification
 
@@ -61,9 +78,14 @@ else works and the identification retries on its own.
 
 ## Development
 
+The web app (Svelte 5 + Vite, in `web/`) is embedded in the binary from
+`internal/server/dist/`, which is not committed: build it before `go run` or
+`go build`, or the browser shows a page asking for it.
+
 ```bash
 go test ./...                       # full suite, no network
+(cd web && npm ci && npm test && npm run build)   # web app tests and build
 go run ./cmd/tordo -dir .run        # config and catalog in .run/
-bash scripts/build.sh               # binaries in dist/tordo/
+bash scripts/build.sh               # web app, then binaries in dist/tordo/
 TORDO_CORPUS=/path/to/music go test ./internal/audiofile -run Corpus -v -timeout 0
 ```

@@ -81,7 +81,7 @@ func readOgg(s source) (Info, error) {
 		if len(comments) < 8 || string(comments[:8]) != "OpusTags" {
 			return info, fmt.Errorf("%w: faltan los comentarios Opus", ErrFormat)
 		}
-		if err := parseVorbisComment(comments[8:], &info.Tags); err != nil {
+		if err := parseVorbisComment(comments[8:], &info.Tags, s.pic); err != nil {
 			return info, err
 		}
 	case len(id) >= 30 && id[0] == 1 && string(id[1:7]) == "vorbis":
@@ -91,7 +91,7 @@ func readOgg(s source) (Info, error) {
 		if len(comments) < 7 || comments[0] != 3 || string(comments[1:7]) != "vorbis" {
 			return info, fmt.Errorf("%w: faltan los comentarios Vorbis", ErrFormat)
 		}
-		if err := parseVorbisComment(comments[7:], &info.Tags); err != nil {
+		if err := parseVorbisComment(comments[7:], &info.Tags, s.pic); err != nil {
 			return info, err
 		}
 	default:

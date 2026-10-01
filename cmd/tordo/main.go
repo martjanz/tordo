@@ -1,4 +1,5 @@
-// Command tordo catalogs a music library and serves the catalog on localhost.
+// Command tordo catalogs a music library and serves it, to browse and
+// listen, on localhost: it opens the browser at start.
 package main
 
 import (
@@ -16,12 +17,15 @@ import (
 
 	"tordo/internal/appdir"
 	"tordo/internal/config"
+	"tordo/internal/covers"
 	"tordo/internal/discogs"
 	"tordo/internal/identify"
 	"tordo/internal/musicbrainz"
+	"tordo/internal/platform"
 	"tordo/internal/scan"
 	"tordo/internal/server"
 	"tordo/internal/store"
+	"tordo/internal/stream"
 )
 
 const dbName = "tordo.db"
@@ -29,8 +33,9 @@ const dbName = "tordo.db"
 func main() {
 	dir := flag.String("dir", os.Getenv("TORDO_DIR"), "carpeta de la app (por defecto, la del ejecutable)")
 	port := flag.Int("port", 0, "puerto HTTP (0 = uno libre)")
+	noBrowser := flag.Bool("no-browser", false, "no abrir el navegador")
 	flag.Parse()
-	if err := run(*dir, *port); err != nil {
+	if err := run(*dir, *port, !*noBrowser); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -42,7 +47,7 @@ type app struct {
 	close   func() error
 }
 
-func run(dirOverride string, port int) error {
+func run(dirOverride string, port int, browser bool) error {
 	a, err := setup(dirOverride)
 	if err != nil {
 		return err
@@ -59,7 +64,13 @@ func run(dirOverride string, port int) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Tordo en http://%s/api/status (Ctrl+C para salir)", ln.Addr())
+	url := "http://" + ln.Addr().String() + "/"
+	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
+	if browser {
+		if err := platform.Open(url); err != nil {
+			log.Printf("no se pudo abrir el navegador: %v", err)
+		}
+	}
 	return http.Serve(ln, a.server.Handler())
 }
 
@@ -108,6 +119,16 @@ func setup(dirOverride string) (*app, error) {
 	if a.runner != nil { // only when set: a nil *Runner in the interface would not read as "none"
 		a.server.Identifier = a.runner
 	}
+	thumbs := "" // browse-only mode writes nothing, thumbnails included
+	if !readOnly {
+		thumbs = filepath.Join(appDir, "cache", "thumbs")
+	}
+	ffmpeg := stream.LookFFmpeg()
+	if ffmpeg == "" {
+		log.Print("sin ffmpeg: WMA, APE, WavPack, AIFF y ALAC no se pueden reproducir")
+	}
+	a.server.Streamer = stream.Streamer{FFmpeg: ffmpeg}
+	a.server.Covers = covers.New(st, appDir, thumbs)
 	return a, nil
 }
 

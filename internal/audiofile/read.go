@@ -26,23 +26,8 @@ func Read(ctx context.Context, path string) (Info, error) {
 
 // ReadNative reads the file with the built-in readers only.
 func ReadNative(path string) (Info, error) {
-	var read func(source) (Info, error)
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".mp3":
-		read = readMP3
-	case ".flac":
-		read = readFLAC
-	case ".ogg", ".oga", ".opus":
-		read = readOgg
-	case ".m4a", ".mp4":
-		read = readMP4
-	case ".wma", ".asf":
-		read = readASF
-	case ".wav":
-		read = readWAV
-	case ".aif", ".aiff", ".aifc":
-		read = readAIFF
-	default:
+	read := nativeReader(path)
+	if read == nil {
 		return Info{}, ErrUnsupported
 	}
 	f, err := os.Open(path)
@@ -54,7 +39,28 @@ func ReadNative(path string) (Info, error) {
 	if err != nil {
 		return Info{}, fmt.Errorf("%w: %v", ErrIO, err)
 	}
-	info, err := read(source{f, st.Size()})
+	info, err := read(source{r: f, size: st.Size()})
 	info.Reader = "native"
 	return info, err
+}
+
+// nativeReader returns the built-in reader for path's extension, or nil.
+func nativeReader(path string) func(source) (Info, error) {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mp3":
+		return readMP3
+	case ".flac":
+		return readFLAC
+	case ".ogg", ".oga", ".opus":
+		return readOgg
+	case ".m4a", ".mp4":
+		return readMP4
+	case ".wma", ".asf":
+		return readASF
+	case ".wav":
+		return readWAV
+	case ".aif", ".aiff", ".aifc":
+		return readAIFF
+	}
+	return nil
 }

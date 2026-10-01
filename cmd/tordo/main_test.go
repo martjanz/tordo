@@ -36,6 +36,9 @@ func TestSetupCreatesConfigAndScans(t *testing.T) {
 	if a.runner == nil || a.server.Identifier == nil || a.scanner.OnDone == nil {
 		t.Fatal("expected an identification runner started after scans")
 	}
+	if a.server.AppDir != app || a.server.Covers == nil || a.server.Covers.CacheDir != filepath.Join(app, "cache", "thumbs") {
+		t.Fatalf("server = %+v", a.server)
+	}
 	if err := a.scanner.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}

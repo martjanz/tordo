@@ -43,11 +43,18 @@ func readFLAC(s source) (Info, error) {
 			if err != nil {
 				return info, err
 			}
-			if err := parseVorbisComment(d, &info.Tags); err != nil {
+			if err := parseVorbisComment(d, &info.Tags, s.pic); err != nil {
 				return info, err
 			}
 		case 6: // PICTURE
 			info.Tags.HasCover = true
+			if s.pic != nil && n >= 4 {
+				typ, err := s.read(pos, 4)
+				if err != nil {
+					return info, err
+				}
+				s.pic.offer(be32(typ) == 3, nil, "", Range{pos, int64(n)}, true)
+			}
 		case 127:
 			return info, fmt.Errorf("%w: bloque FLAC inválido", ErrFormat)
 		}

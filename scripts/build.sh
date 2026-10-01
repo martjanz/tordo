@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Cross-compiles Tordo for Windows, macOS (universal) and Linux (amd64,
-# arm64) into dist/tordo/.
+# Builds the web app and cross-compiles Tordo for Windows, macOS (universal)
+# and Linux (amd64, arm64) into dist/tordo/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+(cd web && npm ci && npm test && npm run build)
 out=dist/tordo
 mkdir -p "$out"
 export CGO_ENABLED=0

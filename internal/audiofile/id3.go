@@ -110,6 +110,9 @@ func readID3v2(s source, off int64, t *Tags) (int64, error) {
 		if v2, ok := v22Names[id]; ok {
 			id = v2
 		}
+		if id == "APIC" {
+			s.pic.offerID3(data, major == 2)
+		}
 		t.id3Frame(id, data)
 	}
 	return total, nil

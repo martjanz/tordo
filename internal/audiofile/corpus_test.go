@@ -2,6 +2,7 @@ package audiofile
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -73,5 +74,44 @@ func TestCorpus(t *testing.T) {
 	t.Logf("%d archivos; %d rechazados por el lector propio; %d con diferencias", files, failed, differ)
 	if files > 0 && failed*100 > files {
 		t.Errorf("el lector propio rechaza más del 1%% de los archivos")
+	}
+}
+
+// TestCorpusPictures checks that Picture extracts the embedded picture of
+// every file the readers saw one in:
+//
+//	TORDO_CORPUS=/Users/martin/Music go test ./internal/audiofile -run CorpusPictures -v -timeout 0
+func TestCorpusPictures(t *testing.T) {
+	root := os.Getenv("TORDO_CORPUS")
+	if root == "" {
+		t.Skip("TORDO_CORPUS no definido")
+	}
+	var withCover, empty, failed int
+	mimes := map[string]int{}
+	filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || nativeReader(p) == nil {
+			return nil
+		}
+		info, err := ReadNative(p)
+		if err != nil || !info.Tags.HasCover {
+			return nil
+		}
+		withCover++
+		_, mime, err := Picture(p)
+		if errors.Is(err, ErrNoPicture) {
+			empty++ // an empty or linked picture
+			return nil
+		}
+		if err != nil {
+			failed++
+			t.Logf("SIN IMAGEN %s: %v", p, err)
+			return nil
+		}
+		mimes[mime]++
+		return nil
+	})
+	t.Logf("%d archivos con imagen; %d vacías o enlazadas; %d sin extraer; tipos %v", withCover, empty, failed, mimes)
+	if withCover > 0 && failed*100 > withCover {
+		t.Errorf("no se extrae la imagen de más del 1%% de los archivos que la tienen")
 	}
 }
