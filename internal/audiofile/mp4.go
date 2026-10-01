@@ -224,8 +224,16 @@ func readMeta(s source, meta atom, t *Tags) error {
 
 func readItem(s source, item atom, t *Tags) error {
 	if item.typ == "covr" {
-		t.HasCover = true // not read: pictures can be large
-		return nil
+		t.HasCover = true // read only by Picture: pictures can be large
+		if s.pic == nil {
+			return nil
+		}
+		return eachAtom(s, item.body(), item.end(), func(a atom) error {
+			if a.typ == "data" && a.size-a.hdr > 8 {
+				s.pic.offer(false, nil, "", Range{a.body() + 8, a.size - a.hdr - 8}, false)
+			}
+			return nil
+		})
 	}
 	var name string
 	var data []byte

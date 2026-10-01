@@ -10,7 +10,7 @@ import (
 // Builders of tiny, hand-made audio files for the tests. Payload bytes are
 // filler: the readers never decode audio.
 
-func src(b []byte) source { return source{bytes.NewReader(b), int64(len(b))} }
+func src(b []byte) source { return source{r: bytes.NewReader(b), size: int64(len(b))} }
 
 func cat(parts ...[]byte) []byte { return bytes.Join(parts, nil) }
 
@@ -225,6 +225,11 @@ func asfDesc(name string, typ int, value []byte) []byte {
 
 // wmaFile builds a WMA v2 file: 44.1 kHz stereo, 128 kbps, 5 s (plus a 3 s preroll).
 func wmaFile(payload []byte) (file []byte, headerLen int) {
+	return wmaFileWith(payload, []byte{1, 2, 3})
+}
+
+// wmaFileWith is wmaFile with the given WM/Picture value.
+func wmaFileWith(payload, picture []byte) (file []byte, headerLen int) {
 	fileProps := asfObject(asfFileProps, make([]byte, 40), u64le((5000+3000)*10000), u64le(0), u64le(3000), make([]byte, 16))
 	wfx := cat(u16le(0x0161), u16le(2), u32le(44100), u32le(16000), u16le(4096), u16le(16))
 	streamProps := asfObject(asfStreamProps, asfAudioMedia[:], make([]byte, 16), u64le(0), u32le(len(wfx)), u32le(0), u16le(1), u32le(0), wfx)
@@ -234,7 +239,7 @@ func wmaFile(payload []byte) (file []byte, headerLen int) {
 		asfDesc("WM/AlbumTitle", 0, utf16z("Guitarra negra")),
 		asfDesc("WM/TrackNumber", 3, u32le(5)),
 		asfDesc("WM/Genre", 0, utf16z("Folklore")),
-		asfDesc("WM/Picture", 1, []byte{1, 2, 3}))
+		asfDesc("WM/Picture", 1, picture))
 	objects := cat(fileProps, streamProps, content, ext)
 	header := cat(asfHeader[:], u64le(int64(30+len(objects))), u32le(4), []byte{1, 2}, objects)
 	data := cat(asfData[:], u64le(int64(50+len(payload))), make([]byte, 26), payload)

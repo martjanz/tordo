@@ -68,6 +68,7 @@ const maxRead = 32 << 20
 type source struct {
 	r    io.ReaderAt
 	size int64
+	pic  *picture // set by Picture: the readers keep the embedded picture
 }
 
 // read returns n bytes at off. Reading past the end of the file is a format

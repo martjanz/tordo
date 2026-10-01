@@ -6,8 +6,9 @@ import (
 )
 
 // parseVorbisComment reads a Vorbis comment block (FLAC, Ogg Vorbis, Opus):
-// little-endian lengths, a vendor string, then "KEY=value" entries.
-func parseVorbisComment(b []byte, t *Tags) error {
+// little-endian lengths, a vendor string, then "KEY=value" entries. Pictures
+// go to pic (nil while scanning).
+func parseVorbisComment(b []byte, t *Tags, pic *picture) error {
 	bad := fmt.Errorf("%w: comentarios Vorbis truncados", ErrFormat)
 	if len(b) < 4 {
 		return bad
@@ -32,9 +33,10 @@ func parseVorbisComment(b []byte, t *Tags) error {
 		if !ok {
 			continue
 		}
-		switch strings.ToUpper(k) {
+		switch key := strings.ToUpper(k); key {
 		case "METADATA_BLOCK_PICTURE", "COVERART":
 			t.HasCover = true
+			pic.offerVorbis(key, v)
 		default:
 			t.set(k, v)
 		}
