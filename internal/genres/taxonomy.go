@@ -38,7 +38,7 @@ var Taxonomy = []Genre{
 var ignored = keys("other", "others", "otro", "otros", "outros", "unknown", "desconocido", "genre", "género",
 	"misc", "miscellaneous", "general", "default", "none", "various", "varios", "music", "música",
 	"uruguay", "uruguayo", "argentina", "argentino", "brasil", "brazil", "brasileiro", "chile", "cuba", "méxico",
-	"colombia", "perú", "españa", "spain", "usa")
+	"colombia", "perú", "españa", "spain", "usa", "género desconocido", "genero desconocido")
 
 // aliases are the built-in spellings of taxonomy values.
 var aliases = func() map[string]Mapping {
@@ -48,7 +48,7 @@ var aliases = func() map[string]Mapping {
 			m[Key(r)] = Mapping{Genre: genre, Style: style}
 		}
 	}
-	add("Latin", "", "latino", "latina", "latin music", "música latina", "latinoamericana", "música latinoamericana")
+	add("Latin", "", "latino", "latina", "latin music", "música latina", "latinoamericana", "música latinoamericana", "música popular latinoamericana")
 	add("Folk, World, & Country", "Folk", "folclore", "folklore", "folklore argentino", "folclore argentino",
 		"folklore uruguayo", "folclore uruguayo", "folk music")
 	add("Folk, World, & Country", "", "world", "world music", "música del mundo", "música do mundo")
@@ -58,10 +58,12 @@ var aliases = func() map[string]Mapping {
 	add("Rock", "Indie Rock", "indie")
 	add("Rock", "Heavy Metal", "metal")
 	add("Rock", "Punk", "punk rock")
+	add("Rock", "Prog Rock", "progressive rock", "rock progresivo")
+	add("Rock", "Psychedelic Rock", "psych", "psychedelic", "psicodelia")
 	add("Latin", "MPB", "música popular brasileira")
 	add("Latin", "Bossanova", "bossa nova", "bossa")
 	add("Latin", "Samba", "samba enredo", "samba de enredo", "sambas de enredo", "pagode", "samba-canção")
-	add("Latin", "Tango", "tango nuevo", "tango argentino")
+	add("Latin", "Tango", "tango nuevo", "tango argentino", "tango cancion", "tango canción", "tango latino")
 	add("Latin", "Cumbia", "cumbia colombiana", "cumbia villera", "cumbia argentina")
 	add("Latin", "Nueva Trova", "trova", "nueva trova cubana")
 	add("Latin", "Nueva Cancion", "nueva canción", "canto popular", "canto popular uruguayo")
@@ -72,7 +74,10 @@ var aliases = func() map[string]Mapping {
 	add("Electronic", "", "electrónica", "dance", "edm")
 	add("Classical", "", "clásica", "música clásica")
 	add("Stage & Screen", "Soundtrack", "banda sonora", "bso", "ost", "soundtracks", "trilha sonora")
+	add("Stage & Screen", "Score", "scores de películas", "film score", "film scores")
+	add("Non-Music", "Poetry", "poesía", "poesia", "poetry")
 	add("Children's", "", "infantil", "infantiles", "niños", "kids", "children", "children's music", "música infantil")
+	add("Children's", "Nursery Rhymes", "canciones de cuna", "nanas", "canciones de nana")
 	add("Pop", "", "pop internacional", "pop latino", "pop en español")
 	add("Non-Music", "Spoken Word", "audiolibro", "audiobook", "spoken")
 	return m
