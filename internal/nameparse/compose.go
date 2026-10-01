@@ -35,12 +35,12 @@ var composed = func() map[[2]rune]rune {
 			m[[2]rune{rs[i], mark}] = rs[i+1]
 		}
 	}
-	add('̀', "aàeèiìoòuùAÀEÈIÌOÒUÙ")
-	add('́', "aáeéiíoóuúyýAÁEÉIÍOÓUÚYÝcćCĆnńNŃsśSŚzźZŹ")
-	add('̂', "aâeêiîoôuûAÂEÊIÎOÔUÛ")
-	add('̃', "aãoõnñAÃOÕNÑ")
-	add('̈', "aäeëiïoöuüyÿAÄEËIÏOÖUÜ")
-	add('̧', "cçCÇ")
-	add('̊', "aåAÅ")
+	add('\u0300', "aàeèiìoòuùAÀEÈIÌOÒUÙ")
+	add('\u0301', "aáeéiíoóuúyýAÁEÉIÍOÓUÚYÝcćCĆnńNŃsśSŚzźZŹ")
+	add('\u0302', "aâeêiîoôuûAÂEÊIÎOÔUÛ")
+	add('\u0303', "aãoõnñAÃOÕNÑ")
+	add('\u0308', "aäeëiïoöuüyÿAÄEËIÏOÖUÜ")
+	add('\u0327', "cçCÇ")
+	add('\u030a', "aåAÅ")
 	return m
 }()
