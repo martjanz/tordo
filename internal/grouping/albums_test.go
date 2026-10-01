@@ -216,3 +216,49 @@ func TestDiscFolderNotesDoNotSplitTheSet(t *testing.T) {
 		t.Fatalf("albums = %+v", r.Albums)
 	}
 }
+
+func TestJunkTagsFallBackToFolder(t *testing.T) {
+	d := "../musica/Fito Páez/Fito Páez - (2003) Naturaleza Sangre"
+	r := Build([]Track{
+		tr(1, d+"/01.mp3", audiofile.Tags{Title: "Naturaleza sangre", Artist: "Fito Páez", Album: "WWW.TODOMUSICACD.8K.COM", Track: 1}),
+		tr(2, d+"/02.mp3", audiofile.Tags{Title: "Yo sé que no es fácil", Artist: "Fito Páez", Album: "WWW.TODOMUSICACD.8K.COM", Track: 2}),
+	}, nil, roots)
+	if len(r.Albums) != 1 {
+		t.Fatalf("albums = %+v", r.Albums)
+	}
+	a := albumByTitle(t, r, "Naturaleza Sangre")
+	if a.Artist != "Fito Páez" || a.Year != 2003 || a.Tracks != 2 || a.Selection {
+		t.Fatalf("album = %+v", a)
+	}
+}
+
+func TestUnknownArtistComesFromParentArtistFolder(t *testing.T) {
+	z := "../musica/Uruguay/Alfredo Zitarrosa"
+	casi := z + "/Casi en privado"
+	canta := z + "/Alfredo Zitarrosa - (1966) Canta Zitarrosa"
+	r := Build([]Track{
+		tr(1, casi+"/01.mp3", audiofile.Tags{Title: "Uno", Artist: "M031CAS_e_01_01", Album: "P.1"}),
+		tr(2, casi+"/02.mp3", audiofile.Tags{Title: "Dos", Artist: "M031CAS_e_01_02", Album: "P.2"}),
+		tr(3, casi+"/03.mp3", audiofile.Tags{Title: "Tres", Artist: "M031CAS_e_01_03", Album: "P.3"}),
+		tr(4, canta+"/01.mp3", audiofile.Tags{Title: "Guitarra negra", Artist: "Alfredo Zitarrosa", Album: "Canta Zitarrosa", Track: 1}),
+		tr(5, canta+"/02.mp3", audiofile.Tags{Title: "Recordándote", Artist: "Alfredo Zitarrosa", Album: "Canta Zitarrosa", Track: 2}),
+	}, nil, roots)
+	a := albumByTitle(t, r, "Casi en privado")
+	if a.Artist != "Alfredo Zitarrosa" || a.Compilation || !a.Selection || a.Tracks != 3 {
+		t.Fatalf("album = %+v", a)
+	}
+	if b := albumByTitle(t, r, "Canta Zitarrosa"); b.Selection {
+		t.Fatalf("a tagged album is not a selection: %+v", b)
+	}
+}
+
+func TestParentFolderMustBeAKnownArtist(t *testing.T) {
+	d := "../musica/infantiles/Canciones para mirar"
+	r := Build([]Track{
+		tr(1, d+"/01.mp3", audiofile.Tags{Title: "Uno", Album: "Canciones para mirar"}),
+		tr(2, d+"/02.mp3", audiofile.Tags{Title: "Dos", Album: "Canciones para mirar"}),
+	}, nil, roots)
+	if a := albumByTitle(t, r, "Canciones para mirar"); a.Artist != "" {
+		t.Fatalf("artist = %q, want none", a.Artist)
+	}
+}

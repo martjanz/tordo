@@ -50,6 +50,7 @@ type Album struct {
 	CoverPath   string // image file next to the album ("" if none)
 	CoverFileID int64  // a track with an embedded picture (0 if none)
 	Genres      []string
+	Selection   bool // a folder of loose picks grouped as one album (settleFolders)
 }
 
 type Folder struct {
