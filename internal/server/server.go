@@ -1,5 +1,6 @@
-// Package server exposes the catalog as a JSON API. It only answers requests
-// addressed to localhost (LAN access and its PIN come in M5).
+// Package server exposes the catalog as a JSON API, the tracks' audio and
+// pictures, and the embedded web app. It only answers requests addressed to
+// localhost (LAN access and its PIN come in M5).
 package server
 
 import (
@@ -12,13 +13,18 @@ import (
 	"strconv"
 	"strings"
 
+	"tordo/internal/covers"
 	"tordo/internal/scan"
 	"tordo/internal/store"
+	"tordo/internal/stream"
 )
 
 type Server struct {
 	Store    *store.Store
-	Scanner  *scan.Scanner // nil in browse-only mode
+	Scanner  *scan.Scanner   // nil in browse-only mode
+	AppDir   string          // where catalog paths are relative to
+	Streamer stream.Streamer // FFmpeg "" when there is none
+	Covers   *covers.Covers  // nil: no pictures
 	ReadOnly bool
 }
 
@@ -30,6 +36,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/albums/{id}", s.album)
 	mux.HandleFunc("GET /api/folders", s.folder)
 	mux.HandleFunc("GET /api/collections", s.collections)
+	mux.HandleFunc("GET /api/play", s.play)
+	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
+	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
+	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
 	return localOnly(mux)
 }
 
@@ -149,7 +159,23 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "carpeta no encontrada", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, f)
+	art, err := s.Store.FolderArt(f.Path)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	trail, err := s.Store.FolderTrail(f.Path)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	// art: up to four album ids per subfolder, for its card's picture;
+	// trail: the folders from the root down to this one.
+	writeJSON(w, struct {
+		store.FolderView
+		Art   map[string][]int64 `json:"art"`
+		Trail []store.Crumb      `json:"trail"`
+	}{f, art, trail})
 }
 
 func (s *Server) collections(w http.ResponseWriter, r *http.Request) {

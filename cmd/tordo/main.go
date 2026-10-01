@@ -16,9 +16,11 @@ import (
 
 	"tordo/internal/appdir"
 	"tordo/internal/config"
+	"tordo/internal/covers"
 	"tordo/internal/scan"
 	"tordo/internal/server"
 	"tordo/internal/store"
+	"tordo/internal/stream"
 )
 
 const dbName = "tordo.db"
@@ -91,7 +93,16 @@ func setup(dirOverride string) (*app, error) {
 		}
 		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st}
 	}
-	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly}
+	thumbs := "" // browse-only mode writes nothing, thumbnails included
+	if !readOnly {
+		thumbs = filepath.Join(appDir, "cache", "thumbs")
+	}
+	ffmpeg := stream.LookFFmpeg()
+	if ffmpeg == "" {
+		log.Print("sin ffmpeg: WMA, APE, WavPack, AIFF y ALAC no se pueden reproducir")
+	}
+	a.server = &server.Server{Store: st, Scanner: a.scanner, AppDir: appDir, Streamer: stream.Streamer{FFmpeg: ffmpeg},
+		Covers: covers.New(st, appDir, thumbs), ReadOnly: readOnly}
 	return a, nil
 }
 

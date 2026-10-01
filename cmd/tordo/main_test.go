@@ -33,6 +33,9 @@ func TestSetupCreatesConfigAndScans(t *testing.T) {
 	if a.scanner == nil || a.server.ReadOnly {
 		t.Fatal("expected a writable setup with a scanner")
 	}
+	if a.server.AppDir != app || a.server.Covers == nil || a.server.Covers.CacheDir != filepath.Join(app, "cache", "thumbs") {
+		t.Fatalf("server = %+v", a.server)
+	}
 	if err := a.scanner.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
