@@ -78,8 +78,10 @@ internal/appdir       carpeta de la app y rutas relativas portables   (copiado d
 internal/config       config.json
 internal/httpx        HTTP con rate limiting y reintentos            (copiado)
 internal/scan         escaneo incremental, clasificación, reglas de ignorado
-internal/tags         lectura nativa de tags: ID3v1/v2, Vorbis (FLAC/Ogg/Opus), MP4, ASF (WMA)
-internal/audioinfo    formato, codec, bitrate, sample rate, bit depth, duración, lossless
+internal/audiofile    lectura nativa en una sola pasada de tags (ID3v1/v2, Vorbis en FLAC/Ogg/Opus, MP4, ASF, RIFF/AIFF)
+                      y datos técnicos (formato, codec, bitrate, sample rate, bit depth, duración, lossless,
+                      rango de bytes del audio); ffprobe como alternativa
+internal/natsort      orden natural de nombres ([LA-9] antes de [LA-10])
 internal/fingerprint  huella del payload de AUDIO (excluye tags y carátulas)
 internal/nameparse    parseo de nombres de carpetas y archivos
 internal/grouping     archivos → pistas → álbumes → carpetas → colecciones
@@ -112,7 +114,7 @@ web/                  interfaz Svelte 5 + Vite
 
 ### 4.1 Huella de audio
 
-Hash del primer y último MB del **payload de audio** más su tamaño, saltando bloques de metadatos (ID3v2/ID3v1/APEv2 en MP3, bloques METADATA en FLAC, cabeceras de comentarios en Ogg/Opus, átomos de metadatos en MP4, objetos de cabecera en ASF). Editar tags no cambia la identidad del archivo, y dos copias idénticas con tags distintos se reconocen como la misma.
+Hash de los primeros y últimos 64 KiB del **payload de audio** más su tamaño (con un MB por extremo, 1,5 TB de música implicarían leer ~300 GB en cada escaneo completo), saltando bloques de metadatos (ID3v2/ID3v1/APEv2 en MP3, bloques METADATA en FLAC, cabeceras de comentarios en Ogg/Opus —donde además se hashea el contenido de las páginas sin sus cabeceras, porque reescribir comentarios renumera las páginas siguientes—, átomos de metadatos en MP4, objetos de cabecera en ASF). Editar tags no cambia la identidad del archivo, y dos copias idénticas con tags distintos se reconocen como la misma.
 
 ### 4.2 Agrupación en álbumes
 
