@@ -24,6 +24,7 @@ func TestMap(t *testing.T) {
 		{"Pop Pop Internacional", []Mapping{{Genre: "Pop"}}, true},
 		{"Rock/Pop", []Mapping{{Genre: "Rock"}, {Genre: "Pop"}}, true},
 		{"Funk / Soul", []Mapping{{Genre: "Funk / Soul"}}, true},
+		{"Rock, Funk / Soul", []Mapping{{Genre: "Rock"}, {Genre: "Funk / Soul"}}, true},
 		{"murga", []Mapping{{Genre: "Latin", Style: "Murga"}}, true},
 		{"Pop Rock", []Mapping{{Genre: "Rock", Style: "Pop Rock"}}, true},
 		{"Canciones de Cuna", []Mapping{{Genre: "Children's", Style: "Nursery Rhymes"}}, true},
