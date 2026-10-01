@@ -32,6 +32,7 @@ var (
 // ParseFolder reads a folder name such as "[LA-599] Rata Blanca - (1990)
 // Magos, Espadas Y Rosas" or "Noel Rosa - Noel pela primeira vez Cd 02".
 func ParseFolder(name string) Folder {
+	name = Compose(name)
 	var f Folder
 	s := strings.ReplaceAll(name, "_", " ")
 	if m := rePosBracket.FindStringSubmatchIndex(s); m != nil && !(m[2] == 1 && reYear.MatchString(s[m[2]:m[3]])) { // "[1962] …" is a year
