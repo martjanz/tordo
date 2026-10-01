@@ -4,6 +4,8 @@ package store
 import (
 	"database/sql"
 	_ "embed"
+	"errors"
+	"fmt"
 
 	_ "modernc.org/sqlite"
 )
@@ -33,19 +35,60 @@ func OpenMemory() (*Store, error) {
 	return openDB(":memory:?_pragma=foreign_keys(1)", true)
 }
 
-func openDB(dsn string, migrate bool) (*Store, error) {
+// schemaVersion is kept in PRAGMA user_version. Version 2 (M2) added columns
+// to the derived tables: they are dropped and the next scan rebuilds them.
+// The other tables are only ever added to.
+const schemaVersion = 2
+
+// ErrOldCatalog means a catalog from an older version was opened read-only,
+// so it could not be updated.
+var ErrOldCatalog = errors.New("el catálogo es de una versión anterior: abrí tordo una vez con la carpeta escribible para actualizarlo")
+
+func openDB(dsn string, writable bool) (*Store, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	if migrate {
-		if _, err := db.Exec(schema); err != nil {
-			db.Close()
-			return nil, err
-		}
+	if writable {
+		err = migrate(db)
+	} else {
+		err = checkVersion(db)
+	}
+	if err != nil {
+		db.Close()
+		return nil, err
 	}
 	return &Store{db: db}, nil
+}
+
+func migrate(db *sql.DB) error {
+	var v int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+		return err
+	}
+	if v < 2 {
+		if _, err := db.Exec(`DROP TABLE IF EXISTS tracks; DROP TABLE IF EXISTS album_genres;
+			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders`); err != nil {
+			return err
+		}
+	}
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	_, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, schemaVersion))
+	return err
+}
+
+func checkVersion(db *sql.DB) error {
+	var v int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+		return err
+	}
+	if v < schemaVersion {
+		return ErrOldCatalog
+	}
+	return nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }

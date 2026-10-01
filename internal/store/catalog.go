@@ -48,11 +48,11 @@ func (s *Store) ReplaceGrouping(r grouping.Result) error {
 		return err
 	}
 	up, err := tx.Prepare(`INSERT INTO albums (key, dir, title, artist, year, compilation, discs, tracks, duration_ms,
-		position, cover_path, cover_file_id, genres, seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+		position, cover_path, cover_file_id, genres, selection, seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 		ON CONFLICT(key) DO UPDATE SET dir = excluded.dir, title = excluded.title, artist = excluded.artist,
 		year = excluded.year, compilation = excluded.compilation, discs = excluded.discs, tracks = excluded.tracks,
 		duration_ms = excluded.duration_ms, position = excluded.position, cover_path = excluded.cover_path,
-		cover_file_id = excluded.cover_file_id, genres = excluded.genres, seen = 1
+		cover_file_id = excluded.cover_file_id, genres = excluded.genres, selection = excluded.selection, seen = 1
 		RETURNING id`)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (s *Store) ReplaceGrouping(r grouping.Result) error {
 		}
 		var id int64
 		if err := up.QueryRow(a.Key, a.Dir, a.Title, a.Artist, a.Year, a.Compilation, a.Discs, a.Tracks, a.DurationMs,
-			a.Position, a.CoverPath, a.CoverFileID, string(g)).Scan(&id); err != nil {
+			a.Position, a.CoverPath, a.CoverFileID, string(g), a.Selection).Scan(&id); err != nil {
 			return err
 		}
 		ids[a.Key] = id
