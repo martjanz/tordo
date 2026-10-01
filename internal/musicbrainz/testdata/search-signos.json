@@ -1,0 +1,32 @@
+{
+  "created": "2026-10-01T12:00:00.000Z",
+  "count": 2,
+  "offset": 0,
+  "releases": [
+    {
+      "id": "a1b2c3d4-0000-4000-8000-000000000001",
+      "score": 100,
+      "title": "Signos",
+      "status": "Official",
+      "artist-credit": [
+        {"name": "Soda Stereo", "artist": {"id": "a1b2c3d4-0000-4000-8000-000000000003", "name": "Soda Stereo", "sort-name": "Soda Stereo"}}
+      ],
+      "release-group": {"id": "a1b2c3d4-0000-4000-8000-000000000002", "primary-type": "Album"},
+      "date": "1986-11-10",
+      "country": "AR",
+      "track-count": 8,
+      "media": [{"format": "Vinyl", "track-count": 8}]
+    },
+    {
+      "id": "a1b2c3d4-0000-4000-8000-000000000004",
+      "score": 91,
+      "title": "Signos",
+      "artist-credit": [
+        {"name": "Various Artists", "artist": {"id": "89ad4ac3-39f7-470e-963a-56509c546377", "name": "Various Artists", "sort-name": "Various Artists"}}
+      ],
+      "release-group": {"id": "a1b2c3d4-0000-4000-8000-000000000005"},
+      "date": "2001",
+      "track-count": 14
+    }
+  ]
+}

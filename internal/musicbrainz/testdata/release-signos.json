@@ -1,0 +1,34 @@
+{
+  "id": "a1b2c3d4-0000-4000-8000-000000000001",
+  "title": "Signos",
+  "status": "Official",
+  "date": "1986-11-10",
+  "country": "AR",
+  "artist-credit": [
+    {"name": "Soda Stereo", "joinphrase": "", "artist": {"id": "a1b2c3d4-0000-4000-8000-000000000003", "name": "Soda Stereo", "sort-name": "Soda Stereo", "type": "Group"}}
+  ],
+  "release-group": {"id": "a1b2c3d4-0000-4000-8000-000000000002", "title": "Signos", "first-release-date": "1986-11-10", "primary-type": "Album"},
+  "media": [
+    {
+      "position": 1,
+      "format": "Vinyl",
+      "track-count": 3,
+      "tracks": [
+        {"id": "c1000000-0000-4000-8000-000000000001", "number": "A1", "position": 1, "title": "Táctica y estrategia", "length": 231000,
+         "recording": {"id": "b1000000-0000-4000-8000-000000000001", "title": "Táctica y estrategia", "length": 231000}},
+        {"id": "c1000000-0000-4000-8000-000000000002", "number": "A2", "position": 2, "title": "Sin sobresaltos", "length": 210000,
+         "recording": {"id": "b1000000-0000-4000-8000-000000000002", "title": "Sin sobresaltos", "length": 210000}},
+        {"id": "c1000000-0000-4000-8000-000000000003", "number": "A3", "position": 3, "title": "Prófugos", "length": null,
+         "recording": {"id": "b1000000-0000-4000-8000-000000000003", "title": "Prófugos", "length": 268000}}
+      ]
+    }
+  ],
+  "relations": [
+    {"type": "discogs", "target-type": "url", "url": {"id": "d1000000-0000-4000-8000-000000000001", "resource": "https://www.discogs.com/release/1234"}},
+    {"type": "amazon asin", "target-type": "url", "url": {"id": "d1000000-0000-4000-8000-000000000002", "resource": "https://www.amazon.com/gp/product/B000000000"}}
+  ],
+  "genres": [
+    {"id": "e1000000-0000-4000-8000-000000000001", "name": "rock", "count": 3},
+    {"id": "e1000000-0000-4000-8000-000000000002", "name": "new wave", "count": 1}
+  ]
+}

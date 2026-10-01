@@ -1,0 +1,11 @@
+{
+  "id": "a1b2c3d4-0000-4000-8000-000000000002",
+  "title": "Signos",
+  "first-release-date": "1986-11-10",
+  "primary-type": "Album",
+  "relations": [
+    {"type": "discogs", "target-type": "url", "url": {"resource": "https://www.discogs.com/master/5678"}},
+    {"type": "wikidata", "target-type": "url", "url": {"resource": "https://www.wikidata.org/wiki/Q0"}}
+  ],
+  "genres": [{"name": "rock", "count": 2}]
+}
