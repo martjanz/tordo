@@ -13,13 +13,15 @@ import (
 
 // Counts summarizes the catalog for the status endpoint.
 type Counts struct {
-	Files       int `json:"files"`
-	Audio       int `json:"audio"`
-	Unreadable  int `json:"unreadable"`
-	Tracks      int `json:"tracks"`
-	Albums      int `json:"albums"`
-	Folders     int `json:"folders"`
-	Collections int `json:"collections"`
+	Files        int `json:"files"`
+	Audio        int `json:"audio"`
+	Unreadable   int `json:"unreadable"`
+	Tracks       int `json:"tracks"`
+	Albums       int `json:"albums"`
+	Folders      int `json:"folders"`
+	Collections  int `json:"collections"`
+	Identified   int `json:"identified"`
+	Unidentified int `json:"unidentified"`
 }
 
 func (s *Store) Counts() (Counts, error) {
@@ -31,8 +33,10 @@ func (s *Store) Counts() (Counts, error) {
 		(SELECT COUNT(*) FROM tracks),
 		(SELECT COUNT(*) FROM albums),
 		(SELECT COUNT(*) FROM folders),
-		(SELECT COUNT(*) FROM folders WHERE collection = 1)`).
-		Scan(&c.Files, &c.Audio, &c.Unreadable, &c.Tracks, &c.Albums, &c.Folders, &c.Collections)
+		(SELECT COUNT(*) FROM folders WHERE collection = 1),
+		(SELECT COUNT(*) FROM albums WHERE status IN ('auto', 'manual')),
+		(SELECT COUNT(*) FROM albums WHERE status = 'unmatched')`).
+		Scan(&c.Files, &c.Audio, &c.Unreadable, &c.Tracks, &c.Albums, &c.Folders, &c.Collections, &c.Identified, &c.Unidentified)
 	return c, err
 }
 
@@ -113,25 +117,39 @@ func (s *Store) ReplaceGrouping(r grouping.Result) error {
 }
 
 type AlbumView struct {
-	ID          int64    `json:"id"`
-	Title       string   `json:"title"`
-	Artist      string   `json:"artist"`
-	Year        int      `json:"year"`
-	Compilation bool     `json:"compilation"`
-	Discs       int      `json:"discs"`
-	Tracks      int      `json:"tracks"`
-	DurationMs  int64    `json:"durationMs"`
-	Dir         string   `json:"dir"`
-	Position    int      `json:"position"`
-	CoverPath   string   `json:"coverPath"`
-	CoverFileID int64    `json:"coverFileId"`
-	Genres      []string `json:"genres"`
+	ID           int64       `json:"id"`
+	Title        string      `json:"title"` // MusicBrainz's when identified, else from tags or folder
+	Artist       string      `json:"artist"`
+	Year         int         `json:"year"`
+	OriginalYear int         `json:"originalYear"`
+	Compilation  bool        `json:"compilation"`
+	Selection    bool        `json:"selection"`
+	Discs        int         `json:"discs"`
+	Tracks       int         `json:"tracks"`
+	DurationMs   int64       `json:"durationMs"`
+	Dir          string      `json:"dir"`
+	Position     int         `json:"position"`
+	CoverPath    string      `json:"coverPath"`
+	CoverFileID  int64       `json:"coverFileId"`
+	CoverCache   string      `json:"coverCache"`
+	Genres       []GenreLink `json:"genres"`
+	RawGenres    []string    `json:"rawGenres"`
+	Status       string      `json:"status"`
+	ReleaseID    string      `json:"releaseId"`
+	Confidence   float64     `json:"confidence"`
+	Country      string      `json:"country"`
+	ArtistID     string      `json:"artistId"`
+	TagTitle     string      `json:"tagTitle"`
+	TagArtist    string      `json:"tagArtist"`
+	MatchQuery   string      `json:"-"`
 }
 
 type TrackView struct {
 	ID          int64  `json:"id"` // the file id
 	Path        string `json:"path"`
-	Title       string `json:"title"`
+	Title       string `json:"title"` // MusicBrainz's when paired, else from tags or file name
+	TagTitle    string `json:"tagTitle"`
+	RecordingID string `json:"recordingId"`
 	Artist      string `json:"artist"`
 	Disc        int    `json:"disc"`
 	Track       int    `json:"track"`
@@ -173,9 +191,20 @@ type CollectionView struct {
 	Albums []AlbumView `json:"albums"` // in collection order
 }
 
-const albumCols = `id, title, artist, year, compilation, discs, tracks, duration_ms, dir, position, cover_path, cover_file_id, genres`
+const albumCols = `id, CASE WHEN mb_title != '' THEN mb_title ELSE title END,
+	CASE WHEN mb_artist != '' THEN mb_artist ELSE artist END, year, original_year, compilation OR mb_compilation,
+	selection, discs, tracks, duration_ms, dir, position, cover_path, cover_file_id, cover_cache, genres, status,
+	release_id, confidence, country, artist_id, title, artist, match_query`
 
 func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
+	out, err := s.scanAlbums(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	return out, s.fillGenres(out)
+}
+
+func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -184,12 +213,13 @@ func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
 	out := []AlbumView{}
 	for rows.Next() {
 		var a AlbumView
-		var genres string
-		if err := rows.Scan(&a.ID, &a.Title, &a.Artist, &a.Year, &a.Compilation, &a.Discs, &a.Tracks, &a.DurationMs,
-			&a.Dir, &a.Position, &a.CoverPath, &a.CoverFileID, &genres); err != nil {
+		var raw string
+		if err := rows.Scan(&a.ID, &a.Title, &a.Artist, &a.Year, &a.OriginalYear, &a.Compilation, &a.Selection, &a.Discs,
+			&a.Tracks, &a.DurationMs, &a.Dir, &a.Position, &a.CoverPath, &a.CoverFileID, &a.CoverCache, &raw, &a.Status,
+			&a.ReleaseID, &a.Confidence, &a.Country, &a.ArtistID, &a.TagTitle, &a.TagArtist, &a.MatchQuery); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal([]byte(genres), &a.Genres); err != nil {
+		if err := json.Unmarshal([]byte(raw), &a.RawGenres); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -197,7 +227,37 @@ func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
 	return out, rows.Err()
 }
 
-const trackQuery = `SELECT t.file_id, f.path, t.title, t.artist, t.disc, t.track, t.year, t.duration_ms,
+// fillGenres sets the albums' genre links. It reads the whole (small)
+// album_genres table once instead of once per album.
+func (s *Store) fillGenres(as []AlbumView) error {
+	if len(as) == 0 {
+		return nil
+	}
+	at := make(map[int64]int, len(as))
+	for i := range as {
+		at[as[i].ID] = i
+		as[i].Genres = []GenreLink{}
+	}
+	rows, err := s.db.Query(`SELECT album_id, genre, style, source FROM album_genres ORDER BY album_id, genre, style`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var g GenreLink
+		if err := rows.Scan(&id, &g.Genre, &g.Style, &g.Source); err != nil {
+			return err
+		}
+		if i, ok := at[id]; ok {
+			as[i].Genres = append(as[i].Genres, g)
+		}
+	}
+	return rows.Err()
+}
+
+const trackQuery = `SELECT t.file_id, f.path, CASE WHEN t.mb_title != '' THEN t.mb_title ELSE t.title END, t.title,
+	t.recording_id, t.artist, t.disc, t.track, t.year, t.duration_ms,
 	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint
 	FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id `
 
@@ -210,8 +270,8 @@ func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
 	out := []TrackView{}
 	for rows.Next() {
 		var t TrackView
-		if err := rows.Scan(&t.ID, &t.Path, &t.Title, &t.Artist, &t.Disc, &t.Track, &t.Year, &t.DurationMs,
-			&t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint); err != nil {
+		if err := rows.Scan(&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
+			&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
