@@ -50,7 +50,10 @@ func identifyServer(t *testing.T) (*Server, *fakeIdentifier, int64) {
 	return &Server{Store: st, Identifier: f, AppDir: t.TempDir()}, f, as[0].ID
 }
 
-const jsonCT = "application/json"
+const (
+	jsonCT = "application/json"
+	respCT = "application/json; charset=utf-8"
+)
 
 func TestStatusIncludesIdentify(t *testing.T) {
 	s, _, _ := identifyServer(t)
@@ -76,8 +79,8 @@ func TestIdentifyEndpoint(t *testing.T) {
 	if rec := do(t, s.Handler(), "POST", "/api/identify", "{}"); rec.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("without JSON content type: %d", rec.Code)
 	}
-	if rec := do(t, s.Handler(), "POST", "/api/identify", "{}", "Content-Type", jsonCT); rec.Code != http.StatusAccepted || f.triggered != 1 {
-		t.Fatalf("code %d, triggered %d", rec.Code, f.triggered)
+	if rec := do(t, s.Handler(), "POST", "/api/identify", "{}", "Content-Type", jsonCT); rec.Code != http.StatusAccepted || f.triggered != 1 || rec.Result().Header.Get("Content-Type") != respCT {
+		t.Fatalf("code %d, triggered %d, content type %q", rec.Code, f.triggered, rec.Result().Header.Get("Content-Type"))
 	}
 	s.Identifier = nil
 	if rec := do(t, s.Handler(), "POST", "/api/identify", "{}", "Content-Type", jsonCT); rec.Code != http.StatusConflict {
@@ -144,7 +147,9 @@ func TestCoverEndpoint(t *testing.T) {
 		t.Fatalf("no cover: %d", rec.Code)
 	}
 	name := filepath.Join(s.AppDir, "cache", "covers", "r1.jpg")
-	os.MkdirAll(filepath.Dir(name), 0o755)
+	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(name, []byte("jpeg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +201,7 @@ func TestReleaseIDFrom(t *testing.T) {
 	}
 	for in, want := range cases {
 		if got := releaseIDFrom(in); got != want {
-			t.Errorf("releaseIDFrom(%q) = %q", in, want)
+			t.Errorf("releaseIDFrom(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

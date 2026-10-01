@@ -51,8 +51,7 @@ func (s *Server) identify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Identifier.Trigger()
-	w.WriteHeader(http.StatusAccepted)
-	writeJSON(w, map[string]bool{"started": true})
+	writeJSONStatus(w, http.StatusAccepted, map[string]bool{"started": true})
 }
 
 func (s *Server) unidentified(w http.ResponseWriter, r *http.Request) {

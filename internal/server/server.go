@@ -80,8 +80,12 @@ func jsonOnly(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func writeJSON(w http.ResponseWriter, v any) {
+func writeJSON(w http.ResponseWriter, v any) { writeJSONStatus(w, http.StatusOK, v) }
+
+// writeJSONStatus sets the content type before the status, or it is lost.
+func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		log.Printf("respuesta: %v", err)
 	}
@@ -123,8 +127,7 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 			log.Printf("escaneo: %v", err)
 		}
 	}()
-	w.WriteHeader(http.StatusAccepted)
-	writeJSON(w, map[string]bool{"started": true})
+	writeJSONStatus(w, http.StatusAccepted, map[string]bool{"started": true})
 }
 
 func (s *Server) albums(w http.ResponseWriter, r *http.Request) {

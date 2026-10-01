@@ -128,8 +128,8 @@ func TestScanEndpoint(t *testing.T) {
 	if rec := do(t, h, "POST", "/api/scan", "{}"); rec.Code != http.StatusUnsupportedMediaType {
 		t.Fatalf("without JSON: %d", rec.Code)
 	}
-	if rec := do(t, h, "POST", "/api/scan", "{}", "Content-Type", "application/json"); rec.Code != http.StatusAccepted {
-		t.Fatalf("scan: %d %s", rec.Code, rec.Body)
+	if rec := do(t, h, "POST", "/api/scan", "{}", "Content-Type", "application/json"); rec.Code != http.StatusAccepted || rec.Result().Header.Get("Content-Type") != respCT {
+		t.Fatalf("scan: %d %s, content type %q", rec.Code, rec.Body, rec.Result().Header.Get("Content-Type"))
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for sc.Status().Finished.IsZero() {
