@@ -14,8 +14,9 @@ import (
 const FileName = "config.json"
 
 type Config struct {
-	Roots  []string `json:"roots"`  // catalog form: relative to the app folder, '/'-separated
-	Ignore []string `json:"ignore"` // extra folder patterns to skip (see mediafile.IgnoredDir)
+	Roots        []string `json:"roots"`        // catalog form: relative to the app folder, '/'-separated
+	Ignore       []string `json:"ignore"`       // extra folder patterns to skip (see mediafile.IgnoredDir)
+	DiscogsToken string   `json:"discogsToken"` // optional: enables Discogs search
 }
 
 // Load reads config.json from appDir. When the file does not exist it returns

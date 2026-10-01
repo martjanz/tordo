@@ -13,12 +13,13 @@ import (
 )
 
 type member struct {
-	out      TrackOut
-	path     string
-	tags     audiofile.Tags
-	album    string           // album title without disc marker
-	albumDir string           // the album's folder
-	folder   nameparse.Folder // what the album folder's name says
+	out       TrackOut
+	path      string
+	tags      audiofile.Tags
+	album     string           // album title without disc marker
+	albumDir  string           // the album's folder
+	folder    nameparse.Folder // what the album folder's name says
+	selection bool             // part of a folder selection (settleFolders)
 }
 
 func buildAlbums(tracks []Track, images []Image, isRoot map[string]bool) Result {
@@ -54,6 +55,8 @@ func buildAlbums(tracks []Track, images []Image, isRoot map[string]bool) Result 
 			}
 		}
 		tg := t.Tags
+		// Download sites' names and file codes are not album or artist names.
+		tg.Album, tg.AlbumArtist, tg.Artist = nameparse.CleanTag(tg.Album), nameparse.CleanTag(tg.AlbumArtist), nameparse.CleanTag(tg.Artist)
 		ff := nameparse.ParseFile(path.Base(t.Path), firstOf(tg.AlbumArtist, af.Artist))
 		m := &member{
 			path: t.Path, tags: tg, albumDir: albumDir, folder: af,
@@ -104,6 +107,19 @@ func buildAlbums(tracks []Track, images []Image, isRoot map[string]bool) Result 
 	sort.SliceStable(loose, func(i, j int) bool { return natsort.Less(loose[i].path, loose[j].path) })
 	for _, m := range loose {
 		res.Tracks = append(res.Tracks, m.out)
+	}
+	artists := map[string]bool{}
+	for _, t := range res.Tracks {
+		artists[nameparse.Norm(t.Artist)] = true
+	}
+	for _, a := range res.Albums {
+		artists[nameparse.Norm(a.Artist)] = true
+	}
+	delete(artists, "")
+	for i := range res.Albums {
+		if res.Albums[i].Artist == "" {
+			res.Albums[i].Artist = parentArtist(res.Albums[i].Dir, isRoot, artists)
+		}
 	}
 	return res
 }
@@ -164,7 +180,7 @@ func settleFolders(groups map[string][]*member, order []string, isRoot map[strin
 			title := firstOf(ms[0].folder.Album, path.Base(d))
 			key := d + "\x00" + nameparse.Norm(title)
 			for _, m := range ms {
-				m.album, m.tags.AlbumArtist, m.out.AlbumKey = title, "", key
+				m.album, m.tags.AlbumArtist, m.out.AlbumKey, m.selection = title, "", key, true
 			}
 			groups[key] = ms
 			renamed[keys[0]] = key
@@ -200,7 +216,7 @@ func memberLess(a, b *member) bool {
 }
 
 func makeAlbum(key string, ms []*member) Album {
-	a := Album{Key: key, Dir: ms[0].albumDir, Position: ms[0].folder.Position}
+	a := Album{Key: key, Dir: ms[0].albumDir, Position: ms[0].folder.Position, Selection: ms[0].selection}
 	var titles, albumArtists, artists, years counter
 	compilations := 0
 	for _, m := range ms {
@@ -347,4 +363,19 @@ func (ix coverIndex) pick(albumDir string, ms []*member) string {
 		}
 	}
 	return best
+}
+
+// parentArtist is the name of the album folder's parent when it is an
+// artist's folder: not a root, and named like an artist the catalog knows
+// ("Uruguay/Alfredo Zitarrosa/Casi en privado").
+func parentArtist(dir string, isRoot map[string]bool, artists map[string]bool) string {
+	p := path.Dir(dir)
+	if isRoot[dir] || isRoot[p] || !strings.Contains(p, "/") {
+		return ""
+	}
+	name := nameparse.Compose(path.Base(p))
+	if !artists[nameparse.Norm(name)] {
+		return ""
+	}
+	return name
 }

@@ -45,6 +45,10 @@ type Scanner struct {
 	Read func(ctx context.Context, path string) (audiofile.Info, error)
 	Env  store.ReadEnv
 
+	// OnDone is called after every scan that was not cancelled (the
+	// identification runner's Trigger); nil for none.
+	OnDone func()
+
 	mu     sync.Mutex
 	status Status
 }
@@ -74,6 +78,9 @@ func (s *Scanner) Run(ctx context.Context) error {
 		s.status.LastError = err.Error()
 	}
 	s.mu.Unlock()
+	if ctx.Err() == nil && s.OnDone != nil {
+		s.OnDone()
+	}
 	return err
 }
 

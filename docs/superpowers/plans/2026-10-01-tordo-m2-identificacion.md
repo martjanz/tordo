@@ -208,14 +208,14 @@ import "testing"
 
 func TestCompose(t *testing.T) {
 	cases := map[string]string{
-		"Império":    "Império",
-		"Fito Páez":  "Fito Páez",
-		"Coração":   "Coração",
-		"Müller":     "Müller",
-		"Niño":       "Niño",
+		"Impe\u0301rio":    "Império",
+		"Fito Pa\u0301ez":  "Fito Páez",
+		"Corac\u0327a\u0303o":   "Coração",
+		"Mu\u0308ller":     "Müller",
+		"Nin\u0303o":       "Niño",
 		"Páez":        "Páez",
 		"plain ascii": "plain ascii",
-		"x́":          "x́", // no precomposed letter: left alone
+		"x\u0301":          "x\u0301", // no precomposed letter: left alone
 	}
 	for in, want := range cases {
 		if got := Compose(in); got != want {
@@ -225,10 +225,10 @@ func TestCompose(t *testing.T) {
 }
 
 func TestParsersCompose(t *testing.T) {
-	if f := ParseFolder("Fito Páez - (1990) Tercer Mundo"); f.Artist != "Fito Páez" {
+	if f := ParseFolder("Fito Pa\u0301ez - (1990) Tercer Mundo"); f.Artist != "Fito Páez" {
 		t.Errorf("ParseFolder artist = %q", f.Artist)
 	}
-	if f := ParseFile("05 - Fue amor de verano de Páez.mp3", ""); f.Title != "Fue amor de verano de Páez" {
+	if f := ParseFile("05 - Fue amor de verano de Pa\u0301ez.mp3", ""); f.Title != "Fue amor de verano de Páez" {
 		t.Errorf("ParseFile title = %q", f.Title)
 	}
 }
@@ -311,13 +311,13 @@ var composed = func() map[[2]rune]rune {
 			m[[2]rune{rs[i], mark}] = rs[i+1]
 		}
 	}
-	add('̀', "aàeèiìoòuùAÀEÈIÌOÒUÙ")
-	add('́', "aáeéiíoóuúyýAÁEÉIÍOÓUÚYÝcćCĆnńNŃsśSŚzźZŹ")
-	add('̂', "aâeêiîoôuûAÂEÊIÎOÔUÛ")
-	add('̃', "aãoõnñAÃOÕNÑ")
-	add('̈', "aäeëiïoöuüyÿAÄEËIÏOÖUÜ")
-	add('̧', "cçCÇ")
-	add('̊', "aåAÅ")
+	add('\u0300', "aàeèiìoòuùAÀEÈIÌOÒUÙ")
+	add('\u0301', "aáeéiíoóuúyýAÁEÉIÍOÓUÚYÝcćCĆnńNŃsśSŚzźZŹ")
+	add('\u0302', "aâeêiîoôuûAÂEÊIÎOÔUÛ")
+	add('\u0303', "aãoõnñAÃOÕNÑ")
+	add('\u0308', "aäeëiïoöuüyÿAÄEËIÏOÖUÜ")
+	add('\u0327', "cçCÇ")
+	add('\u030a', "aåAÅ")
 	return m
 }()
 ```
@@ -3496,7 +3496,7 @@ func TestBuildQueryCompilation(t *testing.T) {
 }
 
 func TestBuildQueryComposesAndDropsJunk(t *testing.T) {
-	q := BuildQuery(store.IdentifyTarget{Dir: "../musica/x/Império", Title: "Império", Artist: "www.lomusical.com"})
+	q := BuildQuery(store.IdentifyTarget{Dir: "../musica/x/Impe\u0301rio", Title: "Impe\u0301rio", Artist: "www.lomusical.com"})
 	if want := []Variant{{Title: "Império"}}; !reflect.DeepEqual(q.Variants, want) {
 		t.Fatalf("variants = %+v", q.Variants)
 	}

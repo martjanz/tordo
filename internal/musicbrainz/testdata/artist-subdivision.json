@@ -1,0 +1,8 @@
+{
+  "id": "a1b2c3d4-0000-4000-8000-000000000006",
+  "name": "Noel Rosa",
+  "sort-name": "Rosa, Noel",
+  "type": "Person",
+  "area": {"id": "f1000000-0000-4000-8000-000000000002", "name": "Rio de Janeiro", "iso-3166-2-codes": ["BR-RJ"]},
+  "life-span": {"begin": "1910-12-11", "end": "1937-05-04", "ended": true}
+}

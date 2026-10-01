@@ -33,6 +33,9 @@ func TestSetupCreatesConfigAndScans(t *testing.T) {
 	if a.scanner == nil || a.server.ReadOnly {
 		t.Fatal("expected a writable setup with a scanner")
 	}
+	if a.runner == nil || a.server.Identifier == nil || a.scanner.OnDone == nil {
+		t.Fatal("expected an identification runner started after scans")
+	}
 	if err := a.scanner.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}

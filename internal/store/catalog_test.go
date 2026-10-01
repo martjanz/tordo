@@ -73,7 +73,7 @@ func TestAlbumsAndAlbum(t *testing.T) {
 			signos = a
 		}
 	}
-	if signos.Tracks != 2 || signos.Year != 1986 || signos.Position != 10 || signos.CoverPath != la+"/[LA-10] Soda Stereo - Signos/cover.jpg" || signos.Genres == nil {
+	if signos.Tracks != 2 || signos.Year != 1986 || signos.Position != 10 || signos.CoverPath != la+"/[LA-10] Soda Stereo - Signos/cover.jpg" || signos.RawGenres == nil {
 		t.Fatalf("signos = %+v", signos)
 	}
 	d, ok, err := s.Album(signos.ID)

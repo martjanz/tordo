@@ -16,6 +16,9 @@ import (
 
 	"tordo/internal/appdir"
 	"tordo/internal/config"
+	"tordo/internal/discogs"
+	"tordo/internal/identify"
+	"tordo/internal/musicbrainz"
 	"tordo/internal/scan"
 	"tordo/internal/server"
 	"tordo/internal/store"
@@ -34,7 +37,8 @@ func main() {
 
 type app struct {
 	server  *server.Server
-	scanner *scan.Scanner // nil in browse-only mode
+	scanner *scan.Scanner    // nil in browse-only mode
+	runner  *identify.Runner // nil in browse-only mode
 	close   func() error
 }
 
@@ -89,9 +93,21 @@ func setup(dirOverride string) (*app, error) {
 		for i, r := range cfg.Roots {
 			roots[i] = path.Clean(r)
 		}
-		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st}
+		if cfg.DiscogsToken == "" {
+			log.Print("sin token de Discogs: los géneros salen de MusicBrainz, de sus enlaces a Discogs y de los tags")
+		}
+		runner := &identify.Runner{AppDir: appDir, Store: st, MB: musicbrainz.New(), Discogs: discogs.New(cfg.DiscogsToken)}
+		a.runner = runner
+		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st, OnDone: runner.Trigger}
+		a.close = func() error {
+			runner.Close()
+			return st.Close()
+		}
 	}
-	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly}
+	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly, AppDir: appDir}
+	if a.runner != nil { // only when set: a nil *Runner in the interface would not read as "none"
+		a.server.Identifier = a.runner
+	}
 	return a, nil
 }
 

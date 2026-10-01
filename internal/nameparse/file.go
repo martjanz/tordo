@@ -25,6 +25,7 @@ var (
 // "1-05 Title.flac", "07 - Curare - Nilze Carvalho.mp3". folderArtist, when
 // known, tells "Title - Artist" from "Artist - Title".
 func ParseFile(name, folderArtist string) File {
+	name = Compose(name)
 	var f File
 	s := strings.TrimSuffix(name, path.Ext(name))
 	s = reYouTubeID.ReplaceAllString(s, "")

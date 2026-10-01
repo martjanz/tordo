@@ -1,0 +1,3 @@
+{"pagination": {"page": 1, "pages": 1, "per_page": 5, "items": 1},
+ "results": [{"id": 1234, "type": "release", "master_id": 5678, "title": "Soda Stereo - Signos", "year": "1986",
+              "genre": ["Rock"], "style": ["Pop Rock", "New Wave"]}]}

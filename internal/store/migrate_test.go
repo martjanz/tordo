@@ -1,0 +1,81 @@
+package store
+
+import (
+	"database/sql"
+	"errors"
+	"path/filepath"
+	"testing"
+
+	"tordo/internal/grouping"
+)
+
+// m1Catalog writes a catalog file shaped like M1's (user_version 0).
+func m1Catalog(t *testing.T) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "tordo.db")
+	db, err := sql.Open("sqlite", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, size INTEGER NOT NULL,
+			mtime INTEGER NOT NULL, kind TEXT NOT NULL, fingerprint TEXT NOT NULL DEFAULT '', missing INTEGER NOT NULL DEFAULT 0,
+			first_seen INTEGER NOT NULL);
+		INSERT INTO files (path, size, mtime, kind, first_seen) VALUES ('../musica/a.mp3', 1, 1, 'audio', 1);
+		CREATE TABLE albums (id INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, title TEXT NOT NULL);
+		INSERT INTO albums (key, title) VALUES ('k', 'Viejo');`); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func TestOpenMigratesM1Catalog(t *testing.T) {
+	file := m1Catalog(t)
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var files, albums, version int
+	s.db.QueryRow(`SELECT COUNT(*) FROM files`).Scan(&files)
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM albums WHERE status = ''`).Scan(&albums); err != nil {
+		t.Fatalf("albums has no status column: %v", err)
+	}
+	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
+	if files != 1 || albums != 0 || version != schemaVersion {
+		t.Fatalf("files %d albums %d version %d", files, albums, version)
+	}
+	if _, err := s.db.Exec(`INSERT INTO folders (path, parent, name, tracks, albums, duration_ms, collection)
+		VALUES ('../musica/x', '../musica', 'x', 0, 0, 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(file, false) // already v2: nothing is dropped
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var folders int
+	s.db.QueryRow(`SELECT COUNT(*) FROM folders`).Scan(&folders)
+	if folders != 1 {
+		t.Fatalf("a v2 catalog lost its folders on open")
+	}
+}
+
+func TestReadOnlyOpenRejectsOldCatalog(t *testing.T) {
+	if _, err := Open(m1Catalog(t), true); !errors.Is(err, ErrOldCatalog) {
+		t.Fatalf("err = %v, want ErrOldCatalog", err)
+	}
+}
+
+func TestSelectionIsStored(t *testing.T) {
+	s := open(t)
+	if err := s.ReplaceGrouping(grouping.Result{Albums: []grouping.Album{
+		{Key: "k", Dir: "../musica/baulera", Title: "baulera", Tracks: 1, Discs: 1, Selection: true},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	var sel bool
+	if err := s.db.QueryRow(`SELECT selection FROM albums WHERE key = 'k'`).Scan(&sel); err != nil || !sel {
+		t.Fatalf("selection = %v, err %v", sel, err)
+	}
+}
