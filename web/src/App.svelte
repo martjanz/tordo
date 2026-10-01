@@ -1,5 +1,6 @@
 <script>
   import Album from './pages/Album.svelte'
+  import Carpetas from './pages/Carpetas.svelte'
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
@@ -26,7 +27,11 @@
 <Nav page={current.page} />
 
 <main>
-  {#if current.page === 'album'}
+  {#if current.page === 'carpetas'}
+    {#key current.path}
+      <Carpetas path={current.path} />
+    {/key}
+  {:else if current.page === 'album'}
     {#key current.id}
       <Album id={current.id} />
     {/key}
