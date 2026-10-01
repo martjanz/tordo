@@ -11,7 +11,6 @@ import (
 	"tordo/internal/natsort"
 )
 
-
 // Counts summarizes the catalog for the status endpoint.
 type Counts struct {
 	Files       int `json:"files"`

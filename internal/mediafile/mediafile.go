@@ -20,8 +20,8 @@ var byExt = map[string]Kind{
 	".mp3": Audio, ".flac": Audio, ".m4a": Audio, ".aac": Audio, ".opus": Audio, ".ogg": Audio, ".oga": Audio,
 	".wma": Audio, ".wav": Audio, ".aif": Audio, ".aiff": Audio, ".aifc": Audio, ".ape": Audio, ".wv": Audio,
 	".jpg": Image, ".jpeg": Image, ".png": Image, ".webp": Image,
-	".lrc":  Lyrics,
-	".m3u":  Playlist, ".m3u8": Playlist,
+	".lrc": Lyrics,
+	".m3u": Playlist, ".m3u8": Playlist,
 }
 
 // Classify tells a file's kind from its name. Files of kind None are not catalogued.

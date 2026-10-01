@@ -50,11 +50,11 @@ const la = "../musica/Latinoamérica 600"
 
 func sample(t *testing.T) *Store {
 	return catalog(t, map[string]audiofile.Tags{
-		la + "/[LA-10] Soda Stereo - Signos/01.mp3":      {Title: "Signos", Artist: "Soda Stereo", Album: "Signos", Track: 1, Year: 1986},
-		la + "/[LA-10] Soda Stereo - Signos/02.mp3":      {Title: "No existes", Artist: "Soda Stereo", Album: "Signos", Track: 2, Year: 1986},
+		la + "/[LA-10] Soda Stereo - Signos/01.mp3":          {Title: "Signos", Artist: "Soda Stereo", Album: "Signos", Track: 1, Year: 1986},
+		la + "/[LA-10] Soda Stereo - Signos/02.mp3":          {Title: "No existes", Artist: "Soda Stereo", Album: "Signos", Track: 2, Year: 1986},
 		la + "/[LA-9] Charly García - Clics modernos/01.mp3": {Title: "Nos siguen pegando abajo", Artist: "Charly García", Album: "Clics modernos", Year: 1983},
-		la + "/[LA-11] Virus - Locura/01.mp3":            {Title: "Una luna de miel en la mano", Artist: "Virus", Album: "Locura", Year: 1985},
-		"../musica/suelto.mp3":                            {Title: "Suelto"},
+		la + "/[LA-11] Virus - Locura/01.mp3":                {Title: "Una luna de miel en la mano", Artist: "Virus", Album: "Locura", Year: 1985},
+		"../musica/suelto.mp3":                               {Title: "Suelto"},
 	}, la+"/[LA-10] Soda Stereo - Signos/cover.jpg")
 }
 

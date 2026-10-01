@@ -47,7 +47,7 @@ func TestParseFolder(t *testing.T) {
 func TestNorm(t *testing.T) {
 	cases := map[string]string{
 		"Fito Páez":           "fito paez",
-		"  FITO   PÁEZ!! ":     "fito paez",
+		"  FITO   PÁEZ!! ":    "fito paez",
 		"Nelson_Cavaquinho":   "nelson cavaquinho",
 		"Ñandú & Çedilla":     "nandu cedilla",
 		"Os Originais do Sam": "os originais do sam",
