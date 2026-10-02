@@ -100,8 +100,8 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `PUT /api/albums/{id}/identification` | choose the identification for an album (`DELETE` goes back to automatic) |
 | `GET /api/marks` | likes and ratings for tracks and albums (by id), and liked artists and collections |
 | `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
-| `PUT /api/ratings` | set a rating (★ 1–5) for a track or album (`{id, rating}`) |
-| `POST /api/plays` | record a play for a track (`{id, device}`) |
+| `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
+| `POST /api/plays` | record a play of a track (`{id, listenedMs, device}`); ignored in browse-only mode |
 | `GET /api/liked?tipo=` | albums, artists, collections, or tracks the user liked |
 | `GET /api/gains?track=` | ReplayGain tags or measured loudness for tracks (LUFS) |
 | `GET /api/playlists` | user's playlists |
