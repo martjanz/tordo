@@ -93,10 +93,15 @@ export function next(q, auto = false) {
   return pos < 0 ? null : { ...q, pos }
 }
 
+// peekPos is the play-order position peek returns, -1 when none.
+export function peekPos(q) {
+  return nextPos(q, true)
+}
+
 // peek is the entry that will play when the current one ends (to preload
 // it), or null.
 export function peek(q) {
-  const pos = nextPos(q, true)
+  const pos = peekPos(q)
   return pos < 0 ? null : byKey(q, q.order[pos])
 }
 
