@@ -62,3 +62,19 @@ describe('withGains', () => {
     expect(r.list[1]).toBe(q.list[1])
   })
 })
+
+describe('missing unmeasurable', () => {
+  it('skips entries that cannot be measured', () => {
+    const q = {
+      list: [
+        { key: 1, id: 1, unmeasurable: true },
+        { key: 2, id: 2, albumId: 5, trackGain: -3, unmeasurable: true },
+        { key: 3, id: 3 },
+      ],
+      order: [1, 2, 3],
+      pos: 0,
+      shuffle: false,
+    }
+    expect(missing(q, 0, 5)).toEqual([3])
+  })
+})
