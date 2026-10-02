@@ -1,7 +1,7 @@
 <script>
   // Explorar: albums, artists or tracks of the whole catalog, filtered by
   // facets that live in the URL, loaded a page at a time as the list scrolls.
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import BarraFacetas from '../components/BarraFacetas.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
@@ -25,11 +25,12 @@
   const key = (v) => (v === 'artistas' ? 'artists' : v === 'pistas' ? 'tracks' : 'albums')
 
   // Load on every change of the URL, and again when a scan or an
-  // identification run ends (same URL: the list refreshes in place).
+  // identification run ends (same URL: the list refreshes in place). load
+  // reads items: untracked, or each answer would ask again.
   $effect(() => {
     const search = route.search
     app.generation
-    load(search)
+    untrack(() => load(search))
   })
 
   async function load(search) {
@@ -67,7 +68,9 @@
     try {
       const d = await api.explore(loadedSearch, items.length, PAGE)
       if (id === loads) {
-        items = [...items, ...(d[key(d.query.view)] ?? [])]
+        // A scan may have shifted the list since the last page: skip repeats.
+        const seen = new Set(items.map((it) => it.key ?? it.id))
+        items = [...items, ...(d[key(d.query.view)] ?? []).filter((it) => !seen.has(it.key ?? it.id))]
         patchState({ shown: items.length })
       }
     } catch (e) {

@@ -56,12 +56,13 @@ func New() (*Index, error) {
 func (x *Index) Close() error { return x.db.Close() }
 
 // Refresh rebuilds the index from docs() when the catalog changed since the
-// last build: changes is the catalog's change counter. docs are indexed in
-// order, which breaks ties between equal ranks.
+// last build: changes is the catalog's change counter. An older catalog
+// (a slow request) never replaces a newer one. docs are indexed in order,
+// which breaks ties between equal ranks.
 func (x *Index) Refresh(changes int64, docs func() []Doc) error {
 	x.mu.Lock()
 	defer x.mu.Unlock()
-	if x.built && x.changes == changes {
+	if x.built && changes <= x.changes {
 		return nil
 	}
 	tx, err := x.db.Begin()
