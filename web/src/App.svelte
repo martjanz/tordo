@@ -2,6 +2,7 @@
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
+  import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
   import Album from './pages/Album.svelte'
@@ -15,6 +16,12 @@
   const current = $derived(resolve(route.path, route.search))
 
   watchStatus()
+
+  // The ids of the marks can change after a scan.
+  $effect(() => {
+    app.generation
+    loadMine()
+  })
 
   // Links inside the app change the route instead of reloading the page,
   // so the music keeps playing.
