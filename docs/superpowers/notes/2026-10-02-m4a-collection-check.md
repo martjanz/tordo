@@ -19,7 +19,8 @@ rutas relativas; el original no se tocó.
   −5,88 dB (calculada). *Guitarra negra* (Zitarrosa, WMA): −7,4 y −5,5 dB.
 - **Hallazgo 1 — compilados:** *Selección de murgas* (álbum 454) junta grabaciones de −24,4 a −0,8 LUFS. Escuchado
   en orden, la ganancia de álbum respeta esa diferencia de 23 dB entre pistas. En un compilado conviene la
-  ganancia de pista aunque se escuche en orden.
+  ganancia de pista aunque se escuche en orden. **Corregido** (aa6cdfe): el servidor no da ganancia de álbum a
+  las pistas de un compilado.
 - **Límite de diseño:** la normalización solo baja el volumen. Las grabaciones más bajas que −18 LUFS (Héctor
   Numa Moraes, −23,4) suenan igual que antes, así que un disco moderno normalizado (~−18) sigue sonando ~5 dB más
   fuerte que esas. Subir el volumen pediría Web Audio (un `GainNode`), como el gapless real: queda para "Después".
@@ -46,7 +47,8 @@ movió a una subcarpeta (`Argentina/Itiyuro (Silvia Barrios)`) y se volvió a es
 - Álbum: ♥ y ★ arriba de las acciones, se ven bien. Listas: listas vacías con la tarjeta "Nueva lista", Me gusta
   con sus cuatro pestañas.
 - **Hallazgo 2 — filas de pistas apretadas:** con ♥, duración, + y ⋯ en cada fila, el título queda en ~16
-  caracteres ("Yo quiero fumar…"). En el teléfono el + sobra: "A la cola" ya está en el menú ⋯.
+  caracteres ("Yo quiero fumar…"). En el teléfono el + sobra: "A la cola" ya está en el menú ⋯. **Corregido**
+  (250b603): en pantallas de hasta 640 px las filas no muestran el +.
 
 ## Queda para el usuario
 
