@@ -8,8 +8,9 @@
   // A single list belongs to Listas.
   const isActive = (s) => page === s.page || (s.page === 'listas' && page === 'lista')
 
-  // The sections of the app; Inicio comes with M4.
+  // The sections of the app.
   const SECTIONS = [
+    { page: 'inicio', href: '/', label: 'Inicio', icon: 'home' },
     { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
     { page: 'carpetas', href: '/carpetas', label: 'Carpetas', icon: 'folder' },
     { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
