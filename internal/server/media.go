@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"tordo/internal/appdir"
+	"tordo/internal/catalog"
 	"tordo/internal/loudness"
 	"tordo/internal/store"
 	"tordo/internal/stream"
@@ -229,13 +230,39 @@ const prioritizeCount = 20
 // maxGains caps the ids of one /api/gains request.
 const maxGains = 100
 
-// gainsFor computes the gains of the given tracks.
+// gainsFor computes the gains of the given tracks. Tracks of compilations get
+// no album gain: their tracks come from different sources and levels, so
+// levelling them to one album reference keeps the jumps between them.
 func (s *Server) gainsFor(ids []int64) (map[int64]loudness.TrackGain, error) {
 	facts, err := s.Store.LoudnessFacts(ids)
 	if err != nil {
 		return nil, err
 	}
-	return loudness.Gains(facts), nil
+	gains := loudness.Gains(facts)
+	var c *catalog.Catalog
+	compilation := map[int64]bool{} // album id -> is a compilation
+	for id, g := range gains {
+		albumID := facts[id].AlbumID
+		if g.Album == nil || albumID == 0 {
+			continue
+		}
+		comp, ok := compilation[albumID]
+		if !ok {
+			if c == nil {
+				if c, err = s.catalog(); err != nil {
+					return nil, err
+				}
+			}
+			a, found := c.Album(albumID)
+			comp = found && a.Compilation
+			compilation[albumID] = comp
+		}
+		if comp {
+			g.Album = nil
+			gains[id] = g
+		}
+	}
+	return gains, nil
 }
 
 // prioritizeUnmeasured asks the runner to measure first the first tracks of

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -20,15 +21,20 @@ import (
 // mediaServer catalogs an album with an MP3 and a WMA track whose files
 // exist under <tmp>/musica, served from the app folder <tmp>/tordo.
 func mediaServer(t *testing.T, ffmpeg string) (*Server, []int64) {
-	t.Helper()
-	base := t.TempDir()
-	app := filepath.Join(base, "tordo")
-	files := map[string]audiofile.Info{
+	return mediaServerFiles(t, ffmpeg, map[string]audiofile.Info{
 		"Virus - Locura/01.mp3": {Format: "mp3", Codec: "mp3", DurationMs: 1000,
 			Tags: audiofile.Tags{Title: "Una luna de miel en la mano", Artist: "Virus", Album: "Locura", Track: 1}},
 		"Virus - Locura/02.wma": {Format: "asf", Codec: "wma", DurationMs: 1000,
 			Tags: audiofile.Tags{Title: "Pecados para dos", Artist: "Virus", Album: "Locura", Track: 2}},
-	}
+	})
+}
+
+// mediaServerFiles builds a server over the given files (paths relative to
+// the music folder); the returned ids are in folder order.
+func mediaServerFiles(t *testing.T, ffmpeg string, files map[string]audiofile.Info) (*Server, []int64) {
+	t.Helper()
+	base := t.TempDir()
+	app := filepath.Join(base, "tordo")
 	st, err := store.OpenMemory()
 	if err != nil {
 		t.Fatal(err)
@@ -291,5 +297,63 @@ func TestFolderArt(t *testing.T) {
 	decode(t, do(t, s.Handler(), "GET", "/api/folders?path=../musica", ""), &f)
 	if len(f.Children) != 1 || len(f.Art["../musica/Virus - Locura"]) != 1 || len(f.Trail) != 1 || f.Trail[0].Name != "musica" {
 		t.Fatalf("folder = %+v", f)
+	}
+}
+
+func TestGainsCompilationHasNoAlbumGain(t *testing.T) {
+	mp3 := func(artist, album, title string, n int, comp bool) audiofile.Info {
+		return audiofile.Info{Format: "mp3", Codec: "mp3", DurationMs: 1000,
+			Tags: audiofile.Tags{Artist: artist, Album: album, Title: title, Track: n, Compilation: comp}}
+	}
+	files := map[string]audiofile.Info{
+		"Selección de murgas/01.mp3": mp3("Agarrate Catalina", "Selección de murgas", "Uno", 1, true),
+		"Selección de murgas/02.mp3": mp3("Falta y Resto", "Selección de murgas", "Dos", 2, true),
+		"Virus - Locura/01.mp3":      mp3("Virus", "Locura", "Una luna", 1, false),
+		"Virus - Locura/02.mp3":      mp3("Virus", "Locura", "Pecados", 2, false),
+	}
+	s, _ := mediaServerFiles(t, "", files)
+	h := s.Handler()
+	lufs := -24.0
+	for name := range files {
+		v := lufs
+		lufs += 6
+		if err := s.Store.SaveLoudness("../musica/"+name, &v, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type gain struct {
+		ID        int64    `json:"id"`
+		TrackGain *float64 `json:"trackGain"`
+		AlbumGain *float64 `json:"albumGain"`
+	}
+	check := func(what string, g gain, wantAlbum bool) {
+		t.Helper()
+		if g.TrackGain == nil || (g.AlbumGain != nil) != wantAlbum {
+			t.Errorf("%s %d: track %v album %v, want album gain %v", what, g.ID, g.TrackGain, g.AlbumGain, wantAlbum)
+		}
+	}
+	var p struct{ Items []gain }
+	var ids []string
+	for _, c := range []struct {
+		folder string
+		want   bool
+	}{{"../musica/Selección de murgas", false}, {"../musica/Virus - Locura", true}} {
+		decode(t, do(t, h, "GET", "/api/play?"+url.Values{"folder": {c.folder}}.Encode(), ""), &p)
+		if len(p.Items) != 2 {
+			t.Fatalf("%s: %+v", c.folder, p)
+		}
+		for _, it := range p.Items {
+			check("play", it, c.want)
+			ids = append(ids, "track="+itoa(it.ID))
+		}
+	}
+	var gains map[string]loudness.TrackGain
+	decode(t, do(t, h, "GET", "/api/gains?"+strings.Join(ids, "&"), ""), &gains)
+	if len(gains) != 4 {
+		t.Fatalf("gains = %+v", gains)
+	}
+	for i, id := range ids { // the first two are the compilation's
+		g := gains[strings.TrimPrefix(id, "track=")]
+		check("gains", gain{TrackGain: g.Track, AlbumGain: g.Album}, i >= 2)
 	}
 }
