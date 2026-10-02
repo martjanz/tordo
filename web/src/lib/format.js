@@ -91,3 +91,25 @@ export function years(first, last) {
   if (!first) return ''
   return last && last !== first ? `${first}–${last}` : String(first)
 }
+
+// size reads a byte count as the Finder does (decimal units): "84 KB",
+// "7,2 MB", "1,4 GB". Under 10 it keeps one decimal.
+export function size(bytes) {
+  if (bytes == null) return ''
+  if (bytes < 1000) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1000
+  let unit = 0
+  // Round first, so 999,6 KB becomes "1,0 MB" and 9,96 MB becomes "10 MB".
+  while (Math.round(value * 10) / 10 >= 1000 && unit < units.length - 1) {
+    value /= 1000
+    unit++
+  }
+  const rounded = Math.round(value * 10) / 10
+  const decimals = rounded < 10 ? 1 : 0
+  const text = (decimals ? rounded : Math.round(value)).toLocaleString('es', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+  return `${text} ${units[unit]}`
+}

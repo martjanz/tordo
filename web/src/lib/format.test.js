@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, country, duration, folderName, formatName, length, quality, years } from './format.js'
+import { codecName, count, country, duration, folderName, formatName, length, quality, size, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
