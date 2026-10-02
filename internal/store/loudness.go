@@ -138,8 +138,8 @@ func nullPtr(n sql.NullFloat64) *float64 {
 	return &v
 }
 
-func chunks(ids []int64) [][]int64 {
-	var out [][]int64
+func chunks[T any](ids []T) [][]T {
+	var out [][]T
 	for len(ids) > 0 {
 		n := min(len(ids), loudnessChunk)
 		out = append(out, ids[:n])

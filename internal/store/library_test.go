@@ -109,6 +109,34 @@ func TestPlayTracksAndTrackFile(t *testing.T) {
 	}
 }
 
+func TestPlayTracksKeepsOrder(t *testing.T) {
+	s := library(t)
+	a, c := trackNamed(t, s, "Signos"), trackNamed(t, s, "Sur")
+	items, err := s.PlayTracks([]int64{c, a, 999, a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(items); !reflect.DeepEqual(got, []string{"Sur", "Signos", "Signos"}) {
+		t.Fatalf("tracks = %q", got)
+	}
+	var ids []int64
+	var want []string
+	for i := 0; i < 1200; i++ {
+		if i%3 == 0 {
+			ids, want = append(ids, c), append(want, "Sur")
+		} else {
+			ids, want = append(ids, a), append(want, "Signos")
+		}
+	}
+	items, err = s.PlayTracks(ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(items); !reflect.DeepEqual(got, want) {
+		t.Fatalf("1200 ids gave %d items", len(got))
+	}
+}
+
 func TestAlbumPictures(t *testing.T) {
 	s := library(t)
 	signos := albumNamed(t, s, "Signos")
