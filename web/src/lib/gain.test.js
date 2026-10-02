@@ -39,9 +39,18 @@ describe('factor', () => {
 
 describe('missing', () => {
   it('skips known gains and duplicates, and respects count', () => {
-    const q = queue([mk(1, 1, { trackGain: -3 }), mk(2, 1), mk(2, 1), mk(3, 1), mk(4, 1)])
+    const q = queue([mk(1, 1, { trackGain: -3, albumGain: -3 }), mk(2, 1), mk(2, 1), mk(3, 1), mk(4, 1)])
     expect(missing(q, 0, 2)).toEqual([2, 3])
     expect(missing(q, 3, 5)).toEqual([3, 4])
+  })
+  it('also lists tracks of an album whose gain has not arrived', () => {
+    const q = queue([
+      mk(1, 1, { trackGain: -3 }),
+      mk(2, 1, { trackGain: -4, albumGain: -3 }),
+      mk(3, null, { trackGain: -5 }),
+      mk(1, 1, { trackGain: -3 }),
+    ])
+    expect(missing(q, 0, 5)).toEqual([1])
   })
 })
 

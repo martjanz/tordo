@@ -1,6 +1,5 @@
 // The normalization gain of a queued track. Entries carry trackGain and
 // albumGain (dB, from the server) when known. Only attenuates.
-import * as Q from './queue.js'
 
 export const UNKNOWN_DB = -6 // a track not measured yet: typical for modern masters
 
@@ -8,10 +7,10 @@ export const UNKNOWN_DB = -6 // a track not measured yet: typical for modern mas
 // album's when the queue plays that album in order (shuffle off and a
 // neighbor in play order from the same album), else the track's.
 export function gainDb(q, pos) {
-  const key = q.order[pos]
-  const entry = q.list.find((e) => e.key === key)
+  const byKey = new Map(q.list.map((e) => [e.key, e]))
+  const entry = byKey.get(q.order[pos])
   if (!entry) return 0
-  const albumOf = (p) => (p >= 0 && p < q.order.length ? q.list.find((e) => e.key === q.order[p])?.albumId : undefined)
+  const albumOf = (p) => (p >= 0 && p < q.order.length ? byKey.get(q.order[p])?.albumId : undefined)
   const inAlbum = !q.shuffle && entry.albumId && (albumOf(pos - 1) === entry.albumId || albumOf(pos + 1) === entry.albumId)
   if (inAlbum && entry.albumGain != null) return entry.albumGain
   return entry.trackGain ?? UNKNOWN_DB
@@ -23,14 +22,16 @@ export function factor(db) {
 }
 
 // missing lists the ids of up to count entries from position from of the
-// play order whose track gain is not known yet (each id once).
+// play order whose track gain is not known yet, or that belong to an album
+// whose gain is not (each id once).
 export function missing(q, from, count) {
-  const ids = []
-  for (let p = Math.max(0, from); p < q.order.length && ids.length < count; p++) {
-    const e = q.list.find((x) => x.key === q.order[p])
-    if (e && e.trackGain == null && !ids.includes(e.id)) ids.push(e.id)
+  const byKey = new Map(q.list.map((e) => [e.key, e]))
+  const ids = new Set()
+  for (let p = Math.max(0, from); p < q.order.length && ids.size < count; p++) {
+    const e = byKey.get(q.order[p])
+    if (e && (e.trackGain == null || (e.albumId && e.albumGain == null))) ids.add(e.id)
   }
-  return ids
+  return [...ids]
 }
 
 // withGains sets the gains the server answered ({id: {trackGain, albumGain}})
