@@ -1,11 +1,11 @@
 # Tordo
 
 A local, portable catalog and player for a music collection spread over a few
-folders of one drive. **Status: M4a (listening data)** — scanning, native tag reading,
-audio fingerprints, albums, folders and collections, automatic MusicBrainz and
-Discogs identification, a localhost JSON API, and the web interface with the
-player, likes, ratings, playlists, play counts, and loudness normalization; see
-`docs/superpowers/specs/2026-10-01-tordo-design.md`.
+folders of one drive. **Status: M4b (Stations, Inicio and statistics)** — scanning,
+native tag reading, audio fingerprints, albums, folders and collections, automatic
+MusicBrainz and Discogs identification, a localhost JSON API, and the web interface
+with the player, likes, ratings, playlists, play counts, stations, Inicio, listening
+statistics, and loudness normalization; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
 
 - **Read-only** on your music: it never moves, renames, re-tags or deletes files.
 - **Portable:** one executable per OS; the catalog (`tordo.db`) and
@@ -86,6 +86,79 @@ skipped when playing. Max 5000 entries per playlist.
 View your playlists and curation: Listas de reproducción, your Me gusta by
 type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 
+#### Stations
+
+A station plays a sequence of albums or tracks drawn from a source, never repeating
+what it just queued, with rules for variety and avoiding recently-heard music. Its
+source is one of:
+- An **Explorar query**: albums (with all their tracks), artists, or just their
+  track listings on compilations.
+- A **folder** (recursive; collections are folders too).
+- A **playlist** (the entries that can still play).
+- **Liked** (♥ me gusta): all liked tracks, all tracks of liked albums, all tracks of
+  liked artists, and all tracks of liked collections.
+
+**Modes** are `pistas` (track by track) or `albumes` (whole albums at a time; a single
+track counts as an album of one).
+
+**Rules** (with defaults):
+- `artistGap` (0–20, default 3): no artist again within the last N tracks.
+- `avoidDays` (0–365, default 7): skip tracks played in the last N days (an album:
+  any of its tracks).
+- The station never repeats a track it already queued (the browser sends up to the
+  last 100 played).
+
+When no track fits all rules, they **relax one at a time** in this order: artist gap,
+avoid days, already queued (but never the one that just played, if there is another).
+When nothing is left at all, the batch is empty and the station stops.
+
+The browser pulls up to 10 tracks at a time and asks for more when fewer than 3
+remain. The queue keeps only the last 100 played tracks, so the station never runs
+out. Saved stations are stored by name and live in Tus estaciones on Inicio.
+
+**Weights** (for drawing tracks):
+- Base: 1.
+- ×3 when the track or its album is ♥.
+- ×2 when its artist is ♥.
+- × {1: 0.25, 2: 0.5, 3: 1, 4: 2, 5: 3} by the highest of the track's and album's rating (★).
+
+#### Inicio
+
+The first page, showing:
+- Fixed rows: **Agregados recientemente** (newest albums), **Tus estaciones** (saved
+  stations, plus two built-ins: "Toda la colección" and "Tus me gusta" when something
+  is liked), **Seguir escuchando** (albums by their latest play), **Tus me gusta**
+  (liked albums, most recent first).
+- **Three rotating rows**, drawn with a seed from the catalog's facets (decade,
+  country, genre, style, collections, never-played albums, unheard-in-a-year albums,
+  random albums). Rows with fewer than 4 items are hidden.
+
+The ↻ button redraws the rotating rows with the same seed; a new visit draws a new
+seed. Each row links to Explorar with its filter and (except fixed non-curated rows)
+an ▶ button to start its station.
+
+#### Tu escucha (statistics)
+
+Your listening history by period: **semana** (7 days), **mes** (30 days), **año**
+(365 days), **siempre** (all time). Rankings of most-played tracks, albums, artists,
+countries, and genres; totals (plays, time listened, distinct tracks); and
+catalog-wide counts of never-played and unheard-in-a-year **albums** (linked to
+Explorar).
+
+A play is attributed to **one** track: the file it was played from when present
+with the same audio, else the lowest-numbered present file with that audio. Each of
+an album's genres counts as one play.
+
+#### Escucha facet
+
+Filter albums or tracks by `escucha`: **nunca** (never played) or **hace-un-año**
+(played, but the last play is more than 365 days old). Albums are never-played only
+if none of their tracks have been played.
+
+#### Artist pages
+
+Show the artist's 5 most-played tracks (all time) above their albums.
+
 | Method and path | What it returns |
 |---|---|
 | `GET /api/status` | scan progress, catalog counts, normalization status |
@@ -98,7 +171,7 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `GET /api/collections` | folders detected as collections, with their albums in order |
 | `PUT /api/folders/collection` | `{"path", "collection": false}`: not a collection (`true` takes it back) |
 | `GET /api/explore?ver=&<facets>&orden=&dir=&desde=&limite=` | a page of Explorar (albums, artists or tracks) with the facets' counts |
-| `GET /api/artists/{key}` | an artist: albums by year and appearances on others' albums |
+| `GET /api/artists/{key}` | an artist: albums by year, appearances on others' albums, and their 5 most-played tracks in `top` |
 | `GET /api/search?q=&limite=` | artists, albums, tracks and folders matching `q` |
 | `GET /api/genres` | the taxonomy of genres and styles |
 | `GET /api/genres/unmapped` | raw tag genres no mapping knows (Géneros por mapear) |
@@ -110,7 +183,7 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
 | `POST /api/plays` | record a play of a track (`{id, listenedMs, device}`); ignored in browse-only mode |
 | `GET /api/liked` | the liked tracks, albums, artists and collections, most recent first |
-| `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue |
+| `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue; "unmeasurable" tracks (files that cannot be opened or ffmpeg I/O errors) are not re-analyzed |
 | `GET /api/playlists` | user's playlists |
 | `POST /api/playlists` | create a new playlist |
 | `GET /api/playlists/{id}` | entries of a playlist |
@@ -119,6 +192,13 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `POST /api/playlists/{id}/items` | add an entry to a playlist |
 | `DELETE /api/playlists/{id}/items/{item}` | remove an entry |
 | `PUT /api/playlists/{id}/order` | reorder entries |
+| `GET /api/stations` | saved stations, most recently updated first |
+| `POST /api/stations` | save a station (body: `{name, source, mode, artistGap, avoidDays}`) |
+| `PUT /api/stations/{id}` | rename or update a station |
+| `DELETE /api/stations/{id}` | delete a saved station |
+| `GET /api/station/next?def=<JSON>&recientes=1,2,3` | the next up to 10 tracks (or albums) from the station, with mime and gains; `recientes` is a comma-separated list of recently-played track ids |
+| `GET /api/home?semilla=N` | Inicio: fixed rows, rotating rows, and saved stations; `semilla` (seed) draws the rotating rows, missing or invalid gives a random one |
+| `GET /api/stats?periodo=&limite=` | Tu escucha: `periodo` is semana/mes/anio/siempre (default mes); `limite` is the length of each ranking (default 25) |
 | `GET /api/play?album=&folder=&artist=&track=&shuffle=1&playlist=&liked=1` | the tracks to queue, in order (at most 5000) |
 | `GET /stream/{trackId}` | a track's audio (`Range` for seeking; `?transcode=1` converts it) |
 | `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
