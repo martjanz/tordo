@@ -266,14 +266,14 @@ func (s *Server) gainsFor(ids []int64) (map[int64]loudness.TrackGain, error) {
 }
 
 // prioritizeUnmeasured asks the runner to measure first the first tracks of
-// ids (in order) that have no track gain.
+// ids (in order) that have no track gain and may still get one.
 func (s *Server) prioritizeUnmeasured(ids []int64, gains map[int64]loudness.TrackGain) {
 	if s.Loudness == nil {
 		return
 	}
 	var want []int64
 	for _, id := range ids {
-		if g, ok := gains[id]; ok && g.Track == nil {
+		if g, ok := gains[id]; ok && g.Track == nil && !g.Unmeasurable {
 			if want = append(want, id); len(want) == prioritizeCount {
 				break
 			}

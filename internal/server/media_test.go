@@ -212,6 +212,43 @@ func TestPlayGains(t *testing.T) {
 	decode(t, do(t, h, "GET", "/api/gains?track="+itoa(mp3), ""), &gains)
 }
 
+func TestPlayUnmeasurable(t *testing.T) {
+	s, ids := mediaServer(t, "ffmpeg")
+	fake := &fakeLoudness{}
+	s.Loudness = fake
+	h := s.Handler()
+	wma := ids[1]
+	if err := s.Store.SaveLoudness("../musica/Virus - Locura/02.wma", nil, "roto"); err != nil {
+		t.Fatal(err)
+	}
+	var p struct {
+		Items []struct {
+			ID           int64 `json:"id"`
+			Unmeasurable bool  `json:"unmeasurable"`
+		} `json:"items"`
+	}
+	decode(t, do(t, h, "GET", "/api/play?album="+itoa(onlyAlbum(t, s)), ""), &p)
+	var found bool
+	for _, it := range p.Items {
+		if it.ID == wma {
+			found = true
+			if !it.Unmeasurable {
+				t.Fatalf("wma = %+v", it)
+			}
+		} else if it.Unmeasurable {
+			t.Fatalf("other track unmeasurable: %+v", it)
+		}
+	}
+	if !found {
+		t.Fatalf("items = %+v", p)
+	}
+	for _, call := range fake.calls() {
+		if slices.Contains(call, wma) {
+			t.Fatalf("the unmeasurable track was prioritized: %v", call)
+		}
+	}
+}
+
 func TestPlayPlaylistAndLiked(t *testing.T) {
 	s, ids := mediaServer(t, "")
 	h := s.Handler()

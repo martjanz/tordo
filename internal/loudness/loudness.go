@@ -120,12 +120,15 @@ type Track struct {
 	TagTrack   *float64 // ReplayGain tags, dB
 	TagAlbum   *float64
 	LUFS       *float64 // measured by Analyze
+	Failed     bool     // measuring it failed for good: a loudness row with no value
 }
 
 // TrackGain is a track's gains in dB, nil when unknown.
 type TrackGain struct {
 	Track *float64 `json:"trackGain,omitempty"`
 	Album *float64 `json:"albumGain,omitempty"`
+	// Unmeasurable: no tag and the measure failed, so there will be no gain.
+	Unmeasurable bool `json:"unmeasurable,omitempty"`
 }
 
 // loudnessOf is a track's known loudness: from its track gain tag, else
@@ -165,6 +168,8 @@ func Gains(facts map[int64]Track) map[int64]TrackGain {
 		var g TrackGain
 		if l, ok := loudnessOf(t); ok {
 			g.Track = round(Gain(l))
+		} else if t.Failed {
+			g.Unmeasurable = true
 		}
 		switch {
 		case t.TagAlbum != nil:
