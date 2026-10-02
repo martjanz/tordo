@@ -47,9 +47,11 @@ func (s *Server) streamTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 // play answers GET /api/play: the tracks to queue for an album
-// (?album=id), a folder or collection (?folder=path, recursive, in order)
-// or some tracks (?track=id, repeatable), shuffled with ?shuffle=1. Tracks
-// that cannot play (they need ffmpeg) are left out and counted.
+// (?album=id), a folder or collection (?folder=path, recursive, in order),
+// an artist (?artist=key: their albums by year, then their tracks on
+// others' albums) or some tracks (?track=id, repeatable), shuffled with
+// ?shuffle=1. Tracks that cannot play (they need ffmpeg) are left out and
+// counted.
 func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	var items []store.PlayItem
@@ -64,6 +66,13 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 		items, err = s.Store.PlayAlbum(id)
 	case q.Has("folder"):
 		items, err = s.Store.PlayFolder(q.Get("folder"))
+	case q.Has("artist"):
+		var ok bool
+		items, ok, err = s.playArtist(q.Get("artist"))
+		if err == nil && !ok {
+			http.Error(w, "artista no encontrado", http.StatusNotFound)
+			return
+		}
 	case q.Has("track"):
 		var ids []int64
 		for _, v := range q["track"] {
@@ -76,7 +85,7 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 		}
 		items, err = s.Store.PlayTracks(ids)
 	default:
-		http.Error(w, "falta qué reproducir: album, folder o track", http.StatusBadRequest)
+		http.Error(w, "falta qué reproducir: album, folder, artist o track", http.StatusBadRequest)
 		return
 	}
 	if err != nil {
@@ -101,6 +110,35 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""})
+}
+
+// playArtist lists an artist's tracks: their albums oldest first, then their
+// appearances on others' albums.
+func (s *Server) playArtist(key string) ([]store.PlayItem, bool, error) {
+	c, err := s.catalog()
+	if err != nil {
+		return nil, false, err
+	}
+	p, ok := c.ArtistPage(key)
+	if !ok {
+		return nil, false, nil
+	}
+	var out []store.PlayItem
+	for _, a := range p.Albums {
+		items, err := s.Store.PlayAlbum(a.ID)
+		if err != nil {
+			return nil, true, err
+		}
+		out = append(out, items...)
+	}
+	var ids []int64
+	for _, ap := range p.Appearances {
+		for _, t := range ap.Tracks {
+			ids = append(ids, t.ID)
+		}
+	}
+	items, err := s.Store.PlayTracks(ids)
+	return append(out, items...), true, err
 }
 
 func (s *Server) albumCover(w http.ResponseWriter, r *http.Request) {

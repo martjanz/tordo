@@ -1,5 +1,11 @@
 package store
 
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+)
+
 // GenreLink is one of an album's genres and where it came from.
 type GenreLink struct {
 	Genre  string `json:"genre"`
@@ -149,6 +155,21 @@ func (s *Store) Unidentified() ([]UnidentifiedView, error) {
 	return out, nil
 }
 
+// AlbumCandidates returns the MusicBrainz releases offered for an album when
+// it was matched, best first (none when it was not looked up).
+func (s *Store) AlbumCandidates(albumID int64) ([]Candidate, error) {
+	var raw string
+	err := s.db.QueryRow(`SELECT m.candidates FROM albums a JOIN matches m ON m.query = a.match_query WHERE a.id = ?`, albumID).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return []Candidate{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := []Candidate{}
+	return out, json.Unmarshal([]byte(raw), &out)
+}
+
 // GenreAlias is the user's mapping of a raw genre value.
 type GenreAlias struct {
 	Raw   string `json:"raw"`   // genres.Key form
@@ -159,6 +180,13 @@ type GenreAlias struct {
 func (s *Store) SetGenreAlias(a GenreAlias) error {
 	_, err := s.db.Exec(`INSERT INTO genre_alias (raw, genre, style) VALUES (?, ?, ?)
 		ON CONFLICT(raw) DO UPDATE SET genre = excluded.genre, style = excluded.style`, a.Raw, a.Genre, a.Style)
+	return err
+}
+
+// DeleteGenreAlias forgets a mapping: the raw value maps as built in, or
+// goes back to the Géneros por mapear queue.
+func (s *Store) DeleteGenreAlias(raw string) error {
+	_, err := s.db.Exec(`DELETE FROM genre_alias WHERE raw = ?`, raw)
 	return err
 }
 

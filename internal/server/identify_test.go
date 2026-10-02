@@ -199,6 +199,15 @@ func TestGenreEndpoints(t *testing.T) {
 	if rec := do(t, s.Handler(), "GET", "/api/genres/aliases", ""); rec.Code != http.StatusOK || !json.Valid(rec.Body.Bytes()) {
 		t.Fatalf("list aliases: %d", rec.Code)
 	}
+	if rec := do(t, s.Handler(), "DELETE", "/api/genres/aliases?raw=Chamam%C3%A9", ""); rec.Code != http.StatusNoContent || f.applied != 2 {
+		t.Fatalf("delete alias: %d, applied %d", rec.Code, f.applied)
+	}
+	if as, _ := s.Store.GenreAliases(); len(as) != 0 {
+		t.Fatalf("aliases after delete = %+v", as)
+	}
+	if rec := do(t, s.Handler(), "DELETE", "/api/genres/aliases", ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("no raw: %d", rec.Code)
+	}
 }
 
 func TestReleaseIDFrom(t *testing.T) {
