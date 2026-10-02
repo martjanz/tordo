@@ -40,7 +40,7 @@ Soulseek's `downloading`, Apple Music libraries) are always skipped.
 Explorar lists albums, artists or tracks of the whole catalog, filtered by
 decade and year, artist, country, genre and style, collection, folder,
 quality, format and state (not identified, not playable); it also filters by
-likes (♥) and rating (★ 1–5). Results can be ordered by most played. The
+Me gusta (♥) and Puntaje (★ N or more). Results can be ordered by Más escuchado. The
 filters live in the URL. Artist pages show their albums by year and their
 tracks on compilations. The search (Ctrl+K / ⌘K) finds artists, albums, tracks
 and folders while typing, ignoring case and accents. Carpetas shows the folders
@@ -98,10 +98,10 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `PUT /api/genres/aliases`, `DELETE /api/genres/aliases?raw=` | map a raw genre (or ignore it), or forget the mapping |
 | `GET /api/review/unidentified` | albums awaiting identification review |
 | `PUT /api/albums/{id}/identification` | choose the identification for an album (`DELETE` goes back to automatic) |
-| `GET /api/marks` | all likes, ratings and play counts for this session |
-| `PUT /api/likes` | set or unset me gusta (♥) for a track, album, artist or collection by fingerprint |
-| `PUT /api/ratings` | set a rating (1–5) for a track or album by fingerprint |
-| `POST /api/plays` | record a play for a track |
+| `GET /api/marks` | likes and ratings for tracks and albums (by id), and liked artists and collections |
+| `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
+| `PUT /api/ratings` | set a rating (★ 1–5) for a track or album (`{id, rating}`) |
+| `POST /api/plays` | record a play for a track (`{id, device}`) |
 | `GET /api/liked?tipo=` | albums, artists, collections, or tracks the user liked |
 | `GET /api/gains?track=` | ReplayGain tags or measured loudness for tracks (LUFS) |
 | `GET /api/playlists` | user's playlists |
