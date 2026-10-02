@@ -59,7 +59,9 @@ cached in `cache/thumbs/`.
 | `POST /api/scan` | starts a scan (`Content-Type: application/json`) |
 | `GET /api/albums?folder=` | albums, all or inside a folder |
 | `GET /api/albums/{id}` | an album with its tracks and technical data |
-| `GET /api/folders?path=` | a folder: subfolders, albums and loose tracks (no `path`: the roots) |
+| `GET /api/folders?path=` | a folder: subfolders (with size), albums, loose tracks and the files directly in it (no `path`: the roots) |
+| `GET /api/folders/tree?path=` | one level of the Carpetas tree: subfolders, pass-through chains merged |
+| `GET /api/folders/tree/search?q=` | folders by name, with the tree rows leading to them |
 | `GET /api/collections` | folders detected as collections, with their albums in order |
 | `PUT /api/folders/collection` | `{"path", "collection": false}`: not a collection (`true` takes it back) |
 | `GET /api/explore?ver=&<facets>&orden=&dir=&desde=&limite=` | a page of Explorar (albums, artists or tracks) with the facets' counts |
