@@ -10,6 +10,7 @@
     { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
     { page: 'carpetas', href: '/carpetas', label: 'Carpetas', icon: 'folder' },
     { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
+    { page: 'revisar', href: '/revisar', label: 'Revisar', icon: 'review' },
   ]
 </script>
 

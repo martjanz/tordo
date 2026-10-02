@@ -7,7 +7,7 @@
   import Tapa from '../components/Tapa.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
-  import { app } from '../lib/app.svelte.js'
+  import { app, notify } from '../lib/app.svelte.js'
   import { count, length } from '../lib/format.js'
   import { navigate, savedScroll } from '../lib/nav.svelte.js'
   import { play } from '../lib/player.svelte.js'
@@ -50,6 +50,16 @@
     return c.collection ? `Colección · ${n}` : n
   }
 
+  // setCollection says a detected collection is not one (or takes it back).
+  async function setCollection(collection) {
+    try {
+      const f = await api.setCollection(folder.path, collection)
+      folder.collection = f.collection
+    } catch (e) {
+      notify(e.message)
+    }
+  }
+
   // A subfolder holding a single album (its own folder) opens the album.
   function childHref(child) {
     const art = folder.art?.[child.path] ?? []
@@ -74,6 +84,11 @@
     </p>
     {#if folder.trackCount > 0}
       <Acciones what={{ folder: path }} />
+    {/if}
+    {#if folder.detected && !app.status?.readOnly}
+      <button class="small" onclick={() => setCollection(!folder.collection)}>
+        {folder.collection ? 'No es una colección' : 'Es una colección'}
+      </button>
     {/if}
   {:else}
     <h1>Carpetas</h1>
@@ -123,6 +138,11 @@
 {/if}
 
 <style>
+  .small {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
   .trail {
     display: flex;
     flex-wrap: wrap;

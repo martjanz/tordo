@@ -10,6 +10,7 @@
   import Carpetas from './pages/Carpetas.svelte'
   import Explorar from './pages/Explorar.svelte'
   import Listas from './pages/Listas.svelte'
+  import Revisar from './pages/Revisar.svelte'
 
   const current = $derived(resolve(route.path, route.search))
 
@@ -49,6 +50,8 @@
     <Buscar q={current.q} />
   {:else if current.page === 'listas'}
     <Listas />
+  {:else if current.page === 'revisar'}
+    <Revisar tab={current.tab} />
   {:else}
     <p class="empty">No existe esta página. <a href="/explorar">Ir a Explorar</a></p>
   {/if}
