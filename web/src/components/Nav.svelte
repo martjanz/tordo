@@ -5,8 +5,11 @@
 
   let { page } = $props()
 
-  // A single list belongs to Listas.
-  const isActive = (s) => page === s.page || (s.page === 'listas' && page === 'lista')
+  // A single list belongs to Listas, the statistics to Inicio.
+  const isActive = (s) =>
+    page === s.page ||
+    (s.page === 'listas' && page === 'lista') ||
+    (s.page === 'inicio' && page === 'estadisticas')
 
   // The sections of the app.
   const SECTIONS = [

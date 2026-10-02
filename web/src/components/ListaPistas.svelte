@@ -3,7 +3,7 @@
   // tracks span several discs; the artist when it is not the album's (with
   // a link to their page when there is one); the album with showAlbum.
   // Tracks the server cannot deliver (playable false) are dimmed.
-  import { duration, quality } from '../lib/format.js'
+  import { count, duration, quality } from '../lib/format.js'
   import { enqueue } from '../lib/player.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
   import { isLiked } from '../lib/marks.js'
@@ -12,7 +12,7 @@
   import MeGusta from './MeGusta.svelte'
   import MenuPista from './MenuPista.svelte'
 
-  let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false } = $props()
+  let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false, showPlays = false } = $props()
 
   const discs = $derived(new Set(tracks.map((t) => t.disc || 1)).size)
   const otherArtist = (t) => t.artist && t.artist !== albumArtist
@@ -44,6 +44,7 @@
           </span>
         {/if}
       </span>
+      {#if showPlays}<span class="plays">{count(t.plays ?? 0, 'vez', 'veces')}</span>{/if}
       <span class="quality">{quality(t)}</span>
       <span class="like" class:liked={isLiked(mine.marks, 'track', t.id)}><MeGusta kind="track" ref={t.id} size={16} /></span>
       <span class="time">{duration(t.durationMs)}</span>
@@ -131,6 +132,11 @@
   .quality {
     font-size: 12px;
     color: var(--faint);
+    white-space: nowrap;
+  }
+  .plays {
+    font-size: 12px;
+    color: var(--muted);
     white-space: nowrap;
   }
   .time {

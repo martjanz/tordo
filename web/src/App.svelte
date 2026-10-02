@@ -9,6 +9,7 @@
   import Artista from './pages/Artista.svelte'
   import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
+  import Estadisticas from './pages/Estadisticas.svelte'
   import Explorar from './pages/Explorar.svelte'
   import Inicio from './pages/Inicio.svelte'
   import Lista from './pages/Lista.svelte'
@@ -43,6 +44,8 @@
 <main>
   {#if current.page === 'inicio'}
     <Inicio />
+  {:else if current.page === 'estadisticas'}
+    <Estadisticas period={current.period} />
   {:else if current.page === 'explorar'}
     <Explorar />
   {:else if current.page === 'carpetas'}
