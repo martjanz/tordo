@@ -71,6 +71,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/playlists/{id}/items", jsonOnly(s.addToPlaylist))
 	mux.HandleFunc("DELETE /api/playlists/{id}/items/{item}", s.removeFromPlaylist)
 	mux.HandleFunc("PUT /api/playlists/{id}/order", jsonOnly(s.reorderPlaylist))
+	mux.HandleFunc("GET /api/home", s.home)
+	mux.HandleFunc("GET /api/stats", s.stats)
 	mux.HandleFunc("GET /api/artists/{key}", s.artist)
 	mux.HandleFunc("GET /api/search", s.find)
 	mux.HandleFunc("PUT /api/folders/collection", jsonOnly(s.setCollection))

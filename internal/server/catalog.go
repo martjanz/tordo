@@ -105,7 +105,15 @@ func (s *Server) artist(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "artista no encontrado", http.StatusNotFound)
 		return
 	}
-	writeJSON(w, p)
+	pers, err := s.personal()
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, struct {
+		catalog.ArtistPage
+		Top []catalog.TrackPlays `json:"top"`
+	}{p, c.ArtistTop(r.PathValue("key"), pers, 5)})
 }
 
 // find is the instant search: ?q=, at most ?limite= of each kind.

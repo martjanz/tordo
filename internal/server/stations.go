@@ -52,15 +52,24 @@ func stationErr(w http.ResponseWriter, err error) {
 	answer(w, err)
 }
 
-func (s *Server) stations(w http.ResponseWriter, r *http.Request) {
+// savedStations lists the saved stations, most recently updated first.
+func (s *Server) savedStations() ([]savedStation, error) {
 	all, err := s.Store.Stations()
 	if err != nil {
-		fail(w, err)
-		return
+		return nil, err
 	}
 	out := make([]savedStation, len(all))
 	for i, ss := range all {
 		out[i] = listed(ss)
+	}
+	return out, nil
+}
+
+func (s *Server) stations(w http.ResponseWriter, r *http.Request) {
+	out, err := s.savedStations()
+	if err != nil {
+		fail(w, err)
+		return
 	}
 	writeJSON(w, out)
 }
