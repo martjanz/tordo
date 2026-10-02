@@ -9,7 +9,9 @@ export function resolve(pathname, search = '') {
   if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
   if (pathname === '/revisar') return { page: 'revisar', tab: 'sin-identificar' }
   if (pathname === '/revisar/generos') return { page: 'revisar', tab: 'generos' }
-  let m = pathname.match(/^\/album\/([1-9][0-9]*)$/)
+  let m = pathname.match(/^\/listas\/([1-9][0-9]*)$/)
+  if (m) return { page: 'lista', id: Number(m[1]) }
+  m = pathname.match(/^\/album\/([1-9][0-9]*)$/)
   if (m) return { page: 'album', id: Number(m[1]) }
   m = pathname.match(/^\/artista\/([^/]+)$/)
   if (m) {
@@ -41,6 +43,10 @@ export function folderHref(path) {
 
 export function albumHref(id) {
   return `/album/${id}`
+}
+
+export function listHref(id) {
+  return `/listas/${id}`
 }
 
 export function artistHref(key) {

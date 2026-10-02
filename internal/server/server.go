@@ -14,22 +14,32 @@ import (
 	"strings"
 
 	"tordo/internal/covers"
+	"tordo/internal/loudness"
 	"tordo/internal/scan"
 	"tordo/internal/store"
 	"tordo/internal/stream"
 )
 
+// Loudness is what the API needs from the loudness runner.
+type Loudness interface {
+	Prioritize(ids []int64)
+	Status() loudness.Status
+}
+
 type Server struct {
 	Store      *store.Store
 	Scanner    *scan.Scanner   // nil in browse-only mode
 	Identifier Identifier      // nil in browse-only mode
+	Loudness   Loudness        // nil: no loudness analysis
+	Normalize  bool            // the player evens out volume (config.json)
 	AppDir     string          // where catalog and cache paths are relative to
 	Streamer   stream.Streamer // FFmpeg "" when there is none
 	Covers     *covers.Covers  // nil: no pictures
 	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
 
-	cat catalogState
+	cat  catalogState
+	pers personalState
 }
 
 func (s *Server) Handler() http.Handler {
@@ -43,6 +53,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/folders/tree/search", s.searchFolderTree)
 	mux.HandleFunc("GET /api/collections", s.collections)
 	mux.HandleFunc("GET /api/explore", s.explore)
+	mux.HandleFunc("GET /api/marks", s.marks)
+	mux.HandleFunc("PUT /api/likes", jsonOnly(s.setLike))
+	mux.HandleFunc("PUT /api/ratings", jsonOnly(s.setRating))
+	mux.HandleFunc("POST /api/plays", jsonOnly(s.recordPlay))
+	mux.HandleFunc("GET /api/liked", s.liked)
+	mux.HandleFunc("GET /api/playlists", s.playlists)
+	mux.HandleFunc("POST /api/playlists", jsonOnly(s.createPlaylist))
+	mux.HandleFunc("GET /api/playlists/{id}", s.playlist)
+	mux.HandleFunc("PUT /api/playlists/{id}", jsonOnly(s.renamePlaylist))
+	mux.HandleFunc("DELETE /api/playlists/{id}", s.deletePlaylist)
+	mux.HandleFunc("POST /api/playlists/{id}/items", jsonOnly(s.addToPlaylist))
+	mux.HandleFunc("DELETE /api/playlists/{id}/items/{item}", s.removeFromPlaylist)
+	mux.HandleFunc("PUT /api/playlists/{id}/order", jsonOnly(s.reorderPlaylist))
 	mux.HandleFunc("GET /api/artists/{key}", s.artist)
 	mux.HandleFunc("GET /api/search", s.find)
 	mux.HandleFunc("PUT /api/folders/collection", jsonOnly(s.setCollection))
@@ -56,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
 	mux.HandleFunc("DELETE /api/genres/aliases", s.deleteGenreAlias)
 	mux.HandleFunc("GET /api/play", s.play)
+	mux.HandleFunc("GET /api/gains", s.gains)
 	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
 	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
 	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
@@ -129,7 +153,12 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	if s.Identifier != nil {
 		ident = s.Identifier.Status()
 	}
-	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "counts": counts})
+	var loud any = map[string]string{"state": "off"}
+	if s.Loudness != nil {
+		loud = s.Loudness.Status()
+	}
+	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "loudness": loud,
+		"normalize": s.Normalize, "counts": counts})
 }
 
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {

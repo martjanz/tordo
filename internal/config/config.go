@@ -14,10 +14,14 @@ import (
 const FileName = "config.json"
 
 type Config struct {
-	Roots        []string `json:"roots"`        // catalog form: relative to the app folder, '/'-separated
-	Ignore       []string `json:"ignore"`       // extra folder patterns to skip (see mediafile.IgnoredDir)
-	DiscogsToken string   `json:"discogsToken"` // optional: enables Discogs search
+	Roots        []string `json:"roots"`               // catalog form: relative to the app folder, '/'-separated
+	Ignore       []string `json:"ignore"`              // extra folder patterns to skip (see mediafile.IgnoredDir)
+	DiscogsToken string   `json:"discogsToken"`        // optional: enables Discogs search
+	Normalize    *bool    `json:"normalize,omitempty"` // volume normalization; nil (absent): on
 }
+
+// Normalizing reports whether the player evens out the volume of tracks.
+func (c Config) Normalizing() bool { return c.Normalize == nil || *c.Normalize }
 
 // Load reads config.json from appDir. When the file does not exist it returns
 // defaults (the sibling folders of appDir as roots) and created=true.
@@ -28,7 +32,8 @@ func Load(appDir string) (Config, bool, error) {
 		if err != nil {
 			return Config{}, false, err
 		}
-		return Config{Roots: roots, Ignore: []string{}}, true, nil
+		on := true
+		return Config{Roots: roots, Ignore: []string{}, Normalize: &on}, true, nil
 	}
 	if err != nil {
 		return Config{}, false, err

@@ -9,6 +9,7 @@
   import { albumHref, folderHref } from '../lib/router.js'
   import Acciones from './Acciones.svelte'
   import Icono from './Icono.svelte'
+  import MeGusta from './MeGusta.svelte'
   import Tapa from './Tapa.svelte'
 
   let { folder } = $props()
@@ -87,6 +88,7 @@
           {folder.collection ? 'No es una colección' : 'Es una colección'}
         </button>
       {/if}
+      {#if folder.collection}<MeGusta kind="collection" ref={folder.path} />{/if}
     </div>
   {/if}
 </header>

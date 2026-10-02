@@ -7,6 +7,8 @@ describe('playQuery', () => {
     expect(playQuery({ folder: '../musica/Brasil', shuffle: true })).toBe('folder=..%2Fmusica%2FBrasil&shuffle=1')
     expect(playQuery({ tracks: [3, 1] })).toBe('track=3&track=1')
     expect(playQuery({ artist: 'charly-garcia' })).toBe('artist=charly-garcia')
+    expect(playQuery({ playlist: 3 })).toBe('playlist=3')
+    expect(playQuery({ liked: true })).toBe('liked=1')
   })
 })
 

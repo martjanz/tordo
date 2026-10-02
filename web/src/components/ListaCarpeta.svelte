@@ -11,6 +11,7 @@
   import { albumHref, folderHref } from '../lib/router.js'
   import { MIN } from '../lib/search.js'
   import Icono from './Icono.svelte'
+  import MeGusta from './MeGusta.svelte'
 
   let { path, rootPath, folder } = $props()
 
@@ -108,6 +109,7 @@
       <span class="back"></span>
     {/if}
     <h1>{title}</h1>
+    {#if folder.collection && path !== ''}<MeGusta kind="collection" ref={path} />{/if}
     <div class="more" bind:this={menu}>
       {#if path !== ''}
         <button class="icon" aria-label="Acciones" aria-haspopup="menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>

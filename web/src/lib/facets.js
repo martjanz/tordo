@@ -16,6 +16,8 @@ export const FACETS = [
   { name: 'pais', label: 'País' },
   { name: 'genero', label: 'Género' },
   { name: 'coleccion', label: 'Colección' },
+  { name: 'megusta', label: 'Me gusta' },
+  { name: 'puntaje', label: 'Puntaje' },
   { name: 'carpeta', label: 'Carpeta', more: true },
   { name: 'calidad', label: 'Calidad', more: true },
   { name: 'formato', label: 'Formato', more: true },
@@ -23,7 +25,7 @@ export const FACETS = [
 ]
 
 // NAMES are the facets in URL order, the year and style included.
-const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado']
+const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado', 'megusta', 'puntaje']
 
 // ORDERS lists each tab's orders, its default first (as the server).
 export const ORDERS = {
@@ -32,23 +34,28 @@ export const ORDERS = {
     { value: 'titulo', label: 'Título' },
     { value: 'artista', label: 'Artista' },
     { value: 'agregado', label: 'Agregado' },
+    { value: 'escuchado', label: 'Más escuchado' },
   ],
   artistas: [
     { value: 'titulo', label: 'Nombre' },
     { value: 'cantidad', label: 'Cantidad de álbumes' },
     { value: 'agregado', label: 'Agregado' },
+    { value: 'escuchado', label: 'Más escuchado' },
   ],
   pistas: [
     { value: 'artista', label: 'Artista' },
     { value: 'anio', label: 'Año' },
     { value: 'titulo', label: 'Título' },
     { value: 'agregado', label: 'Agregado' },
+    { value: 'escuchado', label: 'Más escuchado' },
   ],
 }
 
 export const LABELS = {
   calidad: { 'sin-perdida': 'Sin pérdida', 'con-perdida': 'Con pérdida' },
   estado: { 'sin-identificar': 'Sin identificar', 'no-reproducible': 'No reproducible' },
+  megusta: { si: 'Me gusta' },
+  puntaje: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
 }
 
 // defaultDir is the natural direction of an order: A to Z for names,
@@ -134,6 +141,8 @@ export function valueLabel(name, value, counted) {
       return formatName(value)
     case 'calidad':
     case 'estado':
+    case 'megusta':
+    case 'puntaje':
       return LABELS[name][value] ?? value
   }
   return counted?.label || value

@@ -57,3 +57,17 @@ describe('labels', () => {
     expect(inside('genero', parse('?genero=Rock'), counts)).toEqual([{ value: 'Pop Rock' }])
   })
 })
+
+describe('my data facets', () => {
+  it('keeps megusta, puntaje and the escuchado order', () => {
+    const q = parse('?megusta=si&puntaje=4&orden=escuchado')
+    expect(q.facets).toEqual({ megusta: 'si', puntaje: '4' })
+    expect(q.order).toBe('escuchado')
+    expect(toSearch(q)).toBe('?megusta=si&puntaje=4&orden=escuchado')
+    expect(parse('?ver=pistas&orden=escuchado').order).toBe('escuchado')
+  })
+  it('labels them', () => {
+    expect(valueLabel('puntaje', '4')).toBe('★★★★ o más')
+    expect(valueLabel('megusta', 'si')).toBe('Me gusta')
+  })
+})

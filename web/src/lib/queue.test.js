@@ -126,3 +126,15 @@ describe('restore', () => {
     expect([r.repeat, r.pos, r.nextKey]).toEqual(['off', 0, 3])
   })
 })
+
+describe('peekPos', () => {
+  it('is the play-order position peek returns', () => {
+    const q = Q.replace(Q.empty(), items(1, 2, 3), 1)
+    expect(Q.peekPos(q)).toBe(2)
+    const end = Q.jump(q, 2)
+    expect(Q.peekPos(end)).toBe(-1)
+    expect(Q.peekPos({ ...end, repeat: 'all' })).toBe(0)
+    expect(Q.peekPos({ ...end, repeat: 'one' })).toBe(2)
+    expect(Q.peekPos(Q.empty())).toBe(-1)
+  })
+})

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { albumHref, appLink, artistHref, exploreHref, folderHref, resolve, searchHref } from './router.js'
+import { albumHref, appLink, artistHref, exploreHref, folderHref, listHref, resolve, searchHref } from './router.js'
 
 describe('resolve', () => {
   it.each([
@@ -8,6 +8,9 @@ describe('resolve', () => {
     ['/carpetas', '', { page: 'carpetas', path: '' }],
     ['/carpetas', '?ruta=..%2Fmusica%2FLatinoam%C3%A9rica%20600', { page: 'carpetas', path: '../musica/Latinoamérica 600' }],
     ['/listas', '', { page: 'listas' }],
+    ['/listas/12', '', { page: 'lista', id: 12 }],
+    ['/listas/0', '', { page: 'notfound' }],
+    ['/listas/x', '', { page: 'notfound' }],
     ['/album/12', '', { page: 'album', id: 12 }],
     ['/album/0', '', { page: 'notfound' }],
     ['/album/abc', '', { page: 'notfound' }],
@@ -65,5 +68,11 @@ describe('appLink', () => {
     expect(appLink({ ...click, ctrlKey: true }, anchor('/carpetas'), origin)).toBeNull()
     expect(appLink({ ...click, button: 1 }, anchor('/carpetas'), origin)).toBeNull()
     expect(appLink({ ...click, defaultPrevented: true }, anchor('/carpetas'), origin)).toBeNull()
+  })
+})
+
+describe('listHref', () => {
+  it('links a playlist', () => {
+    expect(listHref(12)).toBe('/listas/12')
   })
 })

@@ -151,3 +151,63 @@ CREATE TABLE IF NOT EXISTS genre_alias (
 	genre TEXT NOT NULL,                       -- '' = not a genre: ignore it
 	style TEXT NOT NULL DEFAULT ''
 );
+
+-- The user's marks: likes (♥) and ratings (★ 1–5). kind is track, album,
+-- artist or collection. Tracks and albums are marked by trackRef (the audio
+-- fingerprint), so marks survive moving, renaming and re-tagging; an album's
+-- mark is written on each of its tracks. Artists by catalog key,
+-- collections by folder path. Never touched by scans.
+CREATE TABLE IF NOT EXISTS marks (
+	kind       TEXT NOT NULL,
+	ref        TEXT NOT NULL,
+	liked      INTEGER NOT NULL DEFAULT 0,
+	liked_at   INTEGER NOT NULL DEFAULT 0,    -- unix ms, 0 when not liked
+	rating     INTEGER NOT NULL DEFAULT 0,    -- 0: none, 1–5
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (kind, ref)
+);
+
+-- Every play that counted (≥ 50 % or ≥ 4 min listened).
+CREATE TABLE IF NOT EXISTS plays (
+	id          INTEGER PRIMARY KEY,
+	ref         TEXT NOT NULL,                -- trackRef
+	file_id     INTEGER NOT NULL,             -- the file played, as it was then
+	played_at   INTEGER NOT NULL,             -- unix ms
+	listened_ms INTEGER NOT NULL,
+	device      TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS plays_ref ON plays(ref);
+CREATE INDEX IF NOT EXISTS plays_played_at ON plays(played_at);
+
+CREATE TABLE IF NOT EXISTS playlists (
+	id         INTEGER PRIMARY KEY,
+	name       TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+
+-- A playlist's entries in order, by trackRef, with what the track was
+-- called when added: an entry whose track disappeared still shows.
+CREATE TABLE IF NOT EXISTS playlist_items (
+	id          INTEGER PRIMARY KEY,
+	playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+	pos         INTEGER NOT NULL,
+	ref         TEXT NOT NULL,
+	file_id     INTEGER NOT NULL,
+	title       TEXT NOT NULL,
+	artist      TEXT NOT NULL,
+	album       TEXT NOT NULL,
+	duration_ms INTEGER NOT NULL,
+	added_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS playlist_items_list ON playlist_items(playlist_id, pos);
+
+-- Integrated loudness measured by ffmpeg (ebur128), by trackRef. lufs is
+-- NULL when the file could not be measured (error says why): not retried
+-- until its audio changes (a new fingerprint).
+CREATE TABLE IF NOT EXISTS loudness (
+	ref         TEXT PRIMARY KEY,
+	lufs        REAL,
+	error       TEXT NOT NULL DEFAULT '',
+	measured_at INTEGER NOT NULL
+);

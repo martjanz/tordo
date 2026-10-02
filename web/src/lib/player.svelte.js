@@ -3,8 +3,11 @@
 // The queue and the volume live in this browser's storage: each device has
 // its own, and they survive reloading the page.
 import { api, itemCoverURL, streamURL } from './api.js'
-import { notify } from './app.svelte.js'
+import { app, notify } from './app.svelte.js'
+import { deviceName } from './device.js'
 import { count } from './format.js'
+import { factor, gainDb, missing, withGains } from './gain.js'
+import * as P from './plays.js'
 import * as Q from './queue.js'
 
 const QUEUE_KEY = 'tordo.cola'
@@ -60,6 +63,7 @@ let active = null // the <audio> playing
 let standby = null // the <audio> loading the next track
 let errors = 0 // tracks that failed in a row
 let startAt = 0 // where to start the track being loaded
+let pass = P.begin(null) // the listening that may count as a play
 
 const canPlayCache = {}
 
@@ -98,10 +102,14 @@ function audios() {
   }
 }
 
+function normalizing() {
+  return app.status?.normalize !== false
+}
+
 function applyVolume() {
   for (const a of [active, standby]) {
     if (a) {
-      a.volume = player.volume
+      a.volume = player.volume * (normalizing() ? Number(a.dataset.gain || 1) : 1)
       a.muted = player.muted
     }
   }
@@ -115,6 +123,11 @@ let lastTimeSave = 0
 
 function onTime() {
   player.time = active.currentTime
+  pass = P.tick(pass, active.currentTime)
+  if (P.due(pass)) {
+    api.recordPlay({ id: pass.id, listenedMs: Math.round(pass.listenedMs), device: deviceName(navigator.userAgent) }).catch(() => {})
+    pass = P.sent(pass)
+  }
   const entry = Q.current(player.queue)
   if (Date.now() - lastTimeSave > 5000 && entry) {
     lastTimeSave = Date.now()
@@ -170,6 +183,7 @@ function onEnded() {
     ;[active, standby] = [standby, active]
     release(standby)
     show(entry, active.dataset.seekable === '1')
+    refreshGains()
     // media errors arrive through the element's error event (mine); autoplay
     // refusal is ignored here and will pause the element if the user retries.
     active.play().catch(() => {})
@@ -200,6 +214,7 @@ function onError() {
 // show updates what the page shows for entry: duration, seekability, the
 // lock screen.
 function show(entry, seekable) {
+  pass = P.begin(entry)
   player.duration = (entry.durationMs ?? 0) / 1000
   player.seekable = seekable
   player.time = 0
@@ -219,7 +234,31 @@ function start(entry, at, play) {
   player.time = at
   startAt = at
   player.loading = play
+  active.dataset.gain = String(factor(gainDb(player.queue, player.queue.pos)))
+  applyVolume()
   if (play) active.play().catch(() => (player.loading = false))
+  refreshGains()
+}
+
+// refreshGains asks for the gains of the next tracks that lack one. Errors
+// are ignored: the next call tries again.
+async function refreshGains() {
+  const ids = missing(player.queue, player.queue.pos, 10)
+  if (ids.length === 0) return
+  let res
+  try {
+    res = await api.gains(ids)
+  } catch {
+    return
+  }
+  player.queue = withGains(player.queue, res) // the live queue: it may have changed meanwhile
+  persist()
+  const pos = Q.peekPos(player.queue)
+  const entry = Q.peek(player.queue)
+  if (standby && entry && standby.dataset.key === String(entry.key) && standby !== active) {
+    standby.dataset.gain = String(factor(gainDb(player.queue, pos)))
+    applyVolume()
+  }
 }
 
 // preload starts loading the track that comes next, once.
@@ -230,6 +269,8 @@ function preload() {
   standby.src = src.url
   standby.dataset.key = String(entry.key)
   standby.dataset.seekable = src.seekable ? '1' : ''
+  standby.dataset.gain = String(factor(gainDb(player.queue, Q.peekPos(player.queue))))
+  applyVolume()
   standby.load()
 }
 
@@ -238,6 +279,7 @@ function setQueue(q, play = true) {
   persist()
   const entry = Q.current(q)
   if (entry) start(entry, 0, play)
+  else refreshGains()
 }
 
 // play asks the server for what to play ({album}, {folder}, {tracks}) and
@@ -282,7 +324,10 @@ export async function enqueue(what, { next = false } = {}) {
   if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
   else notify(next ? 'Suena a continuación.' : `${count(res.items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
   if (wasEmpty) start(Q.current(player.queue), 0, false)
+  else refreshGains()
 }
+
+if (player.queue.list.length > 0) refreshGains()
 
 export function toggle() {
   const entry = Q.current(player.queue)

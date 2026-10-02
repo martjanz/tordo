@@ -1,11 +1,15 @@
 package server
 
 import (
+	"errors"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"tordo/internal/appdir"
+	"tordo/internal/catalog"
+	"tordo/internal/loudness"
 	"tordo/internal/store"
 	"tordo/internal/stream"
 )
@@ -17,6 +21,7 @@ var MaxPlay = 5000
 // playItem is a track as the player gets it: how the server will deliver it.
 type playItem struct {
 	store.PlayItem
+	loudness.TrackGain
 	MIME       string `json:"mime"`       // what /stream/{id} sends
 	Transcoded bool   `json:"transcoded"` // converted by ffmpeg: no seeking
 }
@@ -46,50 +51,93 @@ func (s *Server) streamTrack(w http.ResponseWriter, r *http.Request) {
 	s.Streamer.Serve(w, r, appdir.Abs(s.AppDir, f.Path), trackFormat(f), r.URL.Query().Get("transcode") == "1")
 }
 
-// play answers GET /api/play: the tracks to queue for an album
-// (?album=id), a folder or collection (?folder=path, recursive, in order),
-// an artist (?artist=key: their albums by year, then their tracks on
-// others' albums) or some tracks (?track=id, repeatable), shuffled with
-// ?shuffle=1. Tracks that cannot play (they need ffmpeg) are left out and
-// counted.
-func (s *Server) play(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	var items []store.PlayItem
-	var err error
+// httpError is a request the server refuses, with the status and text to answer.
+type httpError struct {
+	code int
+	msg  string
+}
+
+func (e *httpError) Error() string { return e.msg }
+
+// answer writes err as the response: an *httpError with its status, anything
+// else as an internal error.
+func answer(w http.ResponseWriter, err error) {
+	var he *httpError
+	if errors.As(err, &he) {
+		http.Error(w, he.msg, he.code)
+		return
+	}
+	fail(w, err)
+}
+
+func badID() error { return &httpError{http.StatusBadRequest, "id inválido"} }
+
+// resolve lists the tracks a play query names: album, folder, artist,
+// track (repeatable), playlist (its available entries in order) or liked=1
+// (the liked tracks, most recent first). Bad or unknown references are
+// *httpError (400, 404).
+func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 	switch {
 	case q.Has("album"):
-		id, perr := strconv.ParseInt(q.Get("album"), 10, 64)
-		if perr != nil {
-			http.Error(w, "id inválido", http.StatusBadRequest)
-			return
+		id, err := strconv.ParseInt(q.Get("album"), 10, 64)
+		if err != nil {
+			return nil, badID()
 		}
-		items, err = s.Store.PlayAlbum(id)
+		if _, ok, err := s.Store.Album(id); err != nil {
+			return nil, err
+		} else if !ok {
+			return nil, &httpError{http.StatusNotFound, "álbum no encontrado"}
+		}
+		return s.Store.PlayAlbum(id)
 	case q.Has("folder"):
-		items, err = s.Store.PlayFolder(q.Get("folder"))
+		return s.Store.PlayFolder(q.Get("folder"))
 	case q.Has("artist"):
-		var ok bool
-		items, ok, err = s.playArtist(q.Get("artist"))
+		items, ok, err := s.playArtist(q.Get("artist"))
 		if err == nil && !ok {
-			http.Error(w, "artista no encontrado", http.StatusNotFound)
-			return
+			return nil, &httpError{http.StatusNotFound, "artista no encontrado"}
 		}
+		return items, err
 	case q.Has("track"):
 		var ids []int64
 		for _, v := range q["track"] {
-			id, perr := strconv.ParseInt(v, 10, 64)
-			if perr != nil {
-				http.Error(w, "id inválido", http.StatusBadRequest)
-				return
+			id, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, badID()
 			}
 			ids = append(ids, id)
 		}
-		items, err = s.Store.PlayTracks(ids)
-	default:
-		http.Error(w, "falta qué reproducir: album, folder, artist o track", http.StatusBadRequest)
-		return
+		return s.Store.PlayTracks(ids)
+	case q.Has("playlist"):
+		id, err := strconv.ParseInt(q.Get("playlist"), 10, 64)
+		if err != nil {
+			return nil, badID()
+		}
+		items, ok, err := s.Store.PlayPlaylist(id)
+		if err == nil && !ok {
+			return nil, &httpError{http.StatusNotFound, "lista no encontrada"}
+		}
+		return items, err
+	case q.Get("liked") == "1":
+		ids, err := s.Store.LikedTrackIDs()
+		if err != nil {
+			return nil, err
+		}
+		return s.Store.PlayTracks(ids)
 	}
+	return nil, &httpError{http.StatusBadRequest, "falta qué reproducir: album, folder, artist, track, playlist o liked"}
+}
+
+// play answers GET /api/play: the tracks to queue for an album
+// (?album=id), a folder or collection (?folder=path, recursive, in order),
+// an artist (?artist=key: their albums by year, then their tracks on
+// others' albums), some tracks (?track=id, repeatable), a playlist
+// (?playlist=id) or the liked tracks (?liked=1), shuffled with ?shuffle=1.
+// Tracks that cannot play (they need ffmpeg) are left out and counted.
+func (s *Server) play(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	items, err := s.resolve(q)
 	if err != nil {
-		fail(w, err)
+		answer(w, err)
 		return
 	}
 	if q.Get("shuffle") == "1" {
@@ -109,6 +157,19 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 			truncated++
 		}
 	}
+	ids := make([]int64, len(out))
+	for i, it := range out {
+		ids[i] = it.ID
+	}
+	gains, err := s.gainsFor(ids)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	for i := range out {
+		out[i].TrackGain = gains[out[i].ID]
+	}
+	s.prioritizeUnmeasured(ids, gains)
 	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""})
 }
 
@@ -160,4 +221,97 @@ func (s *Server) coverByID(w http.ResponseWriter, r *http.Request, serve func(ht
 		return
 	}
 	serve(w, r, id)
+}
+
+// prioritizeCount is how many unmeasured tracks of a request are sent to the
+// loudness runner to measure first.
+const prioritizeCount = 20
+
+// maxGains caps the ids of one /api/gains request.
+const maxGains = 100
+
+// gainsFor computes the gains of the given tracks. Tracks of compilations get
+// no album gain: their tracks come from different sources and levels, so
+// levelling them to one album reference keeps the jumps between them.
+func (s *Server) gainsFor(ids []int64) (map[int64]loudness.TrackGain, error) {
+	facts, err := s.Store.LoudnessFacts(ids)
+	if err != nil {
+		return nil, err
+	}
+	gains := loudness.Gains(facts)
+	var c *catalog.Catalog
+	compilation := map[int64]bool{} // album id -> is a compilation
+	for id, g := range gains {
+		albumID := facts[id].AlbumID
+		if g.Album == nil || albumID == 0 {
+			continue
+		}
+		comp, ok := compilation[albumID]
+		if !ok {
+			if c == nil {
+				if c, err = s.catalog(); err != nil {
+					return nil, err
+				}
+			}
+			a, found := c.Album(albumID)
+			comp = found && a.Compilation
+			compilation[albumID] = comp
+		}
+		if comp {
+			g.Album = nil
+			gains[id] = g
+		}
+	}
+	return gains, nil
+}
+
+// prioritizeUnmeasured asks the runner to measure first the first tracks of
+// ids (in order) that have no track gain.
+func (s *Server) prioritizeUnmeasured(ids []int64, gains map[int64]loudness.TrackGain) {
+	if s.Loudness == nil {
+		return
+	}
+	var want []int64
+	for _, id := range ids {
+		if g, ok := gains[id]; ok && g.Track == nil {
+			if want = append(want, id); len(want) == prioritizeCount {
+				break
+			}
+		}
+	}
+	if len(want) > 0 {
+		s.Loudness.Prioritize(want)
+	}
+}
+
+// gains answers GET /api/gains?track=1&track=2: {id: gains} for those tracks,
+// and has the unmeasured ones measured first.
+func (s *Server) gains(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()["track"]
+	if len(q) == 0 || len(q) > maxGains {
+		http.Error(w, "se esperan entre 1 y 100 pistas", http.StatusBadRequest)
+		return
+	}
+	ids := make([]int64, len(q))
+	for i, v := range q {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			http.Error(w, "id inválido", http.StatusBadRequest)
+			return
+		}
+		ids[i] = id
+	}
+	all, err := s.gainsFor(ids)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	out := make(map[int64]loudness.TrackGain, len(ids))
+	for _, id := range ids {
+		if g, ok := all[id]; ok {
+			out[id] = g
+		}
+	}
+	s.prioritizeUnmeasured(ids, out)
+	writeJSON(w, out)
 }

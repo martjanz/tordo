@@ -40,7 +40,7 @@ func (c *Catalog) ArtistPage(key string) (ArtistPage, bool) {
 			p.Albums = append(p.Albums, al)
 		}
 	}
-	sortAlbums(p.Albums, OrderYear, Asc)
+	sortAlbums(p.Albums, OrderYear, Asc, nil)
 	for _, y := range a.years {
 		if p.FirstYear == 0 || y < p.FirstYear {
 			p.FirstYear = y

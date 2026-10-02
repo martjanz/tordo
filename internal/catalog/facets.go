@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"tordo/internal/genres"
+	"tordo/internal/store"
 )
 
 // Facet names, as they appear in Explorar's URL.
@@ -24,11 +25,13 @@ const (
 	FacetQuality    = "calidad"   // QualityLossless or QualityLossy
 	FacetFormat     = "formato"   // FormatKey
 	FacetState      = "estado"    // StateUnidentified or StateUnplayable
+	FacetLiked      = "megusta"   // LikedYes: the album or track itself is liked
+	FacetRating     = "puntaje"   // "1"–"5": rated that many stars or more
 )
 
 // FacetNames lists the facets in the order of Explorar's bar.
 var FacetNames = []string{FacetDecade, FacetYear, FacetArtist, FacetCountry, FacetGenre, FacetStyle, FacetCollection,
-	FacetFolder, FacetQuality, FacetFormat, FacetState}
+	FacetFolder, FacetQuality, FacetFormat, FacetState, FacetLiked, FacetRating}
 
 // Values of FacetQuality and FacetState.
 const (
@@ -36,6 +39,7 @@ const (
 	QualityLossy      = "con-perdida"
 	StateUnidentified = "sin-identificar"
 	StateUnplayable   = "no-reproducible"
+	LikedYes          = "si"
 )
 
 // Explorar's tabs.
@@ -53,6 +57,7 @@ const (
 	OrderArtist = "artista"
 	OrderAdded  = "agregado"
 	OrderCount  = "cantidad"
+	OrderPlays  = "escuchado"
 	Asc         = "asc"
 	Desc        = "desc"
 )
@@ -85,6 +90,10 @@ func valid(facet, value string) bool {
 		return value == QualityLossless || value == QualityLossy
 	case FacetState:
 		return value == StateUnidentified || value == StateUnplayable
+	case FacetLiked:
+		return value == LikedYes
+	case FacetRating:
+		return len(value) == 1 && value[0] >= '1' && value[0] <= '5'
 	}
 	return strings.TrimSpace(value) != "" && len(value) <= 1024
 }
@@ -93,11 +102,11 @@ func valid(facet, value string) bool {
 func orders(view string) []string {
 	switch view {
 	case ViewArtists:
-		return []string{OrderTitle, OrderCount, OrderAdded}
+		return []string{OrderTitle, OrderCount, OrderAdded, OrderPlays}
 	case ViewTracks:
-		return []string{OrderArtist, OrderYear, OrderTitle, OrderAdded}
+		return []string{OrderArtist, OrderYear, OrderTitle, OrderAdded, OrderPlays}
 	}
-	return []string{OrderYear, OrderTitle, OrderArtist, OrderAdded}
+	return []string{OrderYear, OrderTitle, OrderArtist, OrderAdded, OrderPlays}
 }
 
 // naturalDir is an order's usual direction: A to Z for names, newest or
@@ -134,15 +143,16 @@ func ParseQuery(v url.Values) Query {
 	return q
 }
 
-// matches reports whether values has every facet but except.
-func matches(values map[string][]string, facets map[string]string, except string) bool {
+// matches reports whether values, or extra (the user's data), has every
+// facet but except.
+func matches(values, extra map[string][]string, facets map[string]string, except string) bool {
 	for f, want := range facets {
 		// The decade's menu also ignores the year, and the genre's the
 		// style: choosing another decade or genre drops them.
 		if f == except || (except == FacetDecade && f == FacetYear) || (except == FacetGenre && f == FacetStyle) {
 			continue
 		}
-		if !slices.Contains(values[f], want) {
+		if !slices.Contains(values[f], want) && !slices.Contains(extra[f], want) {
 			return false
 		}
 	}
@@ -168,18 +178,20 @@ func newCounter() *counter {
 
 // add counts an item's values for every facet whose menu it belongs to: the
 // item matches every other facet.
-func (k *counter) add(values map[string][]string, labels map[string]string, facets map[string]string) {
+func (k *counter) add(values, extra map[string][]string, labels map[string]string, facets map[string]string) {
 	for _, f := range FacetNames {
-		if !matches(values, facets, f) {
+		if !matches(values, extra, facets, f) {
 			continue
 		}
 		if k.counts[f] == nil {
 			k.counts[f] = map[string]int{}
 		}
-		for _, v := range values[f] {
-			k.counts[f][v]++
-			if l, ok := labels[f+"\x00"+v]; ok {
-				k.labels[f+"\x00"+v] = l
+		for _, vs := range [][]string{values[f], extra[f]} {
+			for _, v := range vs {
+				k.counts[f][v]++
+				if l, ok := labels[f+"\x00"+v]; ok {
+					k.labels[f+"\x00"+v] = l
+				}
 			}
 		}
 	}
@@ -222,10 +234,17 @@ type Result struct {
 	Facets  map[string][]FacetValue `json:"facets"`
 }
 
-// Explore answers Explorar: the items of q's tab from offset, at most limit.
-// The Artistas tab lists the album artists of the matching albums, with how
-// many of them each has; its menus count albums.
+// Explore answers Explorar without the user's data.
 func (c *Catalog) Explore(q Query, offset, limit int) Result {
+	return c.ExploreFor(q, nil, offset, limit)
+}
+
+// ExploreFor answers Explorar: the items of q's tab from offset, at most
+// limit, with the user's data (nil: none) for the Me gusta and Puntaje
+// facets and the Más escuchado order. The Artistas tab lists the album
+// artists of the matching albums, with how many of them each has; its menus
+// count albums.
+func (c *Catalog) ExploreFor(q Query, p *store.Personal, offset, limit int) Result {
 	r := Result{Query: q, Offset: offset}
 	k := newCounter()
 	switch q.View {
@@ -233,28 +252,30 @@ func (c *Catalog) Explore(q Query, offset, limit int) Result {
 		var found []Track
 		for i := range c.Tracks {
 			t := &c.Tracks[i]
-			k.add(t.values, t.labels, q.Facets)
-			if matches(t.values, q.Facets, "") {
+			extra := personalValues(trackMark(p, t.ID))
+			k.add(t.values, extra, t.labels, q.Facets)
+			if matches(t.values, extra, q.Facets, "") {
 				found = append(found, *t)
 			}
 		}
-		sortTracks(found, q.Order, q.Dir)
+		sortTracks(found, q.Order, q.Dir, c.trackPlays(q, p))
 		r.Total, r.Tracks = len(found), page(found, offset, limit)
 	default:
 		var found []Album
 		for i := range c.Albums {
 			a := &c.Albums[i]
-			k.add(a.values, a.labels, q.Facets)
-			if matches(a.values, q.Facets, "") {
+			extra := personalValues(albumMark(p, a.ID))
+			k.add(a.values, extra, a.labels, q.Facets)
+			if matches(a.values, extra, q.Facets, "") {
 				found = append(found, *a)
 			}
 		}
 		if q.View == ViewArtists {
 			artists := c.artistsOf(found)
-			sortArtists(artists, q.Order, q.Dir)
+			sortArtists(artists, q.Order, q.Dir, c.artistPlays(q, p))
 			r.Total, r.Artists = len(artists), page(artists, offset, limit)
 		} else {
-			sortAlbums(found, q.Order, q.Dir)
+			sortAlbums(found, q.Order, q.Dir, c.albumPlays(q, p))
 			r.Total, r.Albums = len(found), page(found, offset, limit)
 		}
 	}
@@ -308,7 +329,7 @@ func direction(c int, dir string) int {
 
 // sortAlbums orders albums; albums without a year go last when sorting by
 // year. Ties fall back to artist, year, title and id, so pages are stable.
-func sortAlbums(as []Album, order, dir string) {
+func sortAlbums(as []Album, order, dir string, plays map[int64]int) {
 	slices.SortStableFunc(as, func(a, b Album) int {
 		if order == OrderYear && (a.Year == 0) != (b.Year == 0) {
 			return cmp.Compare(b.Year, a.Year) // the one with a year first
@@ -321,6 +342,8 @@ func sortAlbums(as []Album, order, dir string) {
 			c = cmp.Or(cmp.Compare(a.anorm, b.anorm), cmp.Compare(a.Year, b.Year))
 		case OrderAdded:
 			c = cmp.Compare(a.Added, b.Added)
+		case OrderPlays:
+			c = cmp.Compare(plays[a.ID], plays[b.ID])
 		default:
 			c = cmp.Compare(a.Year, b.Year)
 		}
@@ -329,7 +352,7 @@ func sortAlbums(as []Album, order, dir string) {
 	})
 }
 
-func sortArtists(as []Artist, order, dir string) {
+func sortArtists(as []Artist, order, dir string, plays map[string]int) {
 	slices.SortStableFunc(as, func(a, b Artist) int {
 		var c int
 		switch order {
@@ -337,6 +360,8 @@ func sortArtists(as []Artist, order, dir string) {
 			c = cmp.Compare(a.Albums, b.Albums)
 		case OrderAdded:
 			c = cmp.Compare(a.Added, b.Added)
+		case OrderPlays:
+			c = cmp.Compare(plays[a.Key], plays[b.Key])
 		default:
 			c = cmp.Compare(a.norm, b.norm)
 		}
@@ -346,7 +371,7 @@ func sortArtists(as []Artist, order, dir string) {
 
 // sortTracks orders tracks; by artist, an artist's tracks come by year and
 // in album order.
-func sortTracks(ts []Track, order, dir string) {
+func sortTracks(ts []Track, order, dir string, plays map[int64]int) {
 	slices.SortStableFunc(ts, func(a, b Track) int {
 		if order == OrderYear && (a.Year == 0) != (b.Year == 0) {
 			return cmp.Compare(b.Year, a.Year)
@@ -359,6 +384,8 @@ func sortTracks(ts []Track, order, dir string) {
 			c = cmp.Compare(a.Added, b.Added)
 		case OrderYear:
 			c = cmp.Compare(a.Year, b.Year)
+		case OrderPlays:
+			c = cmp.Compare(plays[a.ID], plays[b.ID])
 		default:
 			c = cmp.Compare(a.anorm, b.anorm)
 		}

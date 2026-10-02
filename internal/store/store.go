@@ -14,7 +14,8 @@ import (
 var schema string
 
 type Store struct {
-	db *sql.DB
+	db   *sql.DB
+	side side
 }
 
 // Open opens (creating it if needed) the catalog. Journal mode DELETE instead
@@ -38,8 +39,9 @@ func OpenMemory() (*Store, error) {
 // schemaVersion is kept in PRAGMA user_version. Version 2 (M2) added columns
 // to the derived tables: below it they are dropped and the next scan
 // rebuilds them. Version 3 (M3b) only added not_collections. The other
-// tables are only ever added to.
-const schemaVersion = 3
+// tables are only ever added to. Version 4 (M4a) added the user's tables
+// (marks, plays, playlists) and loudness.
+const schemaVersion = 4
 
 // derivedVersion is the last version that changed the derived tables.
 const derivedVersion = 2

@@ -20,6 +20,7 @@ import (
 	"tordo/internal/covers"
 	"tordo/internal/discogs"
 	"tordo/internal/identify"
+	"tordo/internal/loudness"
 	"tordo/internal/musicbrainz"
 	"tordo/internal/platform"
 	"tordo/internal/scan"
@@ -44,6 +45,7 @@ type app struct {
 	server  *server.Server
 	scanner *scan.Scanner    // nil in browse-only mode
 	runner  *identify.Runner // nil in browse-only mode
+	loud    *loudness.Runner // nil in browse-only mode or without ffmpeg
 	close   func() error
 }
 
@@ -97,6 +99,7 @@ func setup(dirOverride string) (*app, error) {
 		return nil, err
 	}
 	a := &app{close: st.Close}
+	ffmpeg := stream.LookFFmpeg()
 	if readOnly {
 		log.Print("la carpeta de la app no es escribible: modo consulta")
 	} else {
@@ -109,13 +112,24 @@ func setup(dirOverride string) (*app, error) {
 		}
 		runner := &identify.Runner{AppDir: appDir, Store: st, MB: musicbrainz.New(), Discogs: discogs.New(cfg.DiscogsToken)}
 		a.runner = runner
-		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st, OnDone: runner.Trigger}
+		onDone := runner.Trigger
+		if ffmpeg != "" {
+			a.loud = &loudness.Runner{Catalog: st, AppDir: appDir, FFmpeg: ffmpeg}
+			onDone = func() {
+				runner.Trigger()
+				a.loud.Trigger()
+			}
+		}
+		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st, OnDone: onDone}
 		a.close = func() error {
 			runner.Close()
+			if a.loud != nil {
+				a.loud.Close()
+			}
 			return st.Close()
 		}
 	}
-	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly, AppDir: appDir}
+	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly, AppDir: appDir, Normalize: cfg.Normalizing()}
 	if a.runner != nil { // only when set: a nil *Runner in the interface would not read as "none"
 		a.server.Identifier = a.runner
 	}
@@ -123,7 +137,9 @@ func setup(dirOverride string) (*app, error) {
 	if !readOnly {
 		thumbs = filepath.Join(appDir, "cache", "thumbs")
 	}
-	ffmpeg := stream.LookFFmpeg()
+	if a.loud != nil { // same rule as Identifier: never a nil *Runner in the interface
+		a.server.Loudness = a.loud
+	}
 	if ffmpeg == "" {
 		log.Print("sin ffmpeg: WMA, APE, WavPack, AIFF y ALAC no se pueden reproducir")
 	}
