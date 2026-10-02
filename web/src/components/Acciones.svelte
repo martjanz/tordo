@@ -1,9 +1,13 @@
 <script>
   // Play, shuffle and queue buttons for an album, folder or collection.
+  import { app } from '../lib/app.svelte.js'
   import { enqueue, play } from '../lib/player.svelte.js'
+  import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'
 
   let { what } = $props()
+
+  let adding = $state(false)
 </script>
 
 <div class="actions">
@@ -11,9 +15,19 @@
   <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
   <button onclick={() => enqueue(what, { next: true })}><Icono name="next_up" size={14} /> A continuación</button>
   <button onclick={() => enqueue(what)}><Icono name="plus" size={14} /> A la cola</button>
+  {#if !app.status?.readOnly}
+    <span class="add">
+      <button onclick={(e) => (e.stopPropagation(), (adding = !adding))} aria-haspopup="dialog" aria-expanded={adding}><Icono name="lists" size={14} /> + Lista</button>
+      {#if adding}<AgregarALista {what} onclose={() => (adding = false)} />{/if}
+    </span>
+  {/if}
 </div>
 
 <style>
+  .add {
+    position: relative;
+    display: inline-block;
+  }
   button {
     display: inline-flex;
     align-items: center;

@@ -10,6 +10,7 @@
   import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
   import Explorar from './pages/Explorar.svelte'
+  import Lista from './pages/Lista.svelte'
   import Listas from './pages/Listas.svelte'
   import Revisar from './pages/Revisar.svelte'
 
@@ -57,6 +58,10 @@
     <Buscar q={current.q} />
   {:else if current.page === 'listas'}
     <Listas />
+  {:else if current.page === 'lista'}
+    {#key current.id}
+      <Lista id={current.id} />
+    {/key}
   {:else if current.page === 'revisar'}
     <Revisar tab={current.tab} />
   {:else}

@@ -5,6 +5,9 @@
 
   let { page } = $props()
 
+  // A single list belongs to Listas.
+  const isActive = (s) => page === s.page || (s.page === 'listas' && page === 'lista')
+
   // The sections of the app; Inicio comes with M4.
   const SECTIONS = [
     { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
@@ -25,7 +28,7 @@
     </a>
     <span class="sections">
       {#each SECTIONS as s (s.page)}
-        <a href={s.href} class:active={page === s.page}>{s.label}</a>
+        <a href={s.href} class:active={isActive(s)}>{s.label}</a>
       {/each}
     </span>
     <span class="spacer"></span>
@@ -37,7 +40,7 @@
 <!-- On phones the sections go to tabs at the bottom, under the player. -->
 <nav class="tabs" aria-label="Secciones">
   {#each SECTIONS as s (s.page)}
-    <a href={s.href} class:active={page === s.page}>
+    <a href={s.href} class:active={isActive(s)}>
       <Icono name={s.icon} size={20} />
       <span>{s.label}</span>
     </a>
