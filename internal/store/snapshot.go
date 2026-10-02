@@ -27,20 +27,14 @@ type Snapshot struct {
 	Changes int64
 }
 
-// Changes is the change counter of Snapshot, read on its own: a cheap way to
-// know whether what was derived from the last snapshot is still current.
-func (s *Store) Changes() (int64, error) {
-	var n int64
-	err := s.db.QueryRow(`SELECT total_changes()`).Scan(&n)
-	return n, err
-}
-
 // Snapshot reads the catalog in one transaction, so that it comes from one
 // state even while the scanner or the identification write. The catalog has
 // a single connection, which the transaction holds: everything here reads
 // through tx.
 func (s *Store) Snapshot() (Snapshot, error) {
 	var snap Snapshot
+	s.side.mu.Lock() // before the connection, as in sideWrite
+	defer s.side.mu.Unlock()
 	tx, err := s.db.Begin()
 	if err != nil {
 		return snap, err
@@ -49,6 +43,7 @@ func (s *Store) Snapshot() (Snapshot, error) {
 	if err := tx.QueryRow(`SELECT total_changes()`).Scan(&snap.Changes); err != nil {
 		return snap, err
 	}
+	snap.Changes -= s.side.rows
 	if snap.Albums, err = readAlbums(tx, `SELECT `+albumCols+` FROM albums ORDER BY id`); err != nil {
 		return snap, err
 	}

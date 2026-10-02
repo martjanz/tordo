@@ -68,6 +68,41 @@ func TestOpenMigratesM1Catalog(t *testing.T) {
 	}
 }
 
+func TestOpenAddsUserTables(t *testing.T) {
+	file := m1Catalog(t)
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`DROP TABLE marks; DROP TABLE plays; DROP TABLE playlist_items; DROP TABLE playlists;
+		DROP TABLE loudness; PRAGMA user_version = 3`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO albums (key, dir, title, artist, year, compilation, discs, tracks, duration_ms, position,
+		cover_path, cover_file_id, genres) VALUES ('k2', '../musica/k2', 'Kept', '', 0, 0, 1, 1, 0, 0, '', 0, '[]')`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(file, false) // v3 to v4 only adds tables
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var version, albums int
+	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
+	s.db.QueryRow(`SELECT COUNT(*) FROM albums WHERE key = 'k2'`).Scan(&albums)
+	if version != 4 || albums != 1 {
+		t.Fatalf("version %d, kept albums %d", version, albums)
+	}
+	for _, name := range []string{"marks", "plays", "playlists", "playlist_items", "loudness"} {
+		var n int
+		s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?`, name).Scan(&n)
+		if n != 1 {
+			t.Errorf("table %s missing", name)
+		}
+	}
+}
+
 func TestReadOnlyOpenRejectsOldCatalog(t *testing.T) {
 	if _, err := Open(m1Catalog(t), true); !errors.Is(err, ErrOldCatalog) {
 		t.Fatalf("err = %v, want ErrOldCatalog", err)
