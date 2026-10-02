@@ -1,5 +1,6 @@
 <script>
   // The folders as they are on disk: a tree on the left, the open folder on the right.
+  import ArbolCarpetas from '../components/ArbolCarpetas.svelte'
   import ContenidoCarpeta from '../components/ContenidoCarpeta.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
@@ -47,7 +48,7 @@
 
 <div class="explorer">
   <aside class="tree" aria-label="Carpetas">
-    <!-- the folder tree goes here -->
+    <ArbolCarpetas selected={path} />
   </aside>
   <section class="content">
     {#if error}
