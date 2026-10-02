@@ -65,7 +65,7 @@ get re-tagged.
 #### Play counts
 
 A play is counted once per pass when you listen to at least 4 minutes or half the
-track, whichever is less. Seeking forward does not count as a new play. Play
+track, whichever is less. Seeking does not add listening time. Play
 counts are recorded with the device name; browse them in Explorar.
 
 #### Playlists
@@ -102,8 +102,8 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 | `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
 | `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
 | `POST /api/plays` | record a play of a track (`{id, listenedMs, device}`); ignored in browse-only mode |
-| `GET /api/liked?tipo=` | albums, artists, collections, or tracks the user liked |
-| `GET /api/gains?track=` | ReplayGain tags or measured loudness for tracks (LUFS) |
+| `GET /api/liked` | the liked tracks, albums, artists and collections, most recent first |
+| `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue |
 | `GET /api/playlists` | user's playlists |
 | `POST /api/playlists` | create a new playlist |
 | `GET /api/playlists/{id}` | entries of a playlist |

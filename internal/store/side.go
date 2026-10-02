@@ -20,7 +20,9 @@ type side struct {
 
 // sideWrite runs fn in a transaction whose changes are not catalog
 // changes. personal marks the user's data (marks, plays, playlists) as
-// changed. The lock is always taken before the connection.
+// changed. The lock is always taken before the connection. fn runs holding
+// the side lock and the single connection: it must read and write only
+// through tx (using the store's other methods would deadlock).
 func (s *Store) sideWrite(personal bool, fn func(tx *sql.Tx) error) error {
 	s.side.mu.Lock()
 	defer s.side.mu.Unlock()

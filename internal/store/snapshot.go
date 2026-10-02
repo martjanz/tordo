@@ -21,8 +21,8 @@ type Snapshot struct {
 	Tracks  []SnapTrack       // by file id
 	Folders []SnapFolder      // by path
 	Artists map[string]Artist // MusicBrainz artists by id
-	// Changes counts the rows written through the catalog's connection since
-	// it was opened: it differs between two snapshots when the catalog
+	// Changes counts the rows the catalog's connection has written since it
+	// was opened, net of side writes (marks, plays, playlists): it differs between two snapshots when the catalog
 	// changed in between (it restarts if the connection does).
 	Changes int64
 }
