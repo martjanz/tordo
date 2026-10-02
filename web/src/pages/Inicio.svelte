@@ -85,7 +85,7 @@
       <div class="strip">
         {#each stations as st (st.id ?? st.name)}
           <div class="cell">
-            <TarjetaEstacion station={st} onplay={playStation} ondelete={st.id != null ? remove : null} />
+            <TarjetaEstacion station={st} onplay={playStation} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
           </div>
         {/each}
       </div>
