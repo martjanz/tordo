@@ -1,6 +1,10 @@
 package store
 
-import "time"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // PlayTally is the plays of a period resolved to the catalog's current
 // tracks: each play counts once, for one track (see PlayTally).
@@ -54,30 +58,17 @@ func (s *Store) PlayTally(since time.Time) (PlayTally, error) {
 
 	present := map[string]map[int64]bool{} // present files by ref
 	lowest := map[string]int64{}
-	for _, chunk := range chunks(refs) {
-		rows, err := s.db.Query(`SELECT `+trackRef+`, f.id FROM files f JOIN tracks t ON t.file_id = f.id
-			WHERE f.missing = 0 AND (`+trackRef+`) IN (`+placeholders(len(chunk))+`)`, stringArgs(chunk)...)
-		if err != nil {
-			return out, err
+	err = s.presentFilesByRef(refs, func(ref string, id int64) {
+		if present[ref] == nil {
+			present[ref] = map[int64]bool{}
 		}
-		for rows.Next() {
-			var ref string
-			var id int64
-			if err := rows.Scan(&ref, &id); err != nil {
-				rows.Close()
-				return out, err
-			}
-			if present[ref] == nil {
-				present[ref] = map[int64]bool{}
-			}
-			present[ref][id] = true
-			if low, ok := lowest[ref]; !ok || id < low {
-				lowest[ref] = id
-			}
+		present[ref][id] = true
+		if low, ok := lowest[ref]; !ok || id < low {
+			lowest[ref] = id
 		}
-		if err := closeRows(rows); err != nil {
-			return out, err
-		}
+	})
+	if err != nil {
+		return out, err
 	}
 
 	for _, g := range groups {
@@ -97,4 +88,60 @@ func stringArgs(ss []string) []any {
 		out[i] = s
 	}
 	return out
+}
+
+// presentFilesByRef calls fn for every present track file of each ref. It
+// looks fingerprint refs up through the files(fingerprint) index and "id:N"
+// refs (files without a fingerprint) by primary key, instead of evaluating
+// the trackRef expression over every file.
+func (s *Store) presentFilesByRef(refs []string, fn func(ref string, id int64)) error {
+	var prints []string
+	var ids []int64
+	for _, r := range refs {
+		if n, ok := strings.CutPrefix(r, "id:"); ok {
+			if id, err := strconv.ParseInt(n, 10, 64); err == nil {
+				ids = append(ids, id)
+			}
+			continue
+		}
+		prints = append(prints, r)
+	}
+	for _, chunk := range chunks(prints) {
+		rows, err := s.db.Query(`SELECT f.fingerprint, f.id FROM files f JOIN tracks t ON t.file_id = f.id
+			WHERE f.missing = 0 AND f.fingerprint IN (`+placeholders(len(chunk))+`)`, stringArgs(chunk)...)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var ref string
+			var id int64
+			if err := rows.Scan(&ref, &id); err != nil {
+				rows.Close()
+				return err
+			}
+			fn(ref, id)
+		}
+		if err := closeRows(rows); err != nil {
+			return err
+		}
+	}
+	for _, chunk := range chunks(ids) {
+		rows, err := s.db.Query(`SELECT f.id FROM files f JOIN tracks t ON t.file_id = f.id
+			WHERE f.missing = 0 AND f.fingerprint = '' AND f.id IN (`+placeholders(len(chunk))+`)`, int64Args(chunk)...)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			fn("id:"+strconv.FormatInt(id, 10), id)
+		}
+		if err := closeRows(rows); err != nil {
+			return err
+		}
+	}
+	return nil
 }

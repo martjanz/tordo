@@ -115,22 +115,28 @@ func (c *Catalog) candidates(kind string, p *store.Personal, l *listening) []can
 		}
 		return out
 	}
-	// byValue makes a candidate of each value of facet(s) that enough albums have.
+	// byValue makes a candidate of each value of a catalog facet that enough
+	// albums have; one pass groups the albums by the values they carry.
 	byValue := func(rowKind, facet string) []candidate {
+		groups := map[string][]Album{}
 		var values []string
 		for i := range c.Albums {
-			for _, v := range c.Albums[i].values[facet] {
-				if !slices.Contains(values, v) {
+			a := &c.Albums[i]
+			for j, v := range a.values[facet] {
+				if slices.Contains(a.values[facet][:j], v) {
+					continue
+				}
+				if _, ok := groups[v]; !ok {
 					values = append(values, v)
 				}
+				groups[v] = append(groups[v], *a)
 			}
 		}
 		slices.Sort(values)
 		var out []candidate
 		for _, v := range values {
-			facets := map[string]string{facet: v}
-			if albums := albumsWith(facets); len(albums) >= minRowAlbums {
-				cd := candidate{kind: rowKind, value: v, facets: facets, albums: albums}
+			if albums := groups[v]; len(albums) >= minRowAlbums {
+				cd := candidate{kind: rowKind, value: v, facets: map[string]string{facet: v}, albums: albums}
 				if kind == RowCollection {
 					cd.label = c.folders[v].Name
 				}

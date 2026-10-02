@@ -97,10 +97,16 @@ func (s *Store) SaveReads(rs []ReadResult) error {
 			i.Format, i.Codec, i.Lossless, i.DurationMs, i.Bitrate, i.SampleRate, i.BitDepth, i.Channels, string(tags)); err != nil {
 			return err
 		}
+		// "id:N" refs only exist for a file that had no fingerprint, so a
+		// file re-read with one already needs no rekey.
+		var before string
+		if err := tx.QueryRow(`SELECT fingerprint FROM files WHERE id = ?`, r.Target.FileID).Scan(&before); err != nil && err != sql.ErrNoRows {
+			return err
+		}
 		if _, err := fp.Exec(r.Fingerprint, r.Target.FileID); err != nil {
 			return err
 		}
-		if r.Fingerprint != "" {
+		if r.Fingerprint != "" && before == "" {
 			if err := rekey(tx, r.Target.FileID, r.Fingerprint); err != nil {
 				return err
 			}
