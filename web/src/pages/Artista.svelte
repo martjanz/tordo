@@ -3,6 +3,7 @@
   // tracks on others' albums (compilations).
   import Acciones from '../components/Acciones.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
+  import MeGusta from '../components/MeGusta.svelte'
   import Tapa from '../components/Tapa.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { albumCoverURL, api, artistMBURL } from '../lib/api.js'
@@ -56,7 +57,10 @@
         <a href={exploreHref({ artista: artist.key }, 'pistas')}>Ver sus pistas</a>
         {#if artist.mbid}· <a href={artistMBURL(artist.mbid)} target="_blank" rel="noreferrer">MusicBrainz ↗</a>{/if}
       </p>
-      <Acciones what={{ artist: artist.key }} />
+      <div class="acts">
+        <Acciones what={{ artist: artist.key }} />
+        <MeGusta kind="artist" ref={artist.key} size={20} />
+      </div>
     </div>
   </div>
 
@@ -98,6 +102,12 @@
   }
   .info {
     min-width: 0;
+  }
+  .acts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .sub {
     font-size: 13px;

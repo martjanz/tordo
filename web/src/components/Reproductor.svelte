@@ -18,6 +18,7 @@
   import { albumHref } from '../lib/router.js'
   import Cola from './Cola.svelte'
   import Icono from './Icono.svelte'
+  import MeGusta from './MeGusta.svelte'
   import Tapa from './Tapa.svelte'
 
   const entry = $derived(Q.current(player.queue))
@@ -83,6 +84,7 @@
         {/if}
         <span class="artist">{entry.artist}</span>
       </span>
+      <span class="like"><MeGusta kind="track" ref={entry.id} size={18} /></span>
       <button class="open cover-all" onclick={() => (sheet = true)} aria-label="Abrir el reproductor"></button>
     </div>
     <div class="center">
@@ -116,7 +118,7 @@
       </header>
       <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
       <div class="big-text">
-        <b>{entry.title}</b>
+        <div class="big-title"><b>{entry.title}</b><MeGusta kind="track" ref={entry.id} size={24} /></div>
         <span>{entry.artist}</span>
         {#if entry.albumId}
           <a href={albumHref(entry.albumId)} onclick={() => (sheet = false)}>{entry.album}</a>
@@ -293,6 +295,17 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+  .big-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .like {
+    position: relative;
+    z-index: 1;
+    flex: none;
   }
   .big-text b {
     font-size: 20px;

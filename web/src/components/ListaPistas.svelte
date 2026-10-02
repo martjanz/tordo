@@ -6,7 +6,11 @@
   import { duration, quality } from '../lib/format.js'
   import { enqueue } from '../lib/player.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
+  import { isLiked } from '../lib/marks.js'
+  import { mine } from '../lib/mine.svelte.js'
   import Icono from './Icono.svelte'
+  import MeGusta from './MeGusta.svelte'
+  import MenuPista from './MenuPista.svelte'
 
   let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false } = $props()
 
@@ -41,10 +45,12 @@
         {/if}
       </span>
       <span class="quality">{quality(t)}</span>
+      <span class="like" class:liked={isLiked(mine.marks, 'track', t.id)}><MeGusta kind="track" ref={t.id} size={16} /></span>
       <span class="time">{duration(t.durationMs)}</span>
       <button class="icon add" onclick={() => enqueue({ tracks: [t.id] })} title="Agregar a la cola" aria-label="Agregar a la cola">
         <Icono name="plus" size={16} />
       </button>
+      <MenuPista track={t} />
     </li>
   {/each}
 </ol>
@@ -83,7 +89,9 @@
     pointer-events: none;
   }
   .row a,
-  .row .add {
+  .row .add,
+  .row .like,
+  .row :global(.menu) {
     pointer-events: auto;
   }
   .n {
@@ -132,18 +140,25 @@
     min-width: 40px;
     text-align: right;
   }
-  .add {
+  .add,
+  .like:not(.liked) {
     opacity: 0;
   }
   .row:hover .add,
-  .add:focus-visible {
+  .add:focus-visible,
+  .row:hover .like,
+  .like:focus-within {
     opacity: 1;
+  }
+  .like {
+    display: inline-flex;
   }
   @media (max-width: 640px) {
     .quality {
       display: none;
     }
-    .add {
+    .add,
+    .like:not(.liked) {
       opacity: 1;
     }
   }
