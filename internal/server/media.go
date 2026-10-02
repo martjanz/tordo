@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"tordo/internal/appdir"
+	"tordo/internal/loudness"
 	"tordo/internal/store"
 	"tordo/internal/stream"
 )
@@ -19,6 +20,7 @@ var MaxPlay = 5000
 // playItem is a track as the player gets it: how the server will deliver it.
 type playItem struct {
 	store.PlayItem
+	loudness.TrackGain
 	MIME       string `json:"mime"`       // what /stream/{id} sends
 	Transcoded bool   `json:"transcoded"` // converted by ffmpeg: no seeking
 }
@@ -154,6 +156,19 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 			truncated++
 		}
 	}
+	ids := make([]int64, len(out))
+	for i, it := range out {
+		ids[i] = it.ID
+	}
+	gains, err := s.gainsFor(ids)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	for i := range out {
+		out[i].TrackGain = gains[out[i].ID]
+	}
+	s.prioritizeUnmeasured(ids, gains)
 	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""})
 }
 
@@ -205,4 +220,71 @@ func (s *Server) coverByID(w http.ResponseWriter, r *http.Request, serve func(ht
 		return
 	}
 	serve(w, r, id)
+}
+
+// prioritizeCount is how many unmeasured tracks of a request are sent to the
+// loudness runner to measure first.
+const prioritizeCount = 20
+
+// maxGains caps the ids of one /api/gains request.
+const maxGains = 100
+
+// gainsFor computes the gains of the given tracks.
+func (s *Server) gainsFor(ids []int64) (map[int64]loudness.TrackGain, error) {
+	facts, err := s.Store.LoudnessFacts(ids)
+	if err != nil {
+		return nil, err
+	}
+	return loudness.Gains(facts), nil
+}
+
+// prioritizeUnmeasured asks the runner to measure first the first tracks of
+// ids (in order) that have no track gain.
+func (s *Server) prioritizeUnmeasured(ids []int64, gains map[int64]loudness.TrackGain) {
+	if s.Loudness == nil {
+		return
+	}
+	var want []int64
+	for _, id := range ids {
+		if g, ok := gains[id]; ok && g.Track == nil {
+			if want = append(want, id); len(want) == prioritizeCount {
+				break
+			}
+		}
+	}
+	if len(want) > 0 {
+		s.Loudness.Prioritize(want)
+	}
+}
+
+// gains answers GET /api/gains?track=1&track=2: {id: gains} for those tracks,
+// and has the unmeasured ones measured first.
+func (s *Server) gains(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()["track"]
+	if len(q) == 0 || len(q) > maxGains {
+		http.Error(w, "se esperan entre 1 y 100 pistas", http.StatusBadRequest)
+		return
+	}
+	ids := make([]int64, len(q))
+	for i, v := range q {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			http.Error(w, "id inválido", http.StatusBadRequest)
+			return
+		}
+		ids[i] = id
+	}
+	all, err := s.gainsFor(ids)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	out := make(map[int64]loudness.TrackGain, len(ids))
+	for _, id := range ids {
+		if g, ok := all[id]; ok {
+			out[id] = g
+		}
+	}
+	s.prioritizeUnmeasured(ids, out)
+	writeJSON(w, out)
 }

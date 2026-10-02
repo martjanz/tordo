@@ -4,12 +4,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"tordo/internal/audiofile"
 	"tordo/internal/covers"
 	"tordo/internal/grouping"
+	"tordo/internal/loudness"
 	"tordo/internal/store"
 	"tordo/internal/stream"
 )
@@ -114,6 +117,93 @@ func TestPlayEndpoint(t *testing.T) {
 			t.Errorf("%s: %d", bad, rec.Code)
 		}
 	}
+}
+
+// fakeLoudness records what the server asks to measure first.
+type fakeLoudness struct {
+	mu          sync.Mutex
+	prioritized [][]int64
+}
+
+func (f *fakeLoudness) Prioritize(ids []int64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.prioritized = append(f.prioritized, slices.Clone(ids))
+}
+
+func (f *fakeLoudness) Status() loudness.Status { return loudness.Status{State: "idle"} }
+
+func (f *fakeLoudness) calls() [][]int64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.prioritized)
+}
+
+func TestPlayGains(t *testing.T) {
+	s, ids := mediaServer(t, "ffmpeg") // with ffmpeg the WMA track is playable
+	fake := &fakeLoudness{}
+	s.Loudness = fake
+	h := s.Handler()
+	mp3, wma := ids[0], ids[1]
+	v := -10.0
+	if err := s.Store.SaveLoudness("../musica/Virus - Locura/01.mp3", &v, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	var p struct {
+		Items []struct {
+			ID        int64    `json:"id"`
+			TrackGain *float64 `json:"trackGain"`
+			AlbumGain *float64 `json:"albumGain"`
+		} `json:"items"`
+	}
+	decode(t, do(t, h, "GET", "/api/play?album="+itoa(onlyAlbum(t, s)), ""), &p)
+	if len(p.Items) != 2 {
+		t.Fatalf("items = %+v", p)
+	}
+	for _, it := range p.Items {
+		if it.AlbumGain != nil {
+			t.Fatalf("album gain with an unmeasured track: %+v", p)
+		}
+		if it.ID == mp3 && (it.TrackGain == nil || *it.TrackGain != -8) {
+			t.Fatalf("mp3 = %+v", it)
+		}
+		if it.ID == wma && it.TrackGain != nil {
+			t.Fatalf("wma = %+v", it)
+		}
+	}
+	if got := fake.calls(); len(got) != 1 || !slices.Equal(got[0], []int64{wma}) {
+		t.Fatalf("prioritized = %v", got)
+	}
+
+	var gains map[string]loudness.TrackGain
+	decode(t, do(t, h, "GET", "/api/gains?track="+itoa(mp3), ""), &gains)
+	if g := gains[itoa(mp3)]; len(gains) != 1 || g.Track == nil || *g.Track != -8 || g.Album != nil {
+		t.Fatalf("gains = %+v", gains)
+	}
+	fake.mu.Lock()
+	fake.prioritized = nil
+	fake.mu.Unlock()
+	decode(t, do(t, h, "GET", "/api/gains?track="+itoa(wma)+"&track="+itoa(mp3), ""), &gains)
+	if got := fake.calls(); len(got) != 1 || !slices.Equal(got[0], []int64{wma}) {
+		t.Fatalf("prioritized by /api/gains = %v", got)
+	}
+
+	var q []string
+	for i := 1; i <= 101; i++ {
+		q = append(q, "track="+itoa(int64(i)))
+	}
+	if rec := do(t, h, "GET", "/api/gains?"+strings.Join(q, "&"), ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("101 ids: %d", rec.Code)
+	}
+	for _, bad := range []string{"/api/gains", "/api/gains?track=x"} {
+		if rec := do(t, h, "GET", bad, ""); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: %d", bad, rec.Code)
+		}
+	}
+	// With no runner the gains still come out and nothing is asked.
+	s.Loudness = nil
+	decode(t, do(t, h, "GET", "/api/gains?track="+itoa(mp3), ""), &gains)
 }
 
 func TestPlayPlaylistAndLiked(t *testing.T) {

@@ -15,15 +15,24 @@ import (
 	"strings"
 
 	"tordo/internal/covers"
+	"tordo/internal/loudness"
 	"tordo/internal/scan"
 	"tordo/internal/store"
 	"tordo/internal/stream"
 )
 
+// Loudness is what the API needs from the loudness runner.
+type Loudness interface {
+	Prioritize(ids []int64)
+	Status() loudness.Status
+}
+
 type Server struct {
 	Store      *store.Store
 	Scanner    *scan.Scanner   // nil in browse-only mode
 	Identifier Identifier      // nil in browse-only mode
+	Loudness   Loudness        // nil: no loudness analysis
+	Normalize  bool            // the player evens out volume (config.json)
 	AppDir     string          // where catalog and cache paths are relative to
 	Streamer   stream.Streamer // FFmpeg "" when there is none
 	Covers     *covers.Covers  // nil: no pictures
@@ -69,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
 	mux.HandleFunc("DELETE /api/genres/aliases", s.deleteGenreAlias)
 	mux.HandleFunc("GET /api/play", s.play)
+	mux.HandleFunc("GET /api/gains", s.gains)
 	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
 	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
 	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
@@ -142,7 +152,12 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	if s.Identifier != nil {
 		ident = s.Identifier.Status()
 	}
-	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "counts": counts})
+	var loud any = map[string]string{"state": "off"}
+	if s.Loudness != nil {
+		loud = s.Loudness.Status()
+	}
+	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "loudness": loud,
+		"normalize": s.Normalize, "counts": counts})
 }
 
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {

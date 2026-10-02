@@ -12,6 +12,7 @@ import (
 
 	"tordo/internal/audiofile"
 	"tordo/internal/grouping"
+	"tordo/internal/loudness"
 	"tordo/internal/scan"
 	"tordo/internal/store"
 )
@@ -57,6 +58,28 @@ func decode(t *testing.T, rec *httptest.ResponseRecorder, v any) {
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), v); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStatusNormalizeAndLoudness(t *testing.T) {
+	var status struct {
+		Normalize bool              `json:"normalize"`
+		Loudness  map[string]string `json:"loudness"`
+	}
+	s := &Server{Store: newStore(t), Normalize: true}
+	decode(t, do(t, s.Handler(), "GET", "/api/status", ""), &status)
+	if !status.Normalize || status.Loudness["state"] != "off" {
+		t.Fatalf("status = %+v", status)
+	}
+	s.Normalize = false
+	s.Loudness = &fakeLoudness{}
+	var st2 struct {
+		Normalize bool            `json:"normalize"`
+		Loudness  loudness.Status `json:"loudness"`
+	}
+	decode(t, do(t, s.Handler(), "GET", "/api/status", ""), &st2)
+	if st2.Normalize || st2.Loudness.State != "idle" {
+		t.Fatalf("status = %+v", st2)
 	}
 }
 

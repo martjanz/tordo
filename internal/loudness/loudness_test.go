@@ -2,10 +2,12 @@ package loudness
 
 import (
 	"context"
+	"errors"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -116,5 +118,12 @@ func TestAnalyze(t *testing.T) {
 	}
 	if _, err := Analyze(context.Background(), ffmpeg, file); err == nil {
 		t.Fatal("a broken file has no loudness")
+	}
+}
+
+func TestAnalyzeCannotStart(t *testing.T) {
+	_, err := Analyze(context.Background(), filepath.Join(t.TempDir(), "no-ffmpeg"), "x.mp3")
+	if !errors.Is(err, ErrNoMeasure) || !strings.Contains(err.Error(), "no-ffmpeg") {
+		t.Fatalf("err = %v, want ErrNoMeasure with the cause", err)
 	}
 }

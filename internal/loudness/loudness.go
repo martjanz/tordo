@@ -87,6 +87,9 @@ func Analyze(ctx context.Context, ffmpeg, file string) (float64, error) {
 	}
 	v, err := ParseEBUR128(out.String())
 	if err != nil && runErr != nil {
+		if strings.TrimSpace(out.String()) == "" { // it could not even start
+			return 0, fmt.Errorf("%w: %v", ErrNoMeasure, runErr)
+		}
 		return 0, fmt.Errorf("%w: %s", ErrNoMeasure, lastLine(out.String()))
 	}
 	return v, err

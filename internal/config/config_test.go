@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -73,5 +74,37 @@ func TestLoadNullListsBecomeEmpty(t *testing.T) {
 	}
 	if cfg.Ignore == nil {
 		t.Fatal("Ignore must default to an empty slice")
+	}
+}
+
+func TestNormalizeDefaultsToOn(t *testing.T) {
+	app := appUnder(t, "musica")
+	cfg, created, err := Load(app)
+	if err != nil || !created || !cfg.Normalizing() {
+		t.Fatalf("new config: %+v created=%v err=%v", cfg, created, err)
+	}
+	if err := Save(app, cfg); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(app, FileName))
+	if !strings.Contains(string(data), `"normalize": true`) {
+		t.Fatalf("config.json = %s", data)
+	}
+}
+
+func TestNormalizeFromFile(t *testing.T) {
+	for body, want := range map[string]bool{
+		`{"roots": [], "normalize": false}`: false,
+		`{"roots": [], "normalize": true}`:  true,
+		`{"roots": []}`:                     true,
+	} {
+		app := appUnder(t)
+		if err := os.WriteFile(filepath.Join(app, FileName), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, _, err := Load(app)
+		if err != nil || cfg.Normalizing() != want {
+			t.Fatalf("%s: Normalizing = %v, err %v", body, cfg.Normalizing(), err)
+		}
 	}
 }
