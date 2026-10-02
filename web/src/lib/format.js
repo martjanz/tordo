@@ -98,18 +98,16 @@ export function size(bytes) {
   if (bytes == null) return ''
   if (bytes < 1000) return `${bytes} B`
   const units = ['KB', 'MB', 'GB', 'TB']
+  const round = (v) => (v < 10 ? Math.round(v * 10) / 10 : Math.round(v))
   let value = bytes / 1000
   let unit = 0
-  // Round first, so 999,6 KB becomes "1,0 MB" and 9,96 MB becomes "10 MB".
-  while (Math.round(value * 10) / 10 >= 1000 && unit < units.length - 1) {
+  // Promote with the same rounding as the output: 999,6 KB is "1,0 MB".
+  while (round(value) >= 1000 && unit < units.length - 1) {
     value /= 1000
     unit++
   }
-  const rounded = Math.round(value * 10) / 10
+  const rounded = round(value)
   const decimals = rounded < 10 ? 1 : 0
-  const text = (decimals ? rounded : Math.round(value)).toLocaleString('es', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })
+  const text = rounded.toLocaleString('es', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   return `${text} ${units[unit]}`
 }
