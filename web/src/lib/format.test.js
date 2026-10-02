@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, duration, folderName, length, quality } from './format.js'
+import { codecName, count, country, duration, folderName, formatName, length, quality, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -43,5 +43,23 @@ describe('folderName', () => {
     expect(folderName('../musica/Latinoamérica 600')).toBe('Latinoamérica 600')
     expect(folderName('../../../Music')).toBe('Music')
     expect(folderName('')).toBe('')
+  })
+})
+
+describe('names', () => {
+  it('names countries and formats', () => {
+    expect(country('AR')).toBe('Argentina')
+    expect(country('BR')).toBe('Brasil')
+    expect(country('')).toBe('')
+    expect(country('ZZZ')).toBe('ZZZ')
+    expect(formatName('flac')).toBe('FLAC')
+    expect(formatName('wma')).toBe('WMA')
+    expect(formatName('aiff')).toBe('AIFF')
+    expect(formatName('xyz')).toBe('XYZ')
+  })
+  it('reads year spans', () => {
+    expect(years(1982, 2007)).toBe('1982–2007')
+    expect(years(1990, 1990)).toBe('1990')
+    expect(years(0, 0)).toBe('')
   })
 })

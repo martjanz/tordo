@@ -60,3 +60,34 @@ export function quality(t) {
 export function folderName(path) {
   return (path ?? '').split('/').filter((p) => p && p !== '..').pop() ?? ''
 }
+
+const regions = (() => {
+  try {
+    return new Intl.DisplayNames(['es'], { type: 'region' })
+  } catch {
+    return null
+  }
+})()
+
+// country names an ISO 3166-1 code in Spanish: "AR" → "Argentina".
+export function country(code) {
+  if (!code) return ''
+  try {
+    return regions?.of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
+const FORMATS = { ...CODECS, wav: 'WAV', aiff: 'AIFF', ogg: 'Ogg', mp4: 'MP4' }
+
+// formatName names a value of Explorar's Formato facet ("flac" → "FLAC").
+export function formatName(key) {
+  return FORMATS[key] ?? (key ?? '').toUpperCase()
+}
+
+// years reads a span of years: "1982–2007", or "1975" for one.
+export function years(first, last) {
+  if (!first) return ''
+  return last && last !== first ? `${first}–${last}` : String(first)
+}

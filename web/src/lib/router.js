@@ -3,10 +3,22 @@
 // resolve maps a pathname and query to the page to show and its parameters.
 export function resolve(pathname, search = '') {
   const params = new URLSearchParams(search)
-  if (pathname === '/' || pathname === '/carpetas') return { page: 'carpetas', path: params.get('ruta') ?? '' }
+  if (pathname === '/' || pathname === '/explorar') return { page: 'explorar' }
+  if (pathname === '/carpetas') return { page: 'carpetas', path: params.get('ruta') ?? '' }
   if (pathname === '/listas') return { page: 'listas' }
-  const m = pathname.match(/^\/album\/([1-9][0-9]*)$/)
+  if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
+  if (pathname === '/revisar') return { page: 'revisar', tab: 'sin-identificar' }
+  if (pathname === '/revisar/generos') return { page: 'revisar', tab: 'generos' }
+  let m = pathname.match(/^\/album\/([1-9][0-9]*)$/)
   if (m) return { page: 'album', id: Number(m[1]) }
+  m = pathname.match(/^\/artista\/([^/]+)$/)
+  if (m) {
+    try {
+      return { page: 'artista', key: decodeURIComponent(m[1]) }
+    } catch {
+      return { page: 'notfound' } // a malformed escape
+    }
+  }
   return { page: 'notfound' }
 }
 
@@ -29,4 +41,21 @@ export function folderHref(path) {
 
 export function albumHref(id) {
   return `/album/${id}`
+}
+
+export function artistHref(key) {
+  return `/artista/${encodeURIComponent(key)}`
+}
+
+// exploreHref links Explorar with some facets: exploreHref({ pais: 'AR' }).
+export function exploreHref(facets = {}, view = '') {
+  const params = new URLSearchParams()
+  if (view && view !== 'albumes') params.set('ver', view)
+  for (const [k, v] of Object.entries(facets)) if (v) params.set(k, v)
+  const s = params.toString()
+  return s ? `/explorar?${s}` : '/explorar'
+}
+
+export function searchHref(q) {
+  return `/buscar?q=${encodeURIComponent(q.trim())}`
 }

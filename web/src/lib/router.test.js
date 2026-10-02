@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { albumHref, appLink, folderHref, resolve } from './router.js'
+import { albumHref, appLink, artistHref, exploreHref, folderHref, resolve, searchHref } from './router.js'
 
 describe('resolve', () => {
   it.each([
-    ['/', '', { page: 'carpetas', path: '' }],
+    ['/', '', { page: 'explorar' }],
+    ['/explorar', '?decada=1980', { page: 'explorar' }],
     ['/carpetas', '', { page: 'carpetas', path: '' }],
     ['/carpetas', '?ruta=..%2Fmusica%2FLatinoam%C3%A9rica%20600', { page: 'carpetas', path: '../musica/Latinoamérica 600' }],
     ['/listas', '', { page: 'listas' }],
     ['/album/12', '', { page: 'album', id: 12 }],
     ['/album/0', '', { page: 'notfound' }],
     ['/album/abc', '', { page: 'notfound' }],
+    ['/artista/charly-garcia', '', { page: 'artista', key: 'charly-garcia' }],
+    ['/artista/%E0%A4%A', '', { page: 'notfound' }],
+    ['/buscar', '?q=soda', { page: 'buscar', q: 'soda' }],
+    ['/revisar', '', { page: 'revisar', tab: 'sin-identificar' }],
+    ['/revisar/generos', '', { page: 'revisar', tab: 'generos' }],
     ['/otra', '', { page: 'notfound' }],
   ])('%s%s', (path, search, want) => {
     expect(resolve(path, search)).toEqual(want)
@@ -23,6 +29,17 @@ describe('hrefs', () => {
     expect(resolve(url.pathname, url.search)).toEqual({ page: 'carpetas', path: p })
     expect(folderHref('')).toBe('/carpetas')
     expect(albumHref(7)).toBe('/album/7')
+  })
+  it('round-trips artist keys', () => {
+    const key = 'sui-generis/x?'
+    const url = new URL(artistHref(key), 'http://127.0.0.1')
+    expect(resolve(url.pathname, url.search)).toEqual({ page: 'artista', key })
+  })
+  it('links Explorar and the search', () => {
+    expect(exploreHref()).toBe('/explorar')
+    expect(exploreHref({ pais: 'AR', genero: 'Folk, World, & Country' })).toBe('/explorar?pais=AR&genero=Folk%2C+World%2C+%26+Country')
+    expect(exploreHref({ artista: 'x' }, 'pistas')).toBe('/explorar?ver=pistas&artista=x')
+    expect(searchHref(' soda stereo ')).toBe('/buscar?q=soda%20stereo')
   })
 })
 
