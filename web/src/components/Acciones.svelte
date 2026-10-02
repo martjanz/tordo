@@ -15,7 +15,7 @@
 <div class="actions">
   <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> Reproducir</button>
   <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
-  {#if station !== undefined}<BotonEstacion {station} />{/if}
+  {#if station}<BotonEstacion {station} />{/if}
   <button onclick={() => enqueue(what, { next: true })}><Icono name="next_up" size={14} /> A continuación</button>
   <button onclick={() => enqueue(what)}><Icono name="plus" size={14} /> A la cola</button>
   {#if !app.status?.readOnly}
