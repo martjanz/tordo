@@ -17,13 +17,17 @@
   let folder = $state(null)
   let error = $state('')
   let rootPath = $state('') // the only root, when there is just one (the narrow layout needs it)
+  let rootKnown = $state(false)
 
   // Narrow screens show one list per folder instead of the two panels.
   let narrow = $state(matchMedia('(max-width: 720px)').matches)
   let reduced = $state(matchMedia('(prefers-reduced-motion: reduce)').matches)
   let dir = 'none' // how the shown folder changed: 'forward' | 'back' | 'none'
   let shown = null // the folder path currently shown
-  let popped = false // the load in flight follows a history back/forward
+  // The first load after mount restores the scroll too: arriving by going back from another page
+  // fires popstate before this page exists. Later, only popstate sets it.
+  let popped = true
+  let rescroll = null
   const duration = $derived(reduced ? 0 : 220)
 
   onMount(() => {
@@ -39,6 +43,7 @@
       wide.removeEventListener('change', onWide)
       motion.removeEventListener('change', onMotion)
       window.removeEventListener('popstate', onPop)
+      clearTimeout(rescroll)
     }
   })
 
@@ -46,11 +51,24 @@
   async function restoreScroll() {
     if (!popped) return
     popped = false
+    clearTimeout(rescroll)
     await tick()
     window.scrollTo(0, savedScroll())
     // The leaving screen still takes room while it slides out.
-    if (narrow && duration) setTimeout(() => window.scrollTo(0, savedScroll()), duration + 30)
+    if (narrow && duration) rescroll = setTimeout(() => window.scrollTo(0, savedScroll()), duration + 30)
   }
+
+  // The root does not depend on the entry route (a deep link or reload lands below it).
+  $effect(() => {
+    if (rootKnown) return
+    api
+      .folder('')
+      .then((f) => {
+        rootPath = f.children.length === 1 ? f.children[0].path : ''
+        rootKnown = true
+      })
+      .catch(() => {})
+  })
 
   $effect(() => {
     const p = path
@@ -64,6 +82,7 @@
         // With a single root, the top level is that root.
         if (!p && f.children.length === 1) {
           rootPath = f.children[0].path
+          rootKnown = true
           navigate(folderHref(rootPath), { replace: true })
           return
         }
@@ -80,6 +99,7 @@
       })
       .catch((e) => {
         if (stale) return
+        popped = false
         folder = null
         error = e.status === 404 ? 'Esta carpeta ya no está en el catálogo.' : e.message
       })
@@ -91,7 +111,7 @@
   <div class="stack">
     {#if error}
       <p class="empty">{error}</p>
-    {:else if folder}
+    {:else if folder && rootKnown}
       {#key folder.path}
         <div
           class="screen"
