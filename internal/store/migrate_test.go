@@ -75,7 +75,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`DROP TABLE marks; DROP TABLE plays; DROP TABLE playlist_items; DROP TABLE playlists;
-		DROP TABLE loudness; PRAGMA user_version = 3`); err != nil {
+		DROP TABLE loudness; DROP TABLE stations; PRAGMA user_version = 3`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO albums (key, dir, title, artist, year, compilation, discs, tracks, duration_ms, position,
@@ -83,7 +83,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = Open(file, false) // v3 to v4 only adds tables
+	s, err = Open(file, false) // v3 to v5 only adds tables
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,10 +91,10 @@ func TestOpenAddsUserTables(t *testing.T) {
 	var version, albums int
 	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
 	s.db.QueryRow(`SELECT COUNT(*) FROM albums WHERE key = 'k2'`).Scan(&albums)
-	if version != 4 || albums != 1 {
+	if version != 5 || albums != 1 {
 		t.Fatalf("version %d, kept albums %d", version, albums)
 	}
-	for _, name := range []string{"marks", "plays", "playlists", "playlist_items", "loudness"} {
+	for _, name := range []string{"marks", "plays", "playlists", "playlist_items", "loudness", "stations"} {
 		var n int
 		s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?`, name).Scan(&n)
 		if n != 1 {
