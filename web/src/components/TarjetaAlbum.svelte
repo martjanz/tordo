@@ -12,7 +12,7 @@
 <div class="card">
   <div class="pic">
     <a href={albumHref(album.id)}>
-      <Tapa srcs={[albumCoverURL(album.id, 320)]} alt={album.title} />
+      <Tapa srcs={album.picture === false ? [] : [albumCoverURL(album.id, 320)]} alt={album.title} />
     </a>
     <button class="icon play" onclick={() => play({ album: album.id })} title="Reproducir" aria-label="Reproducir {album.title}">
       <Icono name="play" size={18} />

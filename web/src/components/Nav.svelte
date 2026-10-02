@@ -4,9 +4,9 @@
 
   let { page } = $props()
 
-  // The sections of the app; Inicio, Explorar and Revisar come with later
-  // milestones.
+  // The sections of the app; Inicio comes with M4.
   const SECTIONS = [
+    { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
     { page: 'carpetas', href: '/carpetas', label: 'Carpetas', icon: 'folder' },
     { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
   ]

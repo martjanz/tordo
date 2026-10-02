@@ -6,6 +6,7 @@
   import { appLink, resolve } from './lib/router.js'
   import Album from './pages/Album.svelte'
   import Carpetas from './pages/Carpetas.svelte'
+  import Explorar from './pages/Explorar.svelte'
   import Listas from './pages/Listas.svelte'
 
   const current = $derived(resolve(route.path, route.search))
@@ -28,7 +29,9 @@
 <Nav page={current.page} />
 
 <main>
-  {#if current.page === 'carpetas'}
+  {#if current.page === 'explorar'}
+    <Explorar />
+  {:else if current.page === 'carpetas'}
     {#key current.path}
       <Carpetas path={current.path} />
     {/key}
@@ -39,7 +42,7 @@
   {:else if current.page === 'listas'}
     <Listas />
   {:else}
-    <p class="empty">No existe esta página. <a href="/carpetas">Ir a Carpetas</a></p>
+    <p class="empty">No existe esta página. <a href="/explorar">Ir a Explorar</a></p>
   {/if}
 </main>
 
