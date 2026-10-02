@@ -60,11 +60,11 @@ type Artist struct {
 
 func (s *Store) SaveRelease(r Release) error { return s.saveDoc("releases", r.ID, r) }
 
-func (s *Store) Releases() (map[string]Release, error) { return loadDocs[Release](s, "releases") }
+func (s *Store) Releases() (map[string]Release, error) { return loadDocs[Release](s.db, "releases") }
 
 func (s *Store) SaveArtist(a Artist) error { return s.saveDoc("artists", a.ID, a) }
 
-func (s *Store) Artists() (map[string]Artist, error) { return loadDocs[Artist](s, "artists") }
+func (s *Store) Artists() (map[string]Artist, error) { return loadDocs[Artist](s.db, "artists") }
 
 // saveDoc and loadDocs keep JSON documents in a table (id, data,
 // fetched_at). table is always one of the constants above, never input.
@@ -78,8 +78,8 @@ func (s *Store) saveDoc(table, id string, v any) error {
 	return err
 }
 
-func loadDocs[T any](s *Store, table string) (map[string]T, error) {
-	rows, err := s.db.Query(`SELECT id, data FROM ` + table)
+func loadDocs[T any](q querier, table string) (map[string]T, error) {
+	rows, err := q.Query(`SELECT id, data FROM ` + table)
 	if err != nil {
 		return nil, err
 	}

@@ -209,15 +209,20 @@ const albumCols = `id, CASE WHEN mb_title != '' THEN mb_title ELSE title END,
 const hasPicture = `(cover_path != '' OR cover_file_id != 0 OR cover_cache != '')`
 
 func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
-	out, err := s.scanAlbums(q, args...)
+	return readAlbums(s.db, q, args...)
+}
+
+// readAlbums reads albums (albumCols) with their genres through q.
+func readAlbums(q querier, query string, args ...any) ([]AlbumView, error) {
+	out, err := scanAlbums(q, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	return out, s.fillGenres(out)
+	return out, fillGenres(q, out)
 }
 
-func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
-	rows, err := s.db.Query(q, args...)
+func scanAlbums(q querier, query string, args ...any) ([]AlbumView, error) {
+	rows, err := q.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +246,7 @@ func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
 
 // fillGenres sets the albums' genre links. It reads the whole (small)
 // album_genres table once instead of once per album.
-func (s *Store) fillGenres(as []AlbumView) error {
+func fillGenres(q querier, as []AlbumView) error {
 	if len(as) == 0 {
 		return nil
 	}
@@ -250,7 +255,7 @@ func (s *Store) fillGenres(as []AlbumView) error {
 		at[as[i].ID] = i
 		as[i].Genres = []GenreLink{}
 	}
-	rows, err := s.db.Query(`SELECT album_id, genre, style, source FROM album_genres ORDER BY album_id, genre, style`)
+	rows, err := q.Query(`SELECT album_id, genre, style, source FROM album_genres ORDER BY album_id, genre, style`)
 	if err != nil {
 		return err
 	}
@@ -270,7 +275,8 @@ func (s *Store) fillGenres(as []AlbumView) error {
 
 const trackQuery = `SELECT t.file_id, f.path, CASE WHEN t.mb_title != '' THEN t.mb_title ELSE t.title END, t.title,
 	t.recording_id, t.artist, t.disc, t.track, t.year, t.duration_ms,
-	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint
+	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint,
+	COALESCE(t.album_id, 0), t.dir, f.first_seen
 	FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id `
 
 func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
@@ -282,13 +288,22 @@ func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
 	out := []TrackView{}
 	for rows.Next() {
 		var t TrackView
-		if err := rows.Scan(&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
-			&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint); err != nil {
+		var albumID, added int64
+		var dir string
+		if err := rows.Scan(trackDest(&t, &albumID, &dir, &added)...); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+// trackDest lists where a row of trackQuery goes: the view, then its album
+// id, folder and first-seen time.
+func trackDest(t *TrackView, albumID *int64, dir *string, added *int64) []any {
+	return []any{&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
+		&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint,
+		albumID, dir, added}
 }
 
 // Albums lists the albums, all of them or those inside folder (at any depth).
