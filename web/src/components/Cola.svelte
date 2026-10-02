@@ -1,13 +1,17 @@
 <script>
   import { itemCoverURL } from '../lib/api.js'
   import { count, duration } from '../lib/format.js'
-  import { clearUpcoming, jumpTo, player, removeAt } from '../lib/player.svelte.js'
+  import { clearUpcoming, jumpTo, player, removeAt, stopStation } from '../lib/player.svelte.js'
   import * as Q from '../lib/queue.js'
+  import { summary } from '../lib/stations.js'
+  import EstacionAjustes from './EstacionAjustes.svelte'
   import Icono from './Icono.svelte'
   import Tapa from './Tapa.svelte'
 
   let { onclose } = $props()
 
+  let adjusting = $state(false)
+  const station = $derived(player.queue.station)
   const SHOWN = 200 // rows drawn; the rest are summed up
   const now = $derived(Q.current(player.queue))
   const next = $derived(Q.upcoming(player.queue))
@@ -22,6 +26,17 @@
     <button class="icon" onclick={onclose} title="Cerrar" aria-label="Cerrar"><Icono name="close" /></button>
   </header>
   <div class="scroll">
+    {#if station}
+      <section class="station">
+        <p class="name"><Icono name="radio" size={16} /> <b>Estación · {station.name}</b></p>
+        <p class="rules">{summary(station)}</p>
+        <div class="stbuttons">
+          <button onclick={(e) => (e.stopPropagation(), (adjusting = !adjusting))} aria-expanded={adjusting}>Ajustar</button>
+          <button onclick={stopStation}>Detener</button>
+        </div>
+        {#if adjusting}<EstacionAjustes {station} onclose={() => (adjusting = false)} />{/if}
+      </section>
+    {/if}
     {#if now}
       <p class="label">Sonando</p>
       <div class="row current">
@@ -86,6 +101,36 @@
   }
   .label {
     margin: 12px 8px 6px;
+  }
+  .station {
+    margin: 4px 0 8px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .station p {
+    margin: 0;
+  }
+  .name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+  }
+  .name b {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--strong);
+  }
+  .rules {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 2px 0 8px;
+  }
+  .stbuttons {
+    display: flex;
+    gap: 8px;
   }
   .row {
     display: flex;

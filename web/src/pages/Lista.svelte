@@ -12,6 +12,7 @@
   import { move } from '../lib/order.js'
   import { play } from '../lib/player.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
+  import { playlistStation } from '../lib/stations.js'
 
   let { id } = $props()
 
@@ -206,7 +207,7 @@
         <h1>{list.name}</h1>
       {/if}
       <p class="sub">{summary}</p>
-      <Acciones what={{ playlist: list.id }} />
+      <Acciones what={{ playlist: list.id }} station={playlistStation(list)} />
       {#if writable}
         <div class="manage">
           <button onclick={startRename}>Renombrar</button>
