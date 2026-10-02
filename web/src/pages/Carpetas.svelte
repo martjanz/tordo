@@ -4,6 +4,7 @@
   import Acciones from '../components/Acciones.svelte'
   import Icono from '../components/Icono.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
+  import MeGusta from '../components/MeGusta.svelte'
   import Tapa from '../components/Tapa.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
@@ -89,6 +90,9 @@
       <button class="small" onclick={() => setCollection(!folder.collection)}>
         {folder.collection ? 'No es una colección' : 'Es una colección'}
       </button>
+    {/if}
+    {#if folder.collection}
+      <MeGusta kind="collection" ref={path} />
     {/if}
   {:else}
     <h1>Carpetas</h1>
