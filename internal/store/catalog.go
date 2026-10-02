@@ -189,10 +189,12 @@ const folderCols = `path, name, tracks, albums, duration_ms, ` + isCollection + 
 
 type FolderView struct {
 	FolderSummary
-	Parent   string          `json:"parent"`
-	Children []FolderSummary `json:"children"`
-	Albums   []AlbumView     `json:"albums"` // albums whose folder is this one
-	Loose    []TrackView     `json:"loose"`  // tracks here that belong to no album
+	Parent    string        `json:"parent"`
+	SizeBytes int64         `json:"sizeBytes"`
+	Children  []FolderChild `json:"children"`
+	Albums    []AlbumView   `json:"albums"` // albums whose folder is this one
+	Loose     []TrackView   `json:"loose"`  // tracks here that belong to no album
+	Files     []FolderFile  `json:"files"`  // present files directly in this folder
 }
 
 type CollectionView struct {
@@ -332,7 +334,7 @@ func (s *Store) Album(id int64) (AlbumDetail, bool, error) {
 // Folder returns a folder with its subfolders, the albums whose folder it is,
 // and its loose tracks. p == "" is the virtual top level: the roots.
 func (s *Store) Folder(p string) (FolderView, bool, error) {
-	v := FolderView{Children: []FolderSummary{}, Albums: []AlbumView{}, Loose: []TrackView{}}
+	v := FolderView{Children: []FolderChild{}, Albums: []AlbumView{}, Loose: []TrackView{}, Files: []FolderFile{}}
 	if p != "" {
 		err := s.db.QueryRow(`SELECT `+folderCols+`, parent FROM folders WHERE path = ?`, p).
 			Scan(&v.Path, &v.Name, &v.TrackCount, &v.AlbumCount, &v.DurationMs, &v.Collection, &v.Detected, &v.Parent)
@@ -342,13 +344,31 @@ func (s *Store) Folder(p string) (FolderView, bool, error) {
 		if err != nil {
 			return FolderView{}, false, err
 		}
+		v.SizeBytes, _, err = s.folderStats(p)
+		if err != nil {
+			return FolderView{}, false, err
+		}
+		if v.Files, err = s.folderFiles(p); err != nil {
+			return FolderView{}, false, err
+		}
 	}
 	children, err := s.folderSummaries(`WHERE parent = ?`, p)
 	if err != nil {
 		return FolderView{}, false, err
 	}
 	sort.SliceStable(children, func(i, j int) bool { return natsort.Less(children[i].Name, children[j].Name) })
-	v.Children = children
+	for _, c := range children {
+		fc := FolderChild{FolderSummary: c}
+		if fc.SizeBytes, fc.Codec, err = s.folderStats(c.Path); err != nil {
+			return FolderView{}, false, err
+		}
+		var album sql.NullInt64
+		if err := s.db.QueryRow(`SELECT MIN(id) FROM albums WHERE dir = ?`, c.Path).Scan(&album); err != nil {
+			return FolderView{}, false, err
+		}
+		fc.Album = album.Int64
+		v.Children = append(v.Children, fc)
+	}
 	if p == "" {
 		return v, true, nil
 	}
