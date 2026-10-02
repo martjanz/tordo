@@ -85,8 +85,13 @@ func (s *Server) explore(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
+	p, err := s.personal()
+	if err != nil {
+		fail(w, err)
+		return
+	}
 	q := catalog.ParseQuery(r.URL.Query())
-	writeJSON(w, c.Explore(q, intParam(r, "desde", 0, 0, 1<<30), intParam(r, "limite", 120, 1, 500)))
+	writeJSON(w, c.ExploreFor(q, p, intParam(r, "desde", 0, 0, 1<<30), intParam(r, "limite", 120, 1, 500)))
 }
 
 func (s *Server) artist(w http.ResponseWriter, r *http.Request) {

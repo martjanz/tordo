@@ -30,7 +30,8 @@ type Server struct {
 	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
 
-	cat catalogState
+	cat  catalogState
+	pers personalState
 }
 
 func (s *Server) Handler() http.Handler {
@@ -42,6 +43,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/folders", s.folder)
 	mux.HandleFunc("GET /api/collections", s.collections)
 	mux.HandleFunc("GET /api/explore", s.explore)
+	mux.HandleFunc("GET /api/marks", s.marks)
+	mux.HandleFunc("PUT /api/likes", jsonOnly(s.setLike))
+	mux.HandleFunc("PUT /api/ratings", jsonOnly(s.setRating))
+	mux.HandleFunc("POST /api/plays", jsonOnly(s.recordPlay))
+	mux.HandleFunc("GET /api/liked", s.liked)
 	mux.HandleFunc("GET /api/artists/{key}", s.artist)
 	mux.HandleFunc("GET /api/search", s.find)
 	mux.HandleFunc("PUT /api/folders/collection", jsonOnly(s.setCollection))
@@ -196,7 +202,7 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 // detected collection, or takes it back (true), with the folder's summary.
 func (s *Server) setCollection(w http.ResponseWriter, r *http.Request) {
 	if s.ReadOnly {
-		http.Error(w, "modo consulta: no se pueden guardar cambios", http.StatusConflict)
+		http.Error(w, readOnlyMsg, http.StatusConflict)
 		return
 	}
 	var body struct {
