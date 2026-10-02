@@ -1,4 +1,5 @@
 <script>
+  import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'
   import Icono from './Icono.svelte'
 
@@ -27,6 +28,7 @@
       {/each}
     </span>
     <span class="spacer"></span>
+    <Busqueda />
     <Estado />
   </nav>
 </header>

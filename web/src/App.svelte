@@ -5,6 +5,8 @@
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
   import Album from './pages/Album.svelte'
+  import Artista from './pages/Artista.svelte'
+  import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
   import Explorar from './pages/Explorar.svelte'
   import Listas from './pages/Listas.svelte'
@@ -39,6 +41,12 @@
     {#key current.id}
       <Album id={current.id} />
     {/key}
+  {:else if current.page === 'artista'}
+    {#key current.key}
+      <Artista key={current.key} />
+    {/key}
+  {:else if current.page === 'buscar'}
+    <Buscar q={current.q} />
   {:else if current.page === 'listas'}
     <Listas />
   {:else}
