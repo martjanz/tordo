@@ -1006,3 +1006,297 @@ Rules:
 - [ ] **Step 4: Run** `go test ./...` and `go test -race ./internal/loudness ./internal/server ./internal/store ./cmd/tordo`: pass.
 - [ ] **Step 5: Commit** `feat: measure loudness in the background with ffmpeg; gains on play items; normalize in config`
 
+---
+
+### Task 9: Web libraries
+
+Everything the pages and the player need, as tested pure modules, plus the API calls and the client store of marks.
+
+**Files:**
+- Modify: `web/src/lib/api.js`, `web/src/lib/api.test.js`
+- Modify: `web/src/lib/facets.js`, `web/src/lib/facets.test.js`
+- Modify: `web/src/lib/router.js`, `web/src/lib/router.test.js`
+- Modify: `web/src/lib/queue.js`, `web/src/lib/queue.test.js` (`peekPos`)
+- Create: `web/src/lib/marks.js` + `marks.test.js`, `web/src/lib/mine.svelte.js`
+- Create: `web/src/lib/plays.js` + `plays.test.js`
+- Create: `web/src/lib/gain.js` + `gain.test.js`
+- Create: `web/src/lib/device.js` + `device.test.js`
+- Create: `web/src/lib/order.js` + `order.test.js`
+
+**Interfaces:**
+- Consumes: the endpoints of Tasks 5, 6 and 8.
+- Produces:
+
+```js
+// api.js: playQuery also writes {playlist: id} and {liked: true} ("liked=1").
+api.marks()                                  // GET /api/marks
+api.like({ kind, id, key }, liked)           // PUT /api/likes: id for track/album, key for artist/collection
+api.rate({ kind, id }, stars)                // PUT /api/ratings
+api.recordPlay({ id, listenedMs, device })   // POST /api/plays
+api.liked()                                  // GET /api/liked
+api.gains(ids)                               // GET /api/gains?track=…
+api.playlists()                              // GET /api/playlists
+api.playlist(id)                             // GET /api/playlists/{id}
+api.createPlaylist(name, add)                // POST /api/playlists {name, add?}
+api.renamePlaylist(id, name)                 // PUT /api/playlists/{id}
+api.deletePlaylist(id)                       // DELETE /api/playlists/{id}
+api.addToPlaylist(id, what)                  // POST /api/playlists/{id}/items (what: {album}|{folder}|{artist}|{tracks}|{playlist})
+api.removeFromPlaylist(id, itemId)           // DELETE /api/playlists/{id}/items/{itemId}
+api.reorderPlaylist(id, itemIds)             // PUT /api/playlists/{id}/order {items}
+
+// marks.js (pure; marks never mutated, every change returns a new object)
+// marks: { tracks: {id: {liked, likedAt, rating}}, albums: {id: {…}}, artists: {key: true}, collections: {path: true} }
+export function empty()
+export function fromServer(json)               // arrays of keys/paths → objects
+export function isLiked(m, kind, ref)          // kind: 'track' | 'album' | 'artist' | 'collection'
+export function ratingOf(m, kind, id)          // 0 when none
+export function withLike(m, kind, ref, liked)
+export function withRating(m, kind, id, stars) // 0 clears
+
+// mine.svelte.js
+export const mine = $state({ marks: M.empty(), loaded: false })
+export async function loadMine()               // GET /api/marks; errors leave the last marks
+export async function toggleLike(kind, ref)    // optimistic; on error: roll back, notify(e.message)
+export async function rate(kind, id, stars)    // same
+
+// plays.js: see below.
+// gain.js: see below.
+// device.js
+export function deviceName(ua)                 // "iPhone · Safari", "Mac · Firefox", "Android · Chrome", "Windows · Edge"…; "Navegador" when unknown
+// order.js
+export function move(list, from, to)           // a copy with list[from] moved to index to (clamped)
+// queue.js
+export function peekPos(q)                     // the play-order position peek() returns, -1 when none
+// router.js
+resolve('/listas/12') → { page: 'lista', id: 12 }; export function listHref(id)
+// facets.js
+FACETS gains { name: 'megusta', label: 'Me gusta' } and { name: 'puntaje', label: 'Puntaje' } (after 'coleccion', not in "Más");
+NAMES gains 'megusta', 'puntaje' at the end (the server's order); every tab's ORDERS gains { value: 'escuchado', label: 'Más escuchado' } at the end;
+LABELS.megusta = { si: 'Me gusta' }; LABELS.puntaje = { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' }; valueLabel uses them.
+```
+
+`plays.js` (given whole: the counting rule of the spec):
+
+```js
+// When a play counts (spec §7.3): 4 minutes, or half the track, of actual
+// listening. Only forward progress in small steps counts, so seeking ahead
+// or a stall does not. Pure: the player keeps the state.
+
+export const MIN_MS = 4 * 60 * 1000
+const MAX_STEP = 2 // seconds between two time updates that still count as listening
+
+export function counts(listenedMs, durationMs) {
+  return listenedMs >= MIN_MS || (durationMs > 0 && listenedMs >= durationMs / 2)
+}
+
+// begin starts a pass over entry: a new play to count.
+export function begin(entry) {
+  return { id: entry?.id ?? null, durationMs: entry?.durationMs ?? 0, listenedMs: 0, last: null, sent: false }
+}
+
+// tick takes the element's current time, in seconds.
+export function tick(t, seconds) {
+  if (t.id == null) return t
+  const step = t.last == null ? 0 : seconds - t.last
+  const listenedMs = step > 0 && step <= MAX_STEP ? t.listenedMs + step * 1000 : t.listenedMs
+  return { ...t, listenedMs, last: seconds }
+}
+
+// due tells when the pass should be recorded: once.
+export function due(t) {
+  return t.id != null && !t.sent && counts(t.listenedMs, t.durationMs)
+}
+
+export function sent(t) {
+  return { ...t, sent: true }
+}
+```
+
+`gain.js` (given whole: decision 5):
+
+```js
+// The normalization gain of a queued track. Entries carry trackGain and
+// albumGain (dB, from the server) when known. Only attenuates.
+import * as Q from './queue.js'
+
+export const UNKNOWN_DB = -6 // a track not measured yet: typical for modern masters
+
+// gainDb is the gain of the entry at position pos of the play order: the
+// album's when the queue plays that album in order (shuffle off and a
+// neighbor in play order from the same album), else the track's.
+export function gainDb(q, pos) {
+  const key = q.order[pos]
+  const entry = q.list.find((e) => e.key === key)
+  if (!entry) return 0
+  const albumOf = (p) => (p >= 0 && p < q.order.length ? q.list.find((e) => e.key === q.order[p])?.albumId : undefined)
+  const inAlbum = !q.shuffle && entry.albumId && (albumOf(pos - 1) === entry.albumId || albumOf(pos + 1) === entry.albumId)
+  if (inAlbum && entry.albumGain != null) return entry.albumGain
+  return entry.trackGain ?? UNKNOWN_DB
+}
+
+// factor turns a gain into a volume multiplier, never above 1.
+export function factor(db) {
+  return Math.min(1, Math.pow(10, db / 20))
+}
+
+// missing lists the ids of up to count entries from position from of the
+// play order whose track gain is not known yet (each id once).
+export function missing(q, from, count) {
+  const ids = []
+  for (let p = Math.max(0, from); p < q.order.length && ids.length < count; p++) {
+    const e = q.list.find((x) => x.key === q.order[p])
+    if (e && e.trackGain == null && !ids.includes(e.id)) ids.push(e.id)
+  }
+  return ids
+}
+
+// withGains sets the gains the server answered ({id: {trackGain, albumGain}})
+// on every entry of those tracks.
+export function withGains(q, gains) {
+  return { ...q, list: q.list.map((e) => (gains[e.id] ? { ...e, ...gains[e.id] } : e)) }
+}
+```
+
+- [ ] **Step 1: Write the failing tests:**
+  - `plays.test.js`: a 6-min track counts at 3 min of ticks (1 s steps) and not at 2:59; a 10-min track counts at 4 min; a jump of 120 s adds nothing; going back (step < 0) adds nothing; `due` is true once, false after `sent`; `begin(null)` never becomes due.
+  - `gain.js`: album in order (shuffle off, neighbor same album) → `albumGain`; a lone track of that album between others → `trackGain`; shuffle on → `trackGain`; no gains → `UNKNOWN_DB`; `albumGain` missing → `trackGain`; `factor(0) === 1`, `factor(6) === 1`, `factor(-6) ≈ 0.501`; `missing` skips known ones and duplicates and respects `count`; `withGains` updates every entry with that id and leaves the rest.
+  - `marks.test.js`: `fromServer` of a server answer; `withLike`/`withRating` return new objects (the input is unchanged), unlike keeps a rating, rating 0 on an unliked track removes the entry; `isLiked` and `ratingOf` for every kind, including unknown refs.
+  - `device.test.js`: real user agents for iPhone Safari, iPad Safari, Android Chrome, Mac Safari, Mac Chrome, Mac Firefox, Windows Edge, Linux Firefox; `''` → `'Navegador'`.
+  - `order.test.js`: forward, backward, same place, out-of-range `to` clamped; the input is not changed.
+  - `queue.test.js`: `peekPos` with repeat off at the end (−1), repeat all at the end (0), repeat one (the same pos).
+  - `facets.test.js`: `parse('?megusta=si&puntaje=4&orden=escuchado')` keeps all three; `toSearch` round-trips them; `valueLabel('puntaje', '4')` is `'★★★★ o más'`.
+  - `router.test.js`: `/listas/12` → `{page: 'lista', id: 12}`, `/listas/0` and `/listas/x` → notfound, `listHref(12)`.
+  - `api.test.js`: `playQuery({playlist: 3})` → `playlist=3`; `playQuery({liked: true})` → `liked=1`.
+- [ ] **Step 2: Run** `cd web && npx vitest run`: the new tests fail.
+- [ ] **Step 3: Implement.** `mine.svelte.js` imports `api` and `notify`; it has no tests (as `player.svelte.js`).
+- [ ] **Step 4: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 5: Commit** `feat(web): marks, play counting, normalization gain, device names, playlist calls`
+
+---
+
+### Task 10: Player: plays and gains
+
+**Files:**
+- Modify: `web/src/lib/player.svelte.js`
+- Modify: `web/src/App.svelte` (load the marks)
+
+**Interfaces:**
+- Consumes: `plays.js`, `gain.js`, `device.js`, `api.gains`, `api.recordPlay`, `Q.peekPos`, `loadMine` (Task 9); `app.status.normalize` (Task 8).
+
+Behavior (no new exports from the player):
+- **Gains.** Each `<audio>` element keeps the factor of the entry it holds in `a.dataset.gain`. `applyVolume` sets `a.volume = player.volume * (normalizing() ? Number(a.dataset.gain || 1) : 1)`, where `normalizing()` is `app.status?.normalize !== false`. `start(entry, …)` sets `active.dataset.gain = factor(gainDb(player.queue, player.queue.pos))` before playing; `preload()` sets `standby.dataset.gain` from `gainDb(player.queue, Q.peekPos(player.queue))`; both then call `applyVolume()`. The gain of the element that is playing never changes mid-track.
+- **Fetching gains.** `refreshGains()`: `ids = missing(player.queue, player.queue.pos, 10)`; none → return; `api.gains(ids)` → `player.queue = withGains(player.queue, res)`, `persist()`; then, if `standby` holds an entry (its `dataset.key`) that is not playing, recompute its `dataset.gain` and `applyVolume()`. Errors are ignored (the next call tries again). Call it after `setQueue`, after `enqueue`, at the end of `start`, and at load (the restored queue).
+- **Plays.** A module variable `pass = P.begin(null)`. `show(entry, …)` (used by both `start` and the swap in `onEnded`) sets `pass = P.begin(entry)`. `onTime` does `pass = P.tick(pass, active.currentTime)` and, when `P.due(pass)`, `api.recordPlay({ id: pass.id, listenedMs: Math.round(pass.listenedMs), device: deviceName(navigator.userAgent) }).catch(() => {})` and `pass = P.sent(pass)`. Repeat-one replays go through `start` → a new pass.
+- **App.svelte:** an `$effect` that reads `app.generation` and calls `loadMine()` (ids can change after a scan).
+
+- [ ] **Step 1:** Implement as above (the logic is tested in Task 9; this is wiring).
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser** (`go run ./cmd/tordo -dir .run` after the build, with a few albums in `.run`'s roots, ffmpeg installed): play an album; in the network panel, `GET /api/gains` follows the play; after half of a short track, `POST /api/plays` once (204); seek ahead past the half on another track → no play recorded until enough is actually heard. With the dev tools, `document.querySelectorAll('audio')` are created by the player, not in the DOM: instead log `active.volume` temporarily, or check `/api/play`'s `trackGain` values and the audible level against the same track with `"normalize": false` in `config.json` (restart).
+- [ ] **Step 4: Commit** `feat(web): the player records plays and normalizes volume`
+
+---
+
+### Task 11: ♥ and ★ in the pages
+
+**Files:**
+- Modify: `web/src/components/Icono.svelte` (icons `heart`, `star`, `trash`, `grip`)
+- Create: `web/src/components/MeGusta.svelte`, `web/src/components/Puntaje.svelte`, `web/src/components/MenuPista.svelte`
+- Modify: `web/src/components/ListaPistas.svelte`, `web/src/components/Reproductor.svelte`
+- Modify: `web/src/pages/Album.svelte`, `web/src/pages/Artista.svelte`
+
+**Interfaces:**
+- Consumes: `mine`, `toggleLike`, `rate`, `isLiked`, `ratingOf` (Task 9); `enqueue` (player).
+- Produces:
+  - `<MeGusta kind ref size? />`: a ♥ toggle button (`aria-pressed`, `aria-label` "Me gusta" / "Quitar de Me gusta"), filled in the accent color when liked. In browse-only mode: no button; a static filled ♥ when liked, nothing otherwise.
+  - `<Puntaje kind id size? />`: five star buttons in a `role="radiogroup"` labelled "Puntaje"; clicking the current rating clears it (0); arrow keys move the rating. Browse-only: the stars as text, nothing when unrated.
+  - `<MenuPista track />`: a ⋯ button opening a small menu: "Reproducir a continuación", "Agregar a la cola", a `Puntaje` row (not in browse-only mode). Closes on choosing, outside click and Escape. Task 12 adds "Agregar a una lista…".
+
+Feather paths for `Icono`:
+
+```js
+heart: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+grip: '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+```
+
+(Filled ♥/★: the component's CSS sets `fill: currentColor` on its `svg` when on.)
+
+Placement:
+- **ListaPistas** rows: a `MeGusta kind="track"` before the time (shown when liked; on row hover or focus otherwise, always on phones, like the `+` button) and a `MenuPista` after the `+`. Both need `pointer-events: auto` like `.add`.
+- **Album** header: `MeGusta kind="album" ref={album.id}` and `Puntaje kind="album" id={album.id}` on a line above `Acciones`.
+- **Artista** header: `MeGusta kind="artist" ref={artist.key}` next to the name's actions.
+- **Reproductor**: `MeGusta kind="track" ref={entry.id}` next to the title of the current track (desktop bar and the phone sheet).
+- Explorar needs nothing: its bar takes the new facets and orders from `facets.js`.
+
+- [ ] **Step 1:** Implement. Follow the existing components' styles (`.icon` buttons, `var(--accent)`, `var(--muted)`).
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser:** like a track in an album, the album, its artist; rate the album 4 and a track 5; reload: all kept; `/explorar?megusta=si` lists the album and `?ver=pistas&megusta=si` the track; `?puntaje=4` the album; "Más escuchado" orders by the plays recorded in Task 10; phone width (375 px): rows still fit (title ellipsized).
+- [ ] **Step 4: Commit** `feat(web): like and rate tracks, albums and artists`
+
+---
+
+### Task 12: Playlists and Listas in the web app
+
+**Files:**
+- Create: `web/src/components/AgregarALista.svelte`
+- Create: `web/src/pages/Lista.svelte`
+- Modify: `web/src/pages/Listas.svelte`, `web/src/App.svelte`, `web/src/components/Nav.svelte` (Listas active on `lista`)
+- Modify: `web/src/components/Acciones.svelte`, `web/src/components/MenuPista.svelte`
+
+**Interfaces:**
+- Consumes: the playlist calls, `move`, `listHref`, `mine` (Task 9); `MeGusta` (Task 11); `play`, `enqueue`.
+- Produces:
+  - `<AgregarALista what onclose />`: a popover listing the playlists (most recently updated first) and a "Nueva lista…" field with "Crear". Choosing one calls `api.addToPlaylist(id, what)` and notifies `«N pistas agregadas a «Nombre».»` (use `count`); creating calls `api.createPlaylist(name, what)` and notifies `Lista «Nombre» creada con N pistas.`. Errors are notified. Closes on success, outside click and Escape.
+  - `Acciones` gains a "+ Lista" button (hidden in browse-only mode) opening `AgregarALista` with its `what`; `MenuPista` gains "Agregar a una lista…" with `{ tracks: [track.id] }`.
+  - Page **`/listas/{id}`** (`Lista.svelte`): header with the covers mosaic (`Tapa` with `covers.map((id) => albumCoverURL(id, 320))`, icon `lists`), label "Lista", the name (a "Renombrar" button turns it into an input: Enter saves, Escape cancels), "N pistas · duración", `Acciones what={{ playlist: id }}` and "Eliminar lista" (`confirm('¿Eliminar la lista «Nombre»? Las pistas no se tocan.')`, then go to `/listas`). Entries: a row each with a drag handle (`grip`), position, title, artist and album (links when known), duration, a ✕ (remove). A click on the row plays the list from that entry (`play({ playlist: id }, { startId: entry.trackId })`). Unavailable entries are dimmed with "no disponible" and do not play. Not found → "Esta lista ya no existe." Browse-only mode: no handle, ✕, rename or delete.
+  - **Reordering:** pointer events on the handle (works with touch and mouse): `pointerdown` captures the pointer and remembers the row; `pointermove` computes the target index from the rows' vertical midpoints and shows the dragged row in its would-be place; `pointerup` applies `move(entries, from, to)` at once (optimistic), then `api.reorderPlaylist(id, entries.map((e) => e.itemId))`; on error reload the list and notify. The handle is a `<button>`: Alt+↑ / Alt+↓ move the entry one place (same call).
+  - **Listas** page, three sections:
+    1. "Listas de reproducción": cards (mosaic, name, "N pistas") linking to `/listas/{id}`, and a "Nueva lista" card that turns into a name field; creating goes to the new list. Empty: "Todavía no hay listas. Creá una acá o con «+ Lista» en un álbum, una carpeta o una pista."
+    2. "Me gusta": tabs Pistas · Álbumes · Artistas · Colecciones with their counts (from `api.liked()`); Pistas: ▶ Reproducir and ⤮ Aleatorio (`play({ liked: true }, …)`) and `ListaPistas` with `showAlbum` (`onplay` plays the liked tracks from that one); Álbumes: `TarjetaAlbum` grid; Artistas: `TarjetaArtista` grid; Colecciones: cards as in section 3. Each empty tab: "Nada por acá todavía: tocá ♥ en lo que te guste."
+    3. "Colecciones": as today, each card with a `MeGusta kind="collection" ref={c.path}`.
+    Everything reloads on `app.generation`; the Me gusta lists also when `mine.marks` changes (a like elsewhere).
+
+- [ ] **Step 1:** Implement.
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser:** create a list from an album's "+ Lista"; add a track from its ⋯ menu and a folder from Carpetas; reorder by dragging (mouse) and with Alt+↓; at 375 px drag with touch emulation; play it, shuffled too; rename; remove an entry; delete the list. Listas shows the lists, Me gusta with its four tabs, collections with ♥.
+- [ ] **Step 4: Commit** `feat(web): playlists, and Listas with Me gusta`
+
+---
+
+### Task 13: Sync with `main`, ♥ on the folder page
+
+Another session rewrites Carpetas (`docs/superpowers/specs/2026-10-02-tordo-carpetas-explorador-design.md`). This task brings its work in and puts the collection's ♥ in whatever the folder page header is then.
+
+**Files:**
+- Modify: whatever the merge touches; `web/src/pages/Carpetas.svelte` (or the component that now draws the folder header)
+
+- [ ] **Step 1:** `git fetch` is not needed (same repo): `git merge main`. Resolve conflicts keeping both sides' intent. Likely spots: `internal/server/server.go` (route list), `internal/store/library.go`, `internal/store/schema.sql`/`store.go` (if Carpetas also bumped `schemaVersion`, take the higher number + 1 for this branch's tables and update the migration test), `web/src/lib/api.js`, `web/src/App.svelte`, `web/src/components/ListaPistas.svelte`, `README.md`.
+- [ ] **Step 2:** In the folder page header, next to "No es una colección / Es una colección", add `<MeGusta kind="collection" ref={path} />` when the folder is a collection.
+- [ ] **Step 3: Run** `gofmt -l .`, `go vet ./...`, `go test ./...`, `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 4: Commit** the merge (its own message) and then `feat(web): like a collection from its folder page`.
+
+---
+
+### Task 14: Documentation
+
+**Files:**
+- Modify: `README.md`
+
+- [ ] **Step 1:** Update `README.md` (Spanish, like the rest of it) with: ♥ and ★ (on what, where they show, that they follow the audio through moves and re-tagging); what counts as a play; playlists (adding from anywhere, reordering, entries whose file disappeared); Explorar's "Me gusta", "Puntaje" and "Más escuchado"; normalization (ReplayGain tags, else ffmpeg analysis in the background, newest first; −18 LUFS; album gain when an album plays in order; `"normalize": false` in `config.json` to turn it off); and the new endpoints in the endpoints list: `/api/marks`, `/api/likes`, `/api/ratings`, `/api/plays`, `/api/liked`, `/api/gains`, `/api/playlists…`, and `/api/play`'s `playlist` and `liked`.
+- [ ] **Step 2: Commit** `docs: listening data, playlists and normalization in the README`
+
+---
+
+### Task 15: Check against the collection (manual, with the user)
+
+Not for a subagent: it needs the user's judgment and their collection.
+
+- [ ] Run against a copy of the real catalog (`go run ./cmd/tordo -dir <copy>` after `npm run build`), ffmpeg installed.
+- [ ] `/api/status` → `loudness` running; note the measuring speed (tracks per minute) and the CPU use while browsing and playing; it must not make the page or the playback stutter.
+- [ ] Explorar answers as fast as before with marks and plays present (the catalog is not rebuilt per like: time `/api/explore` before and after a like), and `?orden=escuchado` on the Pistas tab of the whole collection stays under ~100 ms.
+- [ ] Play a loud modern album and a quiet old one back to back: similar level; the same album in order keeps its internal dynamics (album gain).
+- [ ] Phone on the LAN is M5: check the phone layout at 375 px in the desktop browser.
+- [ ] Move or rename an album folder on a test copy and rescan: its ♥, ★, plays and playlist entries are still there.
+- [ ] Write the findings to `docs/superpowers/notes/2026-10-xx-m4a-collection-check.md` (as M2 and M3a did) and fix or plan what comes out.
+
