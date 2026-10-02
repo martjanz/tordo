@@ -1,14 +1,16 @@
 <script>
+  import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'
   import Icono from './Icono.svelte'
 
   let { page } = $props()
 
-  // The sections of the app; Inicio, Explorar and Revisar come with later
-  // milestones.
+  // The sections of the app; Inicio comes with M4.
   const SECTIONS = [
+    { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
     { page: 'carpetas', href: '/carpetas', label: 'Carpetas', icon: 'folder' },
     { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
+    { page: 'revisar', href: '/revisar', label: 'Revisar', icon: 'review' },
   ]
 </script>
 
@@ -27,6 +29,7 @@
       {/each}
     </span>
     <span class="spacer"></span>
+    <Busqueda />
     <Estado />
   </nav>
 </header>

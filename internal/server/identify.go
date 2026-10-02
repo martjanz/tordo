@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"tordo/internal/appdir"
 	"tordo/internal/genres"
 	"tordo/internal/httpx"
 	"tordo/internal/identify"
@@ -130,39 +129,7 @@ func (s *Server) afterCorrection(w http.ResponseWriter, id int64, err error) {
 		return
 	}
 	s.Identifier.Trigger()
-	a, ok, err := s.Store.Album(id)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	if !ok {
-		http.Error(w, "álbum no encontrado", http.StatusNotFound)
-		return
-	}
-	writeJSON(w, a)
-}
-
-// cover serves an album's folder image or its cached Cover Art Archive
-// image. Paths come from the catalog, never from the request.
-func (s *Server) cover(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
-	if !ok {
-		return
-	}
-	a, ok, err := s.Store.Album(id)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	p := a.CoverPath
-	if p == "" {
-		p = a.CoverCache
-	}
-	if !ok || p == "" {
-		http.Error(w, "sin carátula", http.StatusNotFound)
-		return
-	}
-	http.ServeFile(w, r, appdir.Abs(s.AppDir, p))
+	s.writeAlbum(w, id)
 }
 
 func (s *Server) genreTaxonomy(w http.ResponseWriter, r *http.Request) { writeJSON(w, genres.Taxonomy) }
@@ -212,4 +179,25 @@ func (s *Server) setGenreAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, a)
+}
+
+// deleteGenreAlias forgets the user's mapping of ?raw=.
+func (s *Server) deleteGenreAlias(w http.ResponseWriter, r *http.Request) {
+	if s.noIdentifier(w) {
+		return
+	}
+	raw := genres.Key(r.URL.Query().Get("raw"))
+	if raw == "" {
+		http.Error(w, "falta el valor (raw)", http.StatusBadRequest)
+		return
+	}
+	if err := s.Store.DeleteGenreAlias(raw); err != nil {
+		fail(w, err)
+		return
+	}
+	if err := s.Identifier.Apply(); err != nil {
+		fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

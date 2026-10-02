@@ -1,7 +1,8 @@
-// Package covers serves album and track pictures: the album folder's image
-// or a picture embedded in its files, whole or shrunk to a thumbnail. It
-// never writes to the music folders: thumbnails are kept in the app's
-// cache folder.
+// Package covers serves album and track pictures: the album folder's image,
+// a picture embedded in its files or the Cover Art Archive image the
+// identification downloaded, whole or shrunk to a thumbnail. It never
+// writes to the music folders: thumbnails are kept in the app's cache
+// folder.
 package covers
 
 import (
@@ -59,20 +60,23 @@ type source struct {
 }
 
 func (c *Covers) albumSources(id int64) ([]source, bool, error) {
-	folderImage, ok, err := c.Store.AlbumCover(id)
+	files, ok, err := c.Store.AlbumCover(id)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
 	var out []source
-	if folderImage != "" {
-		out = append(out, source{appdir.Abs(c.AppDir, folderImage), false})
+	if files.Folder != "" {
+		out = append(out, source{appdir.Abs(c.AppDir, files.Folder), false})
 	}
-	files, err := c.Store.AlbumPictureFiles(id)
+	embedded, err := c.Store.AlbumPictureFiles(id)
 	if err != nil {
 		return nil, true, err
 	}
-	for _, f := range files[:min(len(files), maxCandidates)] {
+	for _, f := range embedded[:min(len(embedded), maxCandidates)] {
 		out = append(out, source{appdir.Abs(c.AppDir, f), true})
+	}
+	if files.Cache != "" {
+		out = append(out, source{appdir.Abs(c.AppDir, files.Cache), false})
 	}
 	return out, true, nil
 }

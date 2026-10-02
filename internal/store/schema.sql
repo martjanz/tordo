@@ -139,6 +139,12 @@ CREATE TABLE IF NOT EXISTS artists (
 	fetched_at INTEGER NOT NULL
 );
 
+-- Folders the user says are not collections, though detected as such.
+CREATE TABLE IF NOT EXISTS not_collections (
+	path       TEXT PRIMARY KEY,
+	updated_at INTEGER NOT NULL
+);
+
 -- The user's genre mappings: raw value (genres.Key) → genre/style.
 CREATE TABLE IF NOT EXISTS genre_alias (
 	raw   TEXT PRIMARY KEY,

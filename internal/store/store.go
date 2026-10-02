@@ -36,9 +36,13 @@ func OpenMemory() (*Store, error) {
 }
 
 // schemaVersion is kept in PRAGMA user_version. Version 2 (M2) added columns
-// to the derived tables: they are dropped and the next scan rebuilds them.
-// The other tables are only ever added to.
-const schemaVersion = 2
+// to the derived tables: below it they are dropped and the next scan
+// rebuilds them. Version 3 (M3b) only added not_collections. The other
+// tables are only ever added to.
+const schemaVersion = 3
+
+// derivedVersion is the last version that changed the derived tables.
+const derivedVersion = 2
 
 // ErrOldCatalog means a catalog from an older version was opened read-only,
 // so it could not be updated.
@@ -67,7 +71,7 @@ func migrate(db *sql.DB) error {
 	if err := db.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
 		return err
 	}
-	if v < schemaVersion {
+	if v < derivedVersion {
 		if _, err := db.Exec(`DROP TABLE IF EXISTS tracks; DROP TABLE IF EXISTS album_genres;
 			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders`); err != nil {
 			return err

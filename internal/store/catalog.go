@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path"
 	"sort"
+	"time"
 
 	"tordo/internal/grouping"
 	"tordo/internal/natsort"
@@ -33,7 +34,7 @@ func (s *Store) Counts() (Counts, error) {
 		(SELECT COUNT(*) FROM tracks),
 		(SELECT COUNT(*) FROM albums),
 		(SELECT COUNT(*) FROM folders),
-		(SELECT COUNT(*) FROM folders WHERE collection = 1),
+		(SELECT COUNT(*) FROM folders WHERE `+isCollection+`),
 		(SELECT COUNT(*) FROM albums WHERE status IN ('auto', 'manual')),
 		(SELECT COUNT(*) FROM albums WHERE status = 'unmatched')`).
 		Scan(&c.Files, &c.Audio, &c.Unreadable, &c.Tracks, &c.Albums, &c.Folders, &c.Collections, &c.Identified, &c.Unidentified)
@@ -132,6 +133,7 @@ type AlbumView struct {
 	CoverPath    string      `json:"coverPath"`
 	CoverFileID  int64       `json:"coverFileId"`
 	CoverCache   string      `json:"coverCache"`
+	Picture      bool        `json:"picture"` // a folder image, an embedded picture or a cached one
 	Genres       []GenreLink `json:"genres"`
 	RawGenres    []string    `json:"rawGenres"`
 	Status       string      `json:"status"`
@@ -175,8 +177,15 @@ type FolderSummary struct {
 	TrackCount int    `json:"trackCount"` // recursive
 	AlbumCount int    `json:"albumCount"` // recursive
 	DurationMs int64  `json:"durationMs"`
-	Collection bool   `json:"collection"`
+	Collection bool   `json:"collection"` // detected, and the user did not say otherwise
+	Detected   bool   `json:"detected"`   // detected as a collection
 }
+
+// isCollection tells, in SQL over folders, whether a folder is a
+// collection: detected, and not dismissed by the user.
+const isCollection = `(collection = 1 AND path NOT IN (SELECT path FROM not_collections))`
+
+const folderCols = `path, name, tracks, albums, duration_ms, ` + isCollection + `, collection`
 
 type FolderView struct {
 	FolderSummary
@@ -194,18 +203,26 @@ type CollectionView struct {
 const albumCols = `id, CASE WHEN mb_title != '' THEN mb_title ELSE title END,
 	CASE WHEN mb_artist != '' THEN mb_artist ELSE artist END, year, original_year, compilation OR mb_compilation,
 	selection, discs, tracks, duration_ms, dir, position, cover_path, cover_file_id, cover_cache, genres, status,
-	release_id, confidence, country, artist_id, title, artist, match_query`
+	release_id, confidence, country, artist_id, title, artist, match_query, ` + hasPicture
+
+// hasPicture tells, in SQL over albums, whether an album has a picture.
+const hasPicture = `(cover_path != '' OR cover_file_id != 0 OR cover_cache != '')`
 
 func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
-	out, err := s.scanAlbums(q, args...)
+	return readAlbums(s.db, q, args...)
+}
+
+// readAlbums reads albums (albumCols) with their genres through q.
+func readAlbums(q querier, query string, args ...any) ([]AlbumView, error) {
+	out, err := scanAlbums(q, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	return out, s.fillGenres(out)
+	return out, fillGenres(q, out)
 }
 
-func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
-	rows, err := s.db.Query(q, args...)
+func scanAlbums(q querier, query string, args ...any) ([]AlbumView, error) {
+	rows, err := q.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +233,7 @@ func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
 		var raw string
 		if err := rows.Scan(&a.ID, &a.Title, &a.Artist, &a.Year, &a.OriginalYear, &a.Compilation, &a.Selection, &a.Discs,
 			&a.Tracks, &a.DurationMs, &a.Dir, &a.Position, &a.CoverPath, &a.CoverFileID, &a.CoverCache, &raw, &a.Status,
-			&a.ReleaseID, &a.Confidence, &a.Country, &a.ArtistID, &a.TagTitle, &a.TagArtist, &a.MatchQuery); err != nil {
+			&a.ReleaseID, &a.Confidence, &a.Country, &a.ArtistID, &a.TagTitle, &a.TagArtist, &a.MatchQuery, &a.Picture); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(raw), &a.RawGenres); err != nil {
@@ -229,7 +246,7 @@ func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
 
 // fillGenres sets the albums' genre links. It reads the whole (small)
 // album_genres table once instead of once per album.
-func (s *Store) fillGenres(as []AlbumView) error {
+func fillGenres(q querier, as []AlbumView) error {
 	if len(as) == 0 {
 		return nil
 	}
@@ -238,7 +255,7 @@ func (s *Store) fillGenres(as []AlbumView) error {
 		at[as[i].ID] = i
 		as[i].Genres = []GenreLink{}
 	}
-	rows, err := s.db.Query(`SELECT album_id, genre, style, source FROM album_genres ORDER BY album_id, genre, style`)
+	rows, err := q.Query(`SELECT album_id, genre, style, source FROM album_genres ORDER BY album_id, genre, style`)
 	if err != nil {
 		return err
 	}
@@ -258,7 +275,8 @@ func (s *Store) fillGenres(as []AlbumView) error {
 
 const trackQuery = `SELECT t.file_id, f.path, CASE WHEN t.mb_title != '' THEN t.mb_title ELSE t.title END, t.title,
 	t.recording_id, t.artist, t.disc, t.track, t.year, t.duration_ms,
-	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint
+	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint,
+	COALESCE(t.album_id, 0), t.dir, f.first_seen
 	FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id `
 
 func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
@@ -270,13 +288,22 @@ func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
 	out := []TrackView{}
 	for rows.Next() {
 		var t TrackView
-		if err := rows.Scan(&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
-			&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint); err != nil {
+		var albumID, added int64
+		var dir string
+		if err := rows.Scan(trackDest(&t, &albumID, &dir, &added)...); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+// trackDest lists where a row of trackQuery goes: the view, then its album
+// id, folder and first-seen time.
+func trackDest(t *TrackView, albumID *int64, dir *string, added *int64) []any {
+	return []any{&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
+		&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint,
+		albumID, dir, added}
 }
 
 // Albums lists the albums, all of them or those inside folder (at any depth).
@@ -307,8 +334,8 @@ func (s *Store) Album(id int64) (AlbumDetail, bool, error) {
 func (s *Store) Folder(p string) (FolderView, bool, error) {
 	v := FolderView{Children: []FolderSummary{}, Albums: []AlbumView{}, Loose: []TrackView{}}
 	if p != "" {
-		err := s.db.QueryRow(`SELECT path, name, parent, tracks, albums, duration_ms, collection FROM folders WHERE path = ?`, p).
-			Scan(&v.Path, &v.Name, &v.Parent, &v.TrackCount, &v.AlbumCount, &v.DurationMs, &v.Collection)
+		err := s.db.QueryRow(`SELECT `+folderCols+`, parent FROM folders WHERE path = ?`, p).
+			Scan(&v.Path, &v.Name, &v.TrackCount, &v.AlbumCount, &v.DurationMs, &v.Collection, &v.Detected, &v.Parent)
 		if errors.Is(err, sql.ErrNoRows) {
 			return FolderView{}, false, nil
 		}
@@ -336,7 +363,7 @@ func (s *Store) Folder(p string) (FolderView, bool, error) {
 }
 
 func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, error) {
-	rows, err := s.db.Query(`SELECT path, name, tracks, albums, duration_ms, collection FROM folders `+where, args...)
+	rows, err := s.db.Query(`SELECT `+folderCols+` FROM folders `+where, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +371,7 @@ func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, err
 	out := []FolderSummary{}
 	for rows.Next() {
 		var f FolderSummary
-		if err := rows.Scan(&f.Path, &f.Name, &f.TrackCount, &f.AlbumCount, &f.DurationMs, &f.Collection); err != nil {
+		if err := rows.Scan(&f.Path, &f.Name, &f.TrackCount, &f.AlbumCount, &f.DurationMs, &f.Collection, &f.Detected); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
@@ -354,7 +381,7 @@ func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, err
 
 // Collections lists the detected collections with their albums in order.
 func (s *Store) Collections() ([]CollectionView, error) {
-	sums, err := s.folderSummaries(`WHERE collection = 1`)
+	sums, err := s.folderSummaries(`WHERE ` + isCollection)
 	if err != nil {
 		return nil, err
 	}
@@ -375,6 +402,20 @@ func (s *Store) Collections() ([]CollectionView, error) {
 		out = append(out, CollectionView{FolderSummary: f, Albums: albums})
 	}
 	return out, nil
+}
+
+// SetCollection records whether a detected collection is one: false
+// dismisses it ("no es una colección"), true takes that back. The decision
+// is kept by path, across scans.
+func (s *Store) SetCollection(path string, collection bool) error {
+	var err error
+	if collection {
+		_, err = s.db.Exec(`DELETE FROM not_collections WHERE path = ?`, path)
+	} else {
+		_, err = s.db.Exec(`INSERT INTO not_collections (path, updated_at) VALUES (?, ?)
+			ON CONFLICT(path) DO UPDATE SET updated_at = excluded.updated_at`, path, time.Now().UnixMilli())
+	}
+	return err
 }
 
 // sortByPosition orders albums by their collection position (albums without

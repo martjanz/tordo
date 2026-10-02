@@ -7,11 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"tordo/internal/covers"
@@ -29,6 +29,8 @@ type Server struct {
 	Covers     *covers.Covers  // nil: no pictures
 	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
+
+	cat catalogState
 }
 
 func (s *Server) Handler() http.Handler {
@@ -39,15 +41,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/albums/{id}", s.album)
 	mux.HandleFunc("GET /api/folders", s.folder)
 	mux.HandleFunc("GET /api/collections", s.collections)
+	mux.HandleFunc("GET /api/explore", s.explore)
+	mux.HandleFunc("GET /api/artists/{key}", s.artist)
+	mux.HandleFunc("GET /api/search", s.find)
+	mux.HandleFunc("PUT /api/folders/collection", jsonOnly(s.setCollection))
 	mux.HandleFunc("POST /api/identify", jsonOnly(s.identify))
 	mux.HandleFunc("GET /api/review/unidentified", s.unidentified)
 	mux.HandleFunc("PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification))
 	mux.HandleFunc("DELETE /api/albums/{id}/identification", s.resetIdentification)
-	mux.HandleFunc("GET /api/albums/{id}/cover", s.cover)
 	mux.HandleFunc("GET /api/genres", s.genreTaxonomy)
 	mux.HandleFunc("GET /api/genres/unmapped", s.unmappedGenres)
 	mux.HandleFunc("GET /api/genres/aliases", s.genreAliases)
 	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
+	mux.HandleFunc("DELETE /api/genres/aliases", s.deleteGenreAlias)
 	mux.HandleFunc("GET /api/play", s.play)
 	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
 	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
@@ -152,21 +158,9 @@ func (s *Server) albums(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) album(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
-		return
+	if id, ok := pathID(w, r); ok {
+		s.writeAlbum(w, id)
 	}
-	a, ok, err := s.Store.Album(id)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	if !ok {
-		http.Error(w, "álbum no encontrado", http.StatusNotFound)
-		return
-	}
-	writeJSON(w, a)
 }
 
 func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +190,41 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 		Art   map[string][]int64 `json:"art"`
 		Trail []store.Crumb      `json:"trail"`
 	}{f, art, trail})
+}
+
+// setCollection answers "no es una colección" (collection false) on a
+// detected collection, or takes it back (true), with the folder's summary.
+func (s *Server) setCollection(w http.ResponseWriter, r *http.Request) {
+	if s.ReadOnly {
+		http.Error(w, "modo consulta: no se pueden guardar cambios", http.StatusConflict)
+		return
+	}
+	var body struct {
+		Path       string `json:"path"`
+		Collection bool   `json:"collection"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&body); err != nil || body.Path == "" {
+		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		return
+	}
+	if _, ok, err := s.Store.Folder(body.Path); err != nil || !ok {
+		if err != nil {
+			fail(w, err)
+		} else {
+			http.Error(w, "carpeta no encontrada", http.StatusNotFound)
+		}
+		return
+	}
+	if err := s.Store.SetCollection(body.Path, body.Collection); err != nil {
+		fail(w, err)
+		return
+	}
+	f, _, err := s.Store.Folder(body.Path)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, f.FolderSummary)
 }
 
 func (s *Server) collections(w http.ResponseWriter, r *http.Request) {

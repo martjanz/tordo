@@ -5,8 +5,12 @@
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
   import Album from './pages/Album.svelte'
+  import Artista from './pages/Artista.svelte'
+  import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
+  import Explorar from './pages/Explorar.svelte'
   import Listas from './pages/Listas.svelte'
+  import Revisar from './pages/Revisar.svelte'
 
   const current = $derived(resolve(route.path, route.search))
 
@@ -28,7 +32,9 @@
 <Nav page={current.page} />
 
 <main>
-  {#if current.page === 'carpetas'}
+  {#if current.page === 'explorar'}
+    <Explorar />
+  {:else if current.page === 'carpetas'}
     {#key current.path}
       <Carpetas path={current.path} />
     {/key}
@@ -36,10 +42,18 @@
     {#key current.id}
       <Album id={current.id} />
     {/key}
+  {:else if current.page === 'artista'}
+    {#key current.key}
+      <Artista key={current.key} />
+    {/key}
+  {:else if current.page === 'buscar'}
+    <Buscar q={current.q} />
   {:else if current.page === 'listas'}
     <Listas />
+  {:else if current.page === 'revisar'}
+    <Revisar tab={current.tab} />
   {:else}
-    <p class="empty">No existe esta página. <a href="/carpetas">Ir a Carpetas</a></p>
+    <p class="empty">No existe esta página. <a href="/explorar">Ir a Explorar</a></p>
   {/if}
 </main>
 

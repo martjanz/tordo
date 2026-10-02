@@ -29,13 +29,16 @@ async function call(method, path, body) {
 
 const get = (path) => call('GET', path)
 const post = (path, body) => call('POST', path, body ?? {})
+const put = (path, body) => call('PUT', path, body)
+const del = (path) => call('DELETE', path)
 
 // playQuery writes what to play as /api/play's query: {album}, {folder},
-// {tracks: [ids]}, plus shuffle.
-export function playQuery({ album, folder, tracks, shuffle }) {
+// {artist}, {tracks: [ids]}, plus shuffle.
+export function playQuery({ album, folder, artist, tracks, shuffle }) {
   const params = new URLSearchParams()
   if (album != null) params.set('album', album)
   if (folder != null) params.set('folder', folder)
+  if (artist != null) params.set('artist', artist)
   for (const id of tracks ?? []) params.append('track', id)
   if (shuffle) params.set('shuffle', '1')
   return params.toString()
@@ -48,6 +51,36 @@ export const api = {
   folder: (path) => get(path ? `/api/folders?${new URLSearchParams({ path })}` : '/api/folders'),
   collections: () => get('/api/collections'),
   play: (what) => get(`/api/play?${playQuery(what)}`),
+  // search is Explorar's query string ("?decada=1980"); from and limit page it.
+  explore: (search, from = 0, limit = 120) => {
+    const params = new URLSearchParams(search)
+    if (from) params.set('desde', from)
+    params.set('limite', limit)
+    return get(`/api/explore?${params}`)
+  },
+  artist: (key) => get(`/api/artists/${encodeURIComponent(key)}`),
+  find: (q, limit = 6) => get(`/api/search?${new URLSearchParams({ q, limite: limit })}`),
+  setCollection: (path, collection) => put('/api/folders/collection', { path, collection }),
+  identify: () => post('/api/identify'),
+  unidentified: () => get('/api/review/unidentified'),
+  // identification is {releaseId} (an MBID or a musicbrainz.org URL) or {ignore: true}.
+  setIdentification: (id, identification) => put(`/api/albums/${id}/identification`, identification),
+  resetIdentification: (id) => del(`/api/albums/${id}/identification`),
+  genres: () => get('/api/genres'),
+  unmappedGenres: () => get('/api/genres/unmapped'),
+  genreAliases: () => get('/api/genres/aliases'),
+  setGenreAlias: (alias) => put('/api/genres/aliases', alias),
+  deleteGenreAlias: (raw) => del(`/api/genres/aliases?${new URLSearchParams({ raw })}`),
+}
+
+// releaseURL links a MusicBrainz release.
+export function releaseURL(id) {
+  return `https://musicbrainz.org/release/${id}`
+}
+
+// artistMBURL links a MusicBrainz artist.
+export function artistMBURL(id) {
+  return `https://musicbrainz.org/artist/${id}`
 }
 
 // Picture URLs. size is one of the server's thumbnail sizes (160, 320,

@@ -140,3 +140,31 @@ func TestCollectionsInOrder(t *testing.T) {
 		t.Fatalf("counts = %+v", c)
 	}
 }
+
+func TestNotACollection(t *testing.T) {
+	s := sample(t)
+	if err := s.SetCollection(la, false); err != nil {
+		t.Fatal(err)
+	}
+	regroup(t, s) // the decision survives scans
+	if cs, _ := s.Collections(); len(cs) != 0 {
+		t.Fatalf("collections = %+v", cs)
+	}
+	f, _, _ := s.Folder(la)
+	if f.Collection || !f.Detected {
+		t.Fatalf("dismissed folder = %+v", f.FolderSummary)
+	}
+	r, _, _ := s.Folder("../musica")
+	if r.Children[0].Collection || !r.Children[0].Detected {
+		t.Fatalf("as a subfolder = %+v", r.Children[0])
+	}
+	if c, _ := s.Counts(); c.Collections != 0 {
+		t.Fatalf("counts = %+v", c)
+	}
+	if err := s.SetCollection(la, true); err != nil {
+		t.Fatal(err)
+	}
+	if cs, _ := s.Collections(); len(cs) != 1 {
+		t.Fatalf("taken back: %+v", cs)
+	}
+}

@@ -35,16 +35,23 @@ Soulseek's `downloading`, Apple Music libraries) are always skipped.
 `ffprobe`, when on the `PATH`, reads the formats the built-in readers don't
 (APE, WavPack, raw AAC…).
 
-### Listening
+### Browsing and listening
 
-Browse the folders as they are on disk (collections show their albums in
-order), open an album and play it, shuffle a folder, queue tracks. The queue
+Explorar lists albums, artists or tracks of the whole catalog, filtered by
+decade and year, artist, country, genre and style, collection, folder,
+quality, format and state (not identified, not playable); the filters live in
+the URL. Artist pages show their albums by year and their tracks on
+compilations. The search (Ctrl+K / ⌘K) finds artists, albums, tracks and
+folders while typing, ignoring case and accents. Carpetas shows the folders
+as they are on disk (collections show their albums in order; a folder wrongly
+detected as a collection can be told "no es una colección"). Open an album
+and play it, shuffle a folder, queue tracks. The queue
 and the volume are kept in the browser, per device. MP3, FLAC, AAC, Opus,
 Vorbis and WAV play as they are, with seeking; WMA, ALAC, AIFF, APE and
 WavPack need `ffmpeg` on the `PATH` and are converted on the fly (lossless to
 FLAC, lossy to MP3), without seeking. Covers come from the album folder's
-image or the files' embedded pictures; thumbnails are cached in
-`cache/thumbs/`.
+image, the files' embedded pictures or the Cover Art Archive; thumbnails are
+cached in `cache/thumbs/`.
 
 | Method and path | What it returns |
 |---|---|
@@ -54,10 +61,16 @@ image or the files' embedded pictures; thumbnails are cached in
 | `GET /api/albums/{id}` | an album with its tracks and technical data |
 | `GET /api/folders?path=` | a folder: subfolders, albums and loose tracks (no `path`: the roots) |
 | `GET /api/collections` | folders detected as collections, with their albums in order |
+| `PUT /api/folders/collection` | `{"path", "collection": false}`: not a collection (`true` takes it back) |
+| `GET /api/explore?ver=&<facets>&orden=&dir=&desde=&limite=` | a page of Explorar (albums, artists or tracks) with the facets' counts |
+| `GET /api/artists/{key}` | an artist: albums by year and appearances on others' albums |
+| `GET /api/search?q=&limite=` | artists, albums, tracks and folders matching `q` |
 | `GET /api/genres` | the taxonomy of genres and styles |
+| `GET /api/genres/unmapped` | raw tag genres no mapping knows (Géneros por mapear) |
+| `PUT /api/genres/aliases`, `DELETE /api/genres/aliases?raw=` | map a raw genre (or ignore it), or forget the mapping |
 | `GET /api/review/unidentified` | albums awaiting identification review |
-| `PUT /api/albums/{id}/identification` | choose the identification for an album |
-| `GET /api/play?album=&folder=&track=&shuffle=1` | the tracks to queue, in order (at most 5000) |
+| `PUT /api/albums/{id}/identification` | choose the identification for an album (`DELETE` goes back to automatic) |
+| `GET /api/play?album=&folder=&artist=&track=&shuffle=1` | the tracks to queue, in order (at most 5000) |
 | `GET /stream/{trackId}` | a track's audio (`Range` for seeking; `?transcode=1` converts it) |
 | `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
 | `GET /api/covers/track/{id}?size=` | the picture embedded in a track's file |
@@ -70,8 +83,10 @@ hours and resumes where it stopped). Albums above the confidence threshold are
 identified automatically: they show MusicBrainz's titles, the original year,
 the artist's country, Discogs genres and styles, and a cover from the Cover Art
 Archive when the folder has none (saved in `cache/covers/`). The others go to
-`GET /api/review/unidentified` with their candidates; choose one with
-`PUT /api/albums/{id}/identification`. Corrections are stored per track
+Revisar → Sin identificar with their candidates: choose one, paste a
+musicbrainz.org release, or say the album is not in MusicBrainz (also from the
+album page, *Corregir identificación*). Raw tag genres no mapping knows go to
+Revisar → Géneros por mapear. Corrections are stored per track
 fingerprint: they survive moving, renaming and re-tagging the files, and the
 automatic identification never overrides them. Without network, everything
 else works and the identification retries on its own.

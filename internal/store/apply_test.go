@@ -118,6 +118,12 @@ func TestGenreAliases(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("aliases = %+v, err %v", got, err)
 	}
+	if err := s.DeleteGenreAlias("chamame"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.GenreAliases(); !reflect.DeepEqual(got, want[1:]) {
+		t.Fatalf("after deleting: %+v", got)
+	}
 }
 
 func TestApplyIdentitiesSkipsStaleRows(t *testing.T) {
@@ -142,5 +148,23 @@ func TestApplyIdentitiesSkipsStaleRows(t *testing.T) {
 	c, _, _ := s.Album(clics)
 	if c.ReleaseID != "r2" || len(c.Genres) != 1 || c.Genres[0].Genre != "Pop" {
 		t.Fatalf("the valid identity was not applied: %+v", c)
+	}
+}
+
+func TestAlbumCandidates(t *testing.T) {
+	s := sample(t)
+	id := albumID(t, s, "Signos")
+	if cs, err := s.AlbumCandidates(id); err != nil || cs == nil || len(cs) != 0 {
+		t.Fatalf("not looked up: %v, %v", cs, err)
+	}
+	want := []Candidate{{ReleaseID: "r1", Title: "Signos", Score: 0.7}}
+	if err := s.SaveMatches([]Match{{Query: "q", Status: StatusUnmatched, Confidence: 0.7, Candidates: want}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ApplyIdentities([]AlbumIdentity{{AlbumID: id, Query: "q", Status: StatusUnmatched}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if cs, err := s.AlbumCandidates(id); err != nil || !reflect.DeepEqual(cs, want) {
+		t.Fatalf("candidates = %+v, %v", cs, err)
 	}
 }
