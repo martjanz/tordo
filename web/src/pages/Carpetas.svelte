@@ -9,7 +9,7 @@
   import { navigate, savedScroll } from '../lib/nav.svelte.js'
   import { folderHref } from '../lib/router.js'
   import { direction } from '../lib/tree.js'
-  import { onMount, tick } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   import { fly } from 'svelte/transition'
 
   let { path } = $props()
@@ -67,13 +67,16 @@
         rootPath = f.children.length === 1 ? f.children[0].path : ''
         rootKnown = true
       })
-      .catch(() => {})
+      .catch(() => {
+        rootPath = ''
+        rootKnown = true
+      })
   })
 
   $effect(() => {
     const p = path
     const generation = app.generation // reload when a scan ends
-    syncGeneration(generation)
+    untrack(() => syncGeneration(generation))
     let stale = false
     api
       .folder(p)

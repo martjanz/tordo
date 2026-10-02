@@ -116,9 +116,11 @@
       {#each folders as f (f.key)}
         <tr>
           <td class="name">
-            <Icono name={f.album ? 'disc' : 'folder'} size={16} />
-            <a href={folderHref(f.path)}>{f.name}</a>
-            {#if f.collection}<span class="label">Colección</span>{/if}
+            <div class="cell">
+              <Icono name={f.album ? 'disc' : 'folder'} size={16} />
+              <a href={folderHref(f.path)}>{f.name}</a>
+              {#if f.collection}<span class="label">Colección</span>{/if}
+            </div>
           </td>
           <td class="bar-col"><div class="bar" style="width: {bar(f.sizeBytes, folder.sizeBytes)}%"></div></td>
           <td class="num">{f.tracks.toLocaleString('es')}</td>
@@ -138,12 +140,14 @@
         {#if f.type === 'audio'}
           <tr class:dim={!f.playable}>
             <td class="name">
+              <div class="cell">
               <Icono name="music" size={16} />
               <button
                 class="link"
                 disabled={!f.playable}
-                title={f.playable ? undefined : 'No se puede reproducir: falta ffmpeg'}
+                title={f.playable ? undefined : f.track ? 'No se puede reproducir: falta ffmpeg' : 'No se pudo leer este archivo'}
                 onclick={() => play({ tracks: ids }, { startId: f.id })}>{f.name}</button>
+              </div>
             </td>
             <td class="bar-col"></td>
             <td class="num"></td>
@@ -160,7 +164,7 @@
           </tr>
         {:else}
           <tr class="dim">
-            <td class="name"><Icono name="file" size={16} /><span>{f.name}</span></td>
+            <td class="name"><div class="cell"><Icono name="file" size={16} /><span>{f.name}</span></div></td>
             <td class="bar-col"></td>
             <td class="num"></td>
             <td class="num"></td>
@@ -262,19 +266,30 @@
   td.name {
     width: 100%;
     max-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  td.name :global(svg) {
-    vertical-align: -3px;
-    margin-right: 8px;
+  .cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .cell :global(svg) {
+    flex: none;
     color: var(--faint);
   }
-  td.name a {
+  .cell a,
+  .cell .link,
+  .cell > span:not(.label) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cell a {
     color: var(--strong);
   }
-  td.name .label {
-    margin-left: 8px;
+  .cell .label {
+    flex: none;
   }
   .bar-col {
     width: 140px;

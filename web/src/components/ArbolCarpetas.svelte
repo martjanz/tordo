@@ -13,6 +13,7 @@
   let { selected } = $props()
 
   let cursor = $state('')
+  let selectedNode = $state(null) // the row that holds the selected folder (it may be merged into a row)
   let query = $state('')
   let result = $state(null)
   let input = $state(null)
@@ -44,6 +45,7 @@
       .then((r) => {
         if (stale || !r.node) return
         cursor = r.node
+        selectedNode = r.node
         show(r.node, false)
       })
       .catch((e) => notify(e.message))
@@ -98,6 +100,7 @@
   }
 
   function onkeydown(event) {
+    if (event.altKey || event.metaKey || event.ctrlKey) return
     const action = keyAction(rows, cursor, event.key, openMap)
     if (!action) return
     event.preventDefault()
@@ -156,7 +159,7 @@
         role="treeitem"
         aria-level={row.depth}
         aria-expanded={node.hasChildren ? isOpen : undefined}
-        aria-selected={node.path === selected}
+        aria-selected={node.path === (selectedNode ?? selected)}
         tabindex={node.path === cursor || (!hasCursor && i === 0) ? 0 : -1}
         data-path={node.path}
         style:padding-left="calc(({row.depth} - 1) * 16px + 4px)"

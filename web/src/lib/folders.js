@@ -32,6 +32,7 @@ export function entries(folder) {
       album: 0,
       collection: false,
       playable: audio ? !!f.playable : false,
+      track: !!f.track,
     }
   })
   return { folders, files }

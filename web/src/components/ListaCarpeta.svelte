@@ -179,7 +179,7 @@
               class="row"
               class:dim={!f.playable}
               disabled={!f.playable}
-              title={f.playable ? undefined : 'No se puede reproducir: falta ffmpeg'}
+              title={f.playable ? undefined : f.track ? 'No se puede reproducir: falta ffmpeg' : 'No se pudo leer este archivo'}
               onclick={() => play({ tracks: ids }, { startId: f.id })}>
               <Icono name="music" size={18} />
               <span class="name">{f.name}</span>

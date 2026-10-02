@@ -75,3 +75,13 @@ describe('playableIds', () => {
     expect(playableIds(entries(folder).files)).toEqual([9])
   })
 })
+
+describe('entries track flag', () => {
+  it('tells tracks from other audio files', () => {
+    const { files } = entries({ files: [
+      { id: 1, name: 'a.opus', kind: 'audio', playable: false, track: false },
+      { id: 2, name: 'b.wma', kind: 'audio', playable: false, track: true },
+    ] })
+    expect(files.map((f) => f.track)).toEqual([false, true])
+  })
+})
