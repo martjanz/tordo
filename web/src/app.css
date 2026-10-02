@@ -13,6 +13,7 @@
   --warn: #e0a040;
   --radius: 4px;
   --gutter: 16px;
+  --nav-h: 55px; /* the sticky bar at the top (Nav.svelte), without its margin */
   --player-h: 72px;
   --tabs-h: 0px; /* the bottom tabs, on phones */
   color-scheme: dark;

@@ -35,9 +35,7 @@
   {#if current.page === 'explorar'}
     <Explorar />
   {:else if current.page === 'carpetas'}
-    {#key current.path}
-      <Carpetas path={current.path} />
-    {/key}
+    <Carpetas path={current.path} />
   {:else if current.page === 'album'}
     {#key current.id}
       <Album id={current.id} />

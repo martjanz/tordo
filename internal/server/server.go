@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -40,6 +39,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/albums", s.albums)
 	mux.HandleFunc("GET /api/albums/{id}", s.album)
 	mux.HandleFunc("GET /api/folders", s.folder)
+	mux.HandleFunc("GET /api/folders/tree", s.folderTree)
+	mux.HandleFunc("GET /api/folders/tree/search", s.searchFolderTree)
 	mux.HandleFunc("GET /api/collections", s.collections)
 	mux.HandleFunc("GET /api/explore", s.explore)
 	mux.HandleFunc("GET /api/artists/{key}", s.artist)
@@ -161,70 +162,6 @@ func (s *Server) album(w http.ResponseWriter, r *http.Request) {
 	if id, ok := pathID(w, r); ok {
 		s.writeAlbum(w, id)
 	}
-}
-
-func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
-	f, ok, err := s.Store.Folder(r.URL.Query().Get("path"))
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	if !ok {
-		http.Error(w, "carpeta no encontrada", http.StatusNotFound)
-		return
-	}
-	art, err := s.Store.FolderArt(f.Path)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	trail, err := s.Store.FolderTrail(f.Path)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	// art: up to four album ids per subfolder, for its card's picture;
-	// trail: the folders from the root down to this one.
-	writeJSON(w, struct {
-		store.FolderView
-		Art   map[string][]int64 `json:"art"`
-		Trail []store.Crumb      `json:"trail"`
-	}{f, art, trail})
-}
-
-// setCollection answers "no es una colección" (collection false) on a
-// detected collection, or takes it back (true), with the folder's summary.
-func (s *Server) setCollection(w http.ResponseWriter, r *http.Request) {
-	if s.ReadOnly {
-		http.Error(w, "modo consulta: no se pueden guardar cambios", http.StatusConflict)
-		return
-	}
-	var body struct {
-		Path       string `json:"path"`
-		Collection bool   `json:"collection"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&body); err != nil || body.Path == "" {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
-		return
-	}
-	if _, ok, err := s.Store.Folder(body.Path); err != nil || !ok {
-		if err != nil {
-			fail(w, err)
-		} else {
-			http.Error(w, "carpeta no encontrada", http.StatusNotFound)
-		}
-		return
-	}
-	if err := s.Store.SetCollection(body.Path, body.Collection); err != nil {
-		fail(w, err)
-		return
-	}
-	f, _, err := s.Store.Folder(body.Path)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	writeJSON(w, f.FolderSummary)
 }
 
 func (s *Server) collections(w http.ResponseWriter, r *http.Request) {

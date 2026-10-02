@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, country, duration, folderName, formatName, length, quality, years } from './format.js'
+import { codecName, count, country, duration, folderName, formatName, length, quality, size, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -62,4 +62,13 @@ describe('names', () => {
     expect(years(1990, 1990)).toBe('1990')
     expect(years(0, 0)).toBe('')
   })
+})
+
+describe('size', () => {
+  it.each([
+    [512, '512 B'], [84_000, '84 KB'], [7_200_000, '7,2 MB'], [1_400_000_000, '1,4 GB'],
+    [3_000_000_000, '3,0 GB'], [410_000_000, '410 MB'], [9_960_000, '10 MB'], [999_600, '1,0 MB'],
+    [30_100_000_000, '30 GB'], [0, '0 B'],
+  ])('%d', (n, want) => expect(size(n)).toBe(want))
+  it('is empty without a value', () => expect(size(undefined)).toBe(''))
 })
