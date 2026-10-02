@@ -91,8 +91,8 @@ type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
 A station plays a sequence of albums or tracks drawn from a source, never repeating
 what it just queued, with rules for variety and avoiding recently-heard music. Its
 source is one of:
-- An **Explorar query**: albums (with all their tracks), artists, or just their
-  track listings on compilations.
+- An **Explorar query** with two views: `pistas` (the matching tracks), or `albumes`
+  (every track of the matching albums; maps to Explorar's Artistas tab for artists).
 - A **folder** (recursive; collections are folders too).
 - A **playlist** (the entries that can still play).
 - **Liked** (♥ me gusta): all liked tracks, all tracks of liked albums, all tracks of
@@ -110,7 +110,8 @@ track counts as an album of one).
 
 When no track fits all rules, they **relax one at a time** in this order: artist gap,
 avoid days, already queued (but never the one that just played, if there is another).
-When nothing is left at all, the batch is empty and the station stops.
+The batch is empty (and the station stops) only when the source has nothing playable;
+otherwise, relaxed rules allow tracks to repeat.
 
 The browser pulls up to 10 tracks at a time and asks for more when fewer than 3
 remain. The queue keeps only the last 100 played tracks, so the station never runs
@@ -131,11 +132,13 @@ The first page, showing:
   (liked albums, most recent first).
 - **Three rotating rows**, drawn with a seed from the catalog's facets (decade,
   country, genre, style, collections, never-played albums, unheard-in-a-year albums,
-  random albums). Rows with fewer than 4 items are hidden.
+  random albums). Most rows need at least 4 albums to be drawn; the random albums row
+  needs only 1. Rows with insufficient items are hidden.
 
-The ↻ button redraws the rotating rows with the same seed; a new visit draws a new
-seed. Each row links to Explorar with its filter and (except fixed non-curated rows)
-an ▶ button to start its station.
+The ↻ button draws a new seed and redraws the rotating rows; a new visit draws a new
+seed. Only reloads after a scan or identification keep the same seed. Each row links
+to Explorar with its filter and (except fixed non-curated rows) an ▶ button to start
+its station.
 
 #### Tu escucha (statistics)
 
@@ -151,7 +154,7 @@ an album's genres counts as one play.
 
 #### Escucha facet
 
-Filter albums or tracks by `escucha`: **nunca** (never played) or **hace-un-año**
+Filter albums or tracks by `escucha`: **nunca** (never played) or **hace-un-anio**
 (played, but the last play is more than 365 days old). Albums are never-played only
 if none of their tracks have been played.
 
@@ -183,7 +186,7 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
 | `POST /api/plays` | record a play of a track (`{id, listenedMs, device}`); ignored in browse-only mode |
 | `GET /api/liked` | the liked tracks, albums, artists and collections, most recent first |
-| `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue; "unmeasurable" tracks (files that cannot be opened or ffmpeg I/O errors) are not re-analyzed |
+| `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue; tracks marked "unmeasurable" (no ReplayGain tag and measurement failed permanently) are not re-analyzed |
 | `GET /api/playlists` | user's playlists |
 | `POST /api/playlists` | create a new playlist |
 | `GET /api/playlists/{id}` | entries of a playlist |
@@ -196,9 +199,9 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `POST /api/stations` | save a station (body: `{name, source, mode, artistGap, avoidDays}`) |
 | `PUT /api/stations/{id}` | rename or update a station |
 | `DELETE /api/stations/{id}` | delete a saved station |
-| `GET /api/station/next?def=<JSON>&recientes=1,2,3` | the next up to 10 tracks (or albums) from the station, with mime and gains; `recientes` is a comma-separated list of recently-played track ids |
+| `GET /api/station/next?def=<JSON>&recientes=1,2,3` | the next batch of tracks from the station (at least 10 tracks, possibly more in albums mode to include complete albums), with mime and gains; `recientes` is a comma-separated list of up to 200 recently-played track ids; the response includes `station` (the station definition as the server applied it) |
 | `GET /api/home?semilla=N` | Inicio: fixed rows, rotating rows, and saved stations; `semilla` (seed) draws the rotating rows, missing or invalid gives a random one |
-| `GET /api/stats?periodo=&limite=` | Tu escucha: `periodo` is semana/mes/anio/siempre (default mes); `limite` is the length of each ranking (default 25) |
+| `GET /api/stats?periodo=&limite=` | Tu escucha: `periodo` is semana/mes/anio/siempre (default mes); `limite` is the length of each ranking (default 10, range 1–100) |
 | `GET /api/play?album=&folder=&artist=&track=&shuffle=1&playlist=&liked=1` | the tracks to queue, in order (at most 5000) |
 | `GET /stream/{trackId}` | a track's audio (`Range` for seeking; `?transcode=1` converts it) |
 | `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
