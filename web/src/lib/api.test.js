@@ -42,6 +42,9 @@ describe('calls', () => {
     await api.setCollection('../musica/x', false)
     await api.setIdentification(4, { releaseId: 'abc' })
     await api.deleteGenreAlias('Música uruguaya')
+    await api.folderTree('')
+    await api.folderTree('../musica/a b')
+    await api.folderTreeSearch('zitar')
     expect(calls).toEqual([
       ['GET', '/api/explore?decada=1980&ver=pistas&desde=120&limite=60', null],
       ['GET', '/api/explore?limite=120', null],
@@ -50,6 +53,9 @@ describe('calls', () => {
       ['PUT', '/api/folders/collection', '{"path":"../musica/x","collection":false}'],
       ['PUT', '/api/albums/4/identification', '{"releaseId":"abc"}'],
       ['DELETE', '/api/genres/aliases?raw=M%C3%BAsica+uruguaya', null],
+      ['GET', '/api/folders/tree', null],
+      ['GET', '/api/folders/tree?path=..%2Fmusica%2Fa+b', null],
+      ['GET', '/api/folders/tree/search?q=zitar', null],
     ])
     expect(releaseURL('abc')).toBe('https://musicbrainz.org/release/abc')
   })
