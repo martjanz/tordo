@@ -183,6 +183,7 @@ function onEnded() {
     ;[active, standby] = [standby, active]
     release(standby)
     show(entry, active.dataset.seekable === '1')
+    refreshGains()
     // media errors arrive through the element's error event (mine); autoplay
     // refusal is ignored here and will pause the element if the user retries.
     active.play().catch(() => {})
@@ -244,11 +245,13 @@ function start(entry, at, play) {
 async function refreshGains() {
   const ids = missing(player.queue, player.queue.pos, 10)
   if (ids.length === 0) return
+  let res
   try {
-    player.queue = withGains(player.queue, await api.gains(ids))
+    res = await api.gains(ids)
   } catch {
     return
   }
+  player.queue = withGains(player.queue, res) // the live queue: it may have changed meanwhile
   persist()
   const pos = Q.peekPos(player.queue)
   const entry = Q.peek(player.queue)
