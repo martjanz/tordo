@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte'
   // A playlist: its entries in order, which can be played, reordered by
   // dragging (pointer events: mouse and touch) or with Alt+arrows, and removed.
   import Acciones from '../components/Acciones.svelte'
@@ -23,6 +24,13 @@
 
   const writable = $derived(!app.status?.readOnly)
 
+  // While a drag or a save is going on, entries must not be replaced: a
+  // read that arrives then is deferred (stale) and done when things settle.
+  let saving = false
+  let dirty = false // a newer order waits to be sent
+  let failed = false
+  let stale = false
+
   async function load() {
     try {
       list = await api.playlist(id)
@@ -33,18 +41,22 @@
     }
   }
 
+  // refresh reads the list again, or later if it is being edited.
+  function refresh() {
+    if (drag || saving) stale = true
+    else load()
+  }
+
+  // settle runs the deferred read once the drag and the saves are over.
+  function settle() {
+    if (drag || saving || !(stale || failed)) return
+    stale = failed = false
+    load()
+  }
+
   $effect(() => {
     app.generation
-    let stale = false
-    api
-      .playlist(id)
-      .then((l) => {
-        if (!stale) (list = l), (error = '')
-      })
-      .catch((e) => {
-        if (!stale) error = e.status === 404 ? 'Esta lista ya no existe.' : e.message
-      })
-    return () => (stale = true)
+    untrack(refresh) // not tracking drag and the like
   })
 
   const summary = $derived(list ? `${count(list.tracks, 'pista', 'pistas')} · ${length(list.durationMs)}` : '')
@@ -84,27 +96,41 @@
   async function removeEntry(entry) {
     try {
       await api.removeFromPlaylist(id, entry.itemId)
-      await load()
+      refresh()
     } catch (e) {
       notify(e.message)
     }
   }
 
-  // reorder applies the new order at once and tells the server; if it
-  // refuses, the list is read again.
-  async function reorder(from, to) {
+  // reorder applies the new order at once; saves go one at a time, always
+  // with the latest full order. If the server refuses, the list is read again
+  // when the queue is empty.
+  function reorder(from, to) {
     if (from === to) return
     list.entries = move(list.entries, from, to)
-    try {
-      await api.reorderPlaylist(id, list.entries.map((e) => e.itemId))
-    } catch (e) {
-      notify(e.message)
-      load()
+    dirty = true
+    flush()
+  }
+
+  async function flush() {
+    if (saving) return
+    saving = true
+    while (dirty) {
+      dirty = false
+      try {
+        await api.reorderPlaylist(id, list.entries.map((e) => e.itemId))
+      } catch (e) {
+        notify(e.message)
+        failed = true
+        dirty = false
+      }
     }
+    saving = false
+    settle()
   }
 
   function onkey(event, i) {
-    if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+    if (drag || !event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
     event.preventDefault()
     const to = i + (event.key === 'ArrowUp' ? -1 : 1)
     if (to < 0 || to >= list.entries.length) return
@@ -143,6 +169,12 @@
     const { from, to } = drag
     drag = null
     reorder(from, to)
+    settle()
+  }
+
+  function cancel() {
+    drag = null
+    settle()
   }
 
   // shift is how far a row moves while another is dragged past it.
@@ -201,7 +233,7 @@
           {/if}
           {#if writable}
             <button class="icon grip" aria-label="Mover {e.title} (Alt + flechas)" title="Arrastrar para reordenar"
-              onpointerdown={(ev) => down(ev, i)} onpointermove={movePointer} onpointerup={up} onpointercancel={() => (drag = null)}
+              onpointerdown={(ev) => down(ev, i)} onpointermove={movePointer} onpointerup={up} onpointercancel={cancel}
               onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
           {/if}
           <span class="n">{i + 1}</span>

@@ -25,6 +25,7 @@
   let tab = $state('tracks')
   let creating = $state(false)
   let name = $state('')
+  let busy = false
 
   const writable = $derived(!app.status?.readOnly)
 
@@ -63,12 +64,14 @@
   async function create(event) {
     event.preventDefault()
     const n = name.trim()
-    if (!n) return
+    if (!n || busy) return
+    busy = true
     try {
       const list = await api.createPlaylist(n)
       navigate(listHref(list.id))
     } catch (e) {
       notify(e.message)
+      busy = false
     }
   }
 
@@ -106,7 +109,7 @@
               <button class="primary" disabled={!name.trim()}>Crear</button>
             </form>
           {:else}
-            <button class="newcard" onclick={() => ((name = ''), (creating = true))}>
+            <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
               <Icono name="plus" size={28} />
               <span>Nueva lista</span>
             </button>
