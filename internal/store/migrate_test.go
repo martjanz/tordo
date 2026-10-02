@@ -48,8 +48,12 @@ func TestOpenMigratesM1Catalog(t *testing.T) {
 		VALUES ('../musica/x', '../musica', 'x', 0, 0, 0, 0)`); err != nil {
 		t.Fatal(err)
 	}
+	// Make it a v2 catalog: no not_collections yet.
+	if _, err := s.db.Exec(`DROP TABLE not_collections; PRAGMA user_version = 2`); err != nil {
+		t.Fatal(err)
+	}
 	s.Close()
-	s, err = Open(file, false) // already v2: nothing is dropped
+	s, err = Open(file, false) // v2 to v3 only adds a table: nothing is dropped
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +62,9 @@ func TestOpenMigratesM1Catalog(t *testing.T) {
 	s.db.QueryRow(`SELECT COUNT(*) FROM folders`).Scan(&folders)
 	if folders != 1 {
 		t.Fatalf("a v2 catalog lost its folders on open")
+	}
+	if err := s.SetCollection("../musica/x", false); err != nil {
+		t.Fatalf("no not_collections table: %v", err)
 	}
 }
 

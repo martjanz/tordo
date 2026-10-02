@@ -146,3 +146,29 @@ func TestScanEndpoint(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestSetCollectionEndpoint(t *testing.T) {
+	s := &Server{Store: newStore(t)}
+	h := s.Handler()
+	put := func(body string) *httptest.ResponseRecorder {
+		return do(t, h, "PUT", "/api/folders/collection", body, "Content-Type", "application/json")
+	}
+	var f store.FolderSummary
+	decode(t, put(`{"path":"../musica","collection":false}`), &f)
+	if f.Path != "../musica" || f.Collection {
+		t.Fatalf("folder = %+v", f)
+	}
+	if rec := put(`{"path":"../nope","collection":false}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown folder: %d", rec.Code)
+	}
+	if rec := put(`{"collection":false}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("no path: %d", rec.Code)
+	}
+	if rec := do(t, h, "PUT", "/api/folders/collection", `{"path":"../musica"}`); rec.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("not JSON: %d", rec.Code)
+	}
+	s.ReadOnly = true
+	if rec := do(t, s.Handler(), "PUT", "/api/folders/collection", `{"path":"../musica"}`, "Content-Type", "application/json"); rec.Code != http.StatusConflict {
+		t.Fatalf("browse-only: %d", rec.Code)
+	}
+}

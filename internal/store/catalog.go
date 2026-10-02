@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path"
 	"sort"
+	"time"
 
 	"tordo/internal/grouping"
 	"tordo/internal/natsort"
@@ -33,7 +34,7 @@ func (s *Store) Counts() (Counts, error) {
 		(SELECT COUNT(*) FROM tracks),
 		(SELECT COUNT(*) FROM albums),
 		(SELECT COUNT(*) FROM folders),
-		(SELECT COUNT(*) FROM folders WHERE collection = 1),
+		(SELECT COUNT(*) FROM folders WHERE `+isCollection+`),
 		(SELECT COUNT(*) FROM albums WHERE status IN ('auto', 'manual')),
 		(SELECT COUNT(*) FROM albums WHERE status = 'unmatched')`).
 		Scan(&c.Files, &c.Audio, &c.Unreadable, &c.Tracks, &c.Albums, &c.Folders, &c.Collections, &c.Identified, &c.Unidentified)
@@ -176,8 +177,15 @@ type FolderSummary struct {
 	TrackCount int    `json:"trackCount"` // recursive
 	AlbumCount int    `json:"albumCount"` // recursive
 	DurationMs int64  `json:"durationMs"`
-	Collection bool   `json:"collection"`
+	Collection bool   `json:"collection"` // detected, and the user did not say otherwise
+	Detected   bool   `json:"detected"`   // detected as a collection
 }
+
+// isCollection tells, in SQL over folders, whether a folder is a
+// collection: detected, and not dismissed by the user.
+const isCollection = `(collection = 1 AND path NOT IN (SELECT path FROM not_collections))`
+
+const folderCols = `path, name, tracks, albums, duration_ms, ` + isCollection + `, collection`
 
 type FolderView struct {
 	FolderSummary
@@ -311,8 +319,8 @@ func (s *Store) Album(id int64) (AlbumDetail, bool, error) {
 func (s *Store) Folder(p string) (FolderView, bool, error) {
 	v := FolderView{Children: []FolderSummary{}, Albums: []AlbumView{}, Loose: []TrackView{}}
 	if p != "" {
-		err := s.db.QueryRow(`SELECT path, name, parent, tracks, albums, duration_ms, collection FROM folders WHERE path = ?`, p).
-			Scan(&v.Path, &v.Name, &v.Parent, &v.TrackCount, &v.AlbumCount, &v.DurationMs, &v.Collection)
+		err := s.db.QueryRow(`SELECT `+folderCols+`, parent FROM folders WHERE path = ?`, p).
+			Scan(&v.Path, &v.Name, &v.TrackCount, &v.AlbumCount, &v.DurationMs, &v.Collection, &v.Detected, &v.Parent)
 		if errors.Is(err, sql.ErrNoRows) {
 			return FolderView{}, false, nil
 		}
@@ -340,7 +348,7 @@ func (s *Store) Folder(p string) (FolderView, bool, error) {
 }
 
 func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, error) {
-	rows, err := s.db.Query(`SELECT path, name, tracks, albums, duration_ms, collection FROM folders `+where, args...)
+	rows, err := s.db.Query(`SELECT `+folderCols+` FROM folders `+where, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +356,7 @@ func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, err
 	out := []FolderSummary{}
 	for rows.Next() {
 		var f FolderSummary
-		if err := rows.Scan(&f.Path, &f.Name, &f.TrackCount, &f.AlbumCount, &f.DurationMs, &f.Collection); err != nil {
+		if err := rows.Scan(&f.Path, &f.Name, &f.TrackCount, &f.AlbumCount, &f.DurationMs, &f.Collection, &f.Detected); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
@@ -358,7 +366,7 @@ func (s *Store) folderSummaries(where string, args ...any) ([]FolderSummary, err
 
 // Collections lists the detected collections with their albums in order.
 func (s *Store) Collections() ([]CollectionView, error) {
-	sums, err := s.folderSummaries(`WHERE collection = 1`)
+	sums, err := s.folderSummaries(`WHERE ` + isCollection)
 	if err != nil {
 		return nil, err
 	}
@@ -379,6 +387,20 @@ func (s *Store) Collections() ([]CollectionView, error) {
 		out = append(out, CollectionView{FolderSummary: f, Albums: albums})
 	}
 	return out, nil
+}
+
+// SetCollection records whether a detected collection is one: false
+// dismisses it ("no es una colección"), true takes that back. The decision
+// is kept by path, across scans.
+func (s *Store) SetCollection(path string, collection bool) error {
+	var err error
+	if collection {
+		_, err = s.db.Exec(`DELETE FROM not_collections WHERE path = ?`, path)
+	} else {
+		_, err = s.db.Exec(`INSERT INTO not_collections (path, updated_at) VALUES (?, ?)
+			ON CONFLICT(path) DO UPDATE SET updated_at = excluded.updated_at`, path, time.Now().UnixMilli())
+	}
+	return err
 }
 
 // sortByPosition orders albums by their collection position (albums without
