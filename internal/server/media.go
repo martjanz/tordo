@@ -1,8 +1,10 @@
 package server
 
 import (
+	"errors"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"tordo/internal/appdir"
@@ -46,50 +48,93 @@ func (s *Server) streamTrack(w http.ResponseWriter, r *http.Request) {
 	s.Streamer.Serve(w, r, appdir.Abs(s.AppDir, f.Path), trackFormat(f), r.URL.Query().Get("transcode") == "1")
 }
 
-// play answers GET /api/play: the tracks to queue for an album
-// (?album=id), a folder or collection (?folder=path, recursive, in order),
-// an artist (?artist=key: their albums by year, then their tracks on
-// others' albums) or some tracks (?track=id, repeatable), shuffled with
-// ?shuffle=1. Tracks that cannot play (they need ffmpeg) are left out and
-// counted.
-func (s *Server) play(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	var items []store.PlayItem
-	var err error
+// httpError is a request the server refuses, with the status and text to answer.
+type httpError struct {
+	code int
+	msg  string
+}
+
+func (e *httpError) Error() string { return e.msg }
+
+// answer writes err as the response: an *httpError with its status, anything
+// else as an internal error.
+func answer(w http.ResponseWriter, err error) {
+	var he *httpError
+	if errors.As(err, &he) {
+		http.Error(w, he.msg, he.code)
+		return
+	}
+	fail(w, err)
+}
+
+func badID() error { return &httpError{http.StatusBadRequest, "id inválido"} }
+
+// resolve lists the tracks a play query names: album, folder, artist,
+// track (repeatable), playlist (its available entries in order) or liked=1
+// (the liked tracks, most recent first). Bad or unknown references are
+// *httpError (400, 404).
+func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 	switch {
 	case q.Has("album"):
-		id, perr := strconv.ParseInt(q.Get("album"), 10, 64)
-		if perr != nil {
-			http.Error(w, "id inválido", http.StatusBadRequest)
-			return
+		id, err := strconv.ParseInt(q.Get("album"), 10, 64)
+		if err != nil {
+			return nil, badID()
 		}
-		items, err = s.Store.PlayAlbum(id)
+		if _, ok, err := s.Store.Album(id); err != nil {
+			return nil, err
+		} else if !ok {
+			return nil, &httpError{http.StatusNotFound, "álbum no encontrado"}
+		}
+		return s.Store.PlayAlbum(id)
 	case q.Has("folder"):
-		items, err = s.Store.PlayFolder(q.Get("folder"))
+		return s.Store.PlayFolder(q.Get("folder"))
 	case q.Has("artist"):
-		var ok bool
-		items, ok, err = s.playArtist(q.Get("artist"))
+		items, ok, err := s.playArtist(q.Get("artist"))
 		if err == nil && !ok {
-			http.Error(w, "artista no encontrado", http.StatusNotFound)
-			return
+			return nil, &httpError{http.StatusNotFound, "artista no encontrado"}
 		}
+		return items, err
 	case q.Has("track"):
 		var ids []int64
 		for _, v := range q["track"] {
-			id, perr := strconv.ParseInt(v, 10, 64)
-			if perr != nil {
-				http.Error(w, "id inválido", http.StatusBadRequest)
-				return
+			id, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, badID()
 			}
 			ids = append(ids, id)
 		}
-		items, err = s.Store.PlayTracks(ids)
-	default:
-		http.Error(w, "falta qué reproducir: album, folder, artist o track", http.StatusBadRequest)
-		return
+		return s.Store.PlayTracks(ids)
+	case q.Has("playlist"):
+		id, err := strconv.ParseInt(q.Get("playlist"), 10, 64)
+		if err != nil {
+			return nil, badID()
+		}
+		items, ok, err := s.Store.PlayPlaylist(id)
+		if err == nil && !ok {
+			return nil, &httpError{http.StatusNotFound, "lista no encontrada"}
+		}
+		return items, err
+	case q.Get("liked") == "1":
+		ids, err := s.Store.LikedTrackIDs()
+		if err != nil {
+			return nil, err
+		}
+		return s.Store.PlayTracks(ids)
 	}
+	return nil, &httpError{http.StatusBadRequest, "falta qué reproducir: album, folder, artist, track, playlist o liked"}
+}
+
+// play answers GET /api/play: the tracks to queue for an album
+// (?album=id), a folder or collection (?folder=path, recursive, in order),
+// an artist (?artist=key: their albums by year, then their tracks on
+// others' albums), some tracks (?track=id, repeatable), a playlist
+// (?playlist=id) or the liked tracks (?liked=1), shuffled with ?shuffle=1.
+// Tracks that cannot play (they need ffmpeg) are left out and counted.
+func (s *Server) play(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	items, err := s.resolve(q)
 	if err != nil {
-		fail(w, err)
+		answer(w, err)
 		return
 	}
 	if q.Get("shuffle") == "1" {

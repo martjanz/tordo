@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"tordo/internal/audiofile"
@@ -112,6 +113,38 @@ func TestPlayEndpoint(t *testing.T) {
 		if rec := do(t, h, "GET", bad, ""); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d", bad, rec.Code)
 		}
+	}
+}
+
+func TestPlayPlaylistAndLiked(t *testing.T) {
+	s, ids := mediaServer(t, "")
+	h := s.Handler()
+	pid, err := s.Store.CreatePlaylist("Lista")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Store.AddToPlaylist(pid, ids); err != nil {
+		t.Fatal(err)
+	}
+	var p playResponse
+	decode(t, do(t, h, "GET", "/api/play?playlist="+itoa(pid), ""), &p)
+	if len(p.Items) != 1 || p.Skipped != 1 {
+		t.Fatalf("playlist: %+v", p)
+	}
+	if ok, err := s.Store.LikeTrack(ids[0], true); !ok || err != nil {
+		t.Fatalf("like: %v %v", ok, err)
+	}
+	p = playResponse{}
+	decode(t, do(t, h, "GET", "/api/play?liked=1", ""), &p)
+	if len(p.Items) != 1 || p.Items[0].ID != ids[0] {
+		t.Fatalf("liked: %+v", p)
+	}
+	if rec := do(t, h, "GET", "/api/play?playlist=999", ""); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown playlist: %d", rec.Code)
+	}
+	rec := do(t, h, "GET", "/api/play", "")
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "playlist o liked") {
+		t.Errorf("nothing: %d %s", rec.Code, rec.Body)
 	}
 }
 
