@@ -18,7 +18,7 @@ export const LIBRARY = { name: 'Toda la colección', source: {} }
 // decadeName: "1980" → "Los 80", "2000" → "Los 2000".
 function decadeName(decade) {
   const n = Number(decade)
-  return n >= 1900 && n < 2000 ? `Los ${n - 1900}` : `Los ${decade}`
+  return n > 1900 && n < 2000 ? `Los ${n - 1900}` : `Los ${decade}`
 }
 
 // exploreStation turns Explorar's query into a station. counts are the

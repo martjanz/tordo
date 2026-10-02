@@ -86,7 +86,7 @@
       <section>
         <h2>Artistas</h2>
         <ol class="rank">
-          {#each artists as a (a.key || a.name)}
+          {#each artists as a (a.key ? 'k:' + a.key : 'n:' + a.name)}
             <li>
               {#if a.key}<a href={artistHref(a.key)}>{a.name}</a>{:else}<span>{a.name}</span>{/if}
               <span class="n">{plays(a.plays)}</span>

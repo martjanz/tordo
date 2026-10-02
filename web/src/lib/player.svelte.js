@@ -174,6 +174,17 @@ function onEnded() {
   if (!q) {
     player.playing = false
     player.time = 0
+    if (player.queue.station) {
+      // A station ran dry before its top-up arrived: ask again and go on.
+      topUp().then(() => {
+        if (player.playing) return
+        const more = Q.next(player.queue, true)
+        if (!more) return
+        player.queue = more
+        persist()
+        start(Q.current(more), 0, true)
+      })
+    }
     return
   }
   player.queue = q
@@ -256,6 +267,15 @@ async function topUp() {
   try {
     res = await api.stationNext(st, S.recentIds(player.queue))
   } catch (e) {
+    if (e.status === 404) {
+      // The station's source is gone (a deleted playlist): it ends here.
+      if (player.queue.station === st) {
+        notify(e.message)
+        player.queue = { ...player.queue, station: null }
+        persist()
+      }
+      return
+    }
     if (topUpFailed !== st) {
       topUpFailed = st
       notify(e.message)
@@ -265,6 +285,7 @@ async function topUp() {
     topUpBusy = false
   }
   if (player.queue.station !== st) return
+  topUpFailed = null
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
     notify('La estación se quedó sin pistas.')

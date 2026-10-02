@@ -105,6 +105,7 @@ describe('rowTitle', () => {
     [{ kind: 'decada', value: '2000' }, 'Los 2000'],
     [{ kind: 'decada', value: '2010' }, 'Los 2010'],
     [{ kind: 'decada', value: '1960' }, 'Los 60'],
+    [{ kind: 'decada', value: '1900' }, 'Los 1900'],
     [{ kind: 'pais', value: 'AR', label: 'AR' }, 'Argentina'],
     [{ kind: 'genero', value: 'Rock' }, 'Rock'],
     [{ kind: 'estilo', value: 'Pop Rock' }, 'Pop Rock'],
