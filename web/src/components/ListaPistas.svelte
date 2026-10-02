@@ -157,7 +157,10 @@
     .quality {
       display: none;
     }
-    .add,
+    /* "Agregar a la cola" stays in the row menu. */
+    .add {
+      display: none;
+    }
     .like:not(.liked) {
       opacity: 1;
     }
