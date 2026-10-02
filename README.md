@@ -42,9 +42,13 @@ decade and year, artist, country, genre and style, collection, folder,
 quality, format and state (not identified, not playable); the filters live in
 the URL. Artist pages show their albums by year and their tracks on
 compilations. The search (Ctrl+K / ⌘K) finds artists, albums, tracks and
-folders while typing, ignoring case and accents. Carpetas shows the folders
-as they are on disk (collections show their albums in order; a folder wrongly
-detected as a collection can be told "no es una colección"). Open an album
+folders while typing, ignoring case and accents. Carpetas is a file explorer:
+a folder tree on the left (folders holding only one folder are merged into one
+row, `Soulseek › complete`; filter it by name, or press `/`, and move with the
+arrow keys and Enter) and, on the right, the folder's subfolders with their
+relative size and the files directly in it, sortable by column. On a phone it
+becomes one list per folder. A folder wrongly detected as a collection can be
+told "no es una colección". Open an album
 and play it, shuffle a folder, queue tracks. The queue
 and the volume are kept in the browser, per device. MP3, FLAC, AAC, Opus,
 Vorbis and WAV play as they are, with seeking; WMA, ALAC, AIFF, APE and
