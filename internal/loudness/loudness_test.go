@@ -123,7 +123,7 @@ func TestAnalyze(t *testing.T) {
 
 func TestAnalyzeCannotStart(t *testing.T) {
 	_, err := Analyze(context.Background(), filepath.Join(t.TempDir(), "no-ffmpeg"), "x.mp3")
-	if !errors.Is(err, ErrNoMeasure) || !strings.Contains(err.Error(), "no-ffmpeg") {
-		t.Fatalf("err = %v, want ErrNoMeasure with the cause", err)
+	if !errors.Is(err, ErrNotStarted) || errors.Is(err, ErrNoMeasure) || !strings.Contains(err.Error(), "no-ffmpeg") {
+		t.Fatalf("err = %v, want ErrNotStarted with the cause", err)
 	}
 }

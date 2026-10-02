@@ -25,6 +25,10 @@ const Floor = -70.0
 // ErrNoMeasure means ffmpeg gave no usable integrated loudness.
 var ErrNoMeasure = errors.New("ffmpeg no midió el volumen")
 
+// ErrNotStarted means ffmpeg could not run at all (missing binary, killed at
+// launch): nothing says anything about the file, so it is worth retrying.
+var ErrNotStarted = errors.New("ffmpeg no pudo ejecutarse")
+
 // Gain is the gain in dB that brings a track of this loudness to Reference.
 func Gain(lufs float64) float64 { return Reference - lufs }
 
@@ -88,7 +92,7 @@ func Analyze(ctx context.Context, ffmpeg, file string) (float64, error) {
 	v, err := ParseEBUR128(out.String())
 	if err != nil && runErr != nil {
 		if strings.TrimSpace(out.String()) == "" { // it could not even start
-			return 0, fmt.Errorf("%w: %v", ErrNoMeasure, runErr)
+			return 0, fmt.Errorf("%w: %v", ErrNotStarted, runErr)
 		}
 		return 0, fmt.Errorf("%w: %s", ErrNoMeasure, lastLine(out.String()))
 	}

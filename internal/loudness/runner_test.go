@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -97,6 +98,20 @@ func jobsOf(n int) []Job {
 	return out
 }
 
+// touchJobs creates the files the jobs point at under app.
+func touchJobs(t *testing.T, app string, jobs []Job) {
+	t.Helper()
+	for _, j := range jobs {
+		f := filepath.Join(app, filepath.FromSlash(j.Path))
+		if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func waitIdle(t *testing.T, r *Runner) {
 	t.Helper()
 	r.wg.Wait()
@@ -109,7 +124,9 @@ func TestRunnerMeasuresAll(t *testing.T) {
 	cat := &fakeCatalog{jobs: jobsOf(5)}
 	var files []string
 	var mu sync.Mutex
-	r := &Runner{Catalog: cat, AppDir: "/app", FFmpeg: "ff", Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+	app := t.TempDir()
+	touchJobs(t, app, cat.jobs)
+	r := &Runner{Catalog: cat, AppDir: app, FFmpeg: "ff", Analyze: func(ctx context.Context, ff, file string) (float64, error) {
 		mu.Lock()
 		files = append(files, file)
 		mu.Unlock()
@@ -138,7 +155,7 @@ func TestRunnerMeasuresAll(t *testing.T) {
 			t.Fatalf("job saved as %+v", s)
 		}
 	}
-	if files[0] != filepath.Join("/app", "m", "t1.mp3") {
+	if files[0] != filepath.Join(app, "m", "t1.mp3") {
 		t.Fatalf("file = %q", files[0])
 	}
 	if st := r.Status(); st.Done != 4 || st.Pending != 0 {
@@ -292,3 +309,57 @@ func TestRunnerStoreErrorWithQueueDoesNotSpin(t *testing.T) {
 type errCatalog struct{ fakeCatalog }
 
 func (c *errCatalog) SaveLoudness(string, *float64, string) error { return errors.New("disco lleno") }
+
+func TestRunnerMissingFileSavesNothingAndEndsPass(t *testing.T) {
+	cat := &fakeCatalog{jobs: jobsOf(3)}
+	app := t.TempDir() // no files: the drive is gone
+	calls := 0
+	r := &Runner{Catalog: cat, AppDir: app, Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+		calls++
+		return 0, fmt.Errorf("%w: boom", ErrNoMeasure)
+	}}
+	r.Trigger()
+	waitIdle(t, r)
+	if got := cat.refs(); len(got) != 0 {
+		t.Fatalf("saved = %v, want nothing", got)
+	}
+	if calls != 1 {
+		t.Fatalf("analyzed %d files, want the pass to end after the first", calls)
+	}
+	r.Close()
+}
+
+func TestRunnerNotStartedSavesNothing(t *testing.T) {
+	cat := &fakeCatalog{jobs: jobsOf(3)}
+	app := t.TempDir()
+	touchJobs(t, app, cat.jobs)
+	calls := 0
+	r := &Runner{Catalog: cat, AppDir: app, Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+		calls++
+		return 0, fmt.Errorf("%w: exec: not found", ErrNotStarted)
+	}}
+	r.Trigger()
+	waitIdle(t, r)
+	if got := cat.refs(); len(got) != 0 {
+		t.Fatalf("saved = %v, want nothing", got)
+	}
+	if calls != 1 {
+		t.Fatalf("analyzed %d files, want 1", calls)
+	}
+	r.Close()
+}
+
+func TestRunnerNoMeasureOnExistingFileSavesError(t *testing.T) {
+	cat := &fakeCatalog{jobs: jobsOf(1)}
+	app := t.TempDir()
+	touchJobs(t, app, cat.jobs)
+	r := &Runner{Catalog: cat, AppDir: app, Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+		return 0, ErrNoMeasure
+	}}
+	r.Trigger()
+	waitIdle(t, r)
+	if len(cat.saved) != 1 || cat.saved[0].LUFS != nil || cat.saved[0].Err != ErrNoMeasure.Error() {
+		t.Fatalf("saved = %+v", cat.saved)
+	}
+	r.Close()
+}

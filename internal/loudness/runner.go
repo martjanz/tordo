@@ -2,7 +2,9 @@ package loudness
 
 import (
 	"context"
+	"errors"
 	"log"
+	"os"
 	"sync"
 
 	"tordo/internal/appdir"
@@ -185,8 +187,8 @@ func (r *Runner) pass(ctx context.Context) bool {
 				continue
 			}
 			seen[job.Ref] = true
-			if !r.measure(ctx, analyze, job) {
-				return ctx.Err() == nil
+			if ok, abort := r.measure(ctx, analyze, job); !ok {
+				return ctx.Err() == nil && !abort
 			}
 		}
 	}
@@ -199,22 +201,33 @@ func (r *Runner) hasQueue() bool {
 	return len(r.queue) > 0
 }
 
-// measure analyzes and saves one job. false: the pass must end (canceled or
-// the store failed).
-func (r *Runner) measure(ctx context.Context, analyze func(context.Context, string, string) (float64, error), job Job) bool {
-	v, err := analyze(ctx, r.FFmpeg, appdir.Abs(r.AppDir, job.Path))
+// measure analyzes and saves one job. ok false: the pass must end. abort
+// true: it ended because the failure may be temporary (the file is gone or
+// unreadable, ffmpeg could not start), so nothing was saved and the track
+// stays pending for the next scan or Prioritize.
+func (r *Runner) measure(ctx context.Context, analyze func(context.Context, string, string) (float64, error), job Job) (ok, abort bool) {
+	file := appdir.Abs(r.AppDir, job.Path)
+	v, err := analyze(ctx, r.FFmpeg, file)
 	if ctx.Err() != nil {
-		return false
+		return false, false
 	}
 	measured := err == nil
 	if measured {
 		err = r.Catalog.SaveLoudness(job.Ref, &v, "")
 	} else {
+		if errors.Is(err, ErrNotStarted) {
+			log.Printf("volumen: %v", err)
+			return false, true
+		}
+		if _, serr := os.Stat(file); serr != nil {
+			log.Printf("volumen: no se puede leer %s: %v", job.Path, serr)
+			return false, true
+		}
 		err = r.Catalog.SaveLoudness(job.Ref, nil, err.Error())
 	}
 	if err != nil {
 		log.Printf("volumen: %v", err)
-		return false
+		return false, false
 	}
 	r.mu.Lock()
 	if measured {
@@ -224,7 +237,7 @@ func (r *Runner) measure(ctx context.Context, analyze func(context.Context, stri
 		r.pending--
 	}
 	r.mu.Unlock()
-	return true
+	return true, false
 }
 
 // Close stops the passes for good: it cancels the one in progress and waits
