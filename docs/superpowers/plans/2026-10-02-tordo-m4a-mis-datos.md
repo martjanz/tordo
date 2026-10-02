@@ -495,3 +495,514 @@ func personalValues(m store.Mark, ok bool) map[string][]string
 - [ ] **Step 4: Run** `go test ./internal/catalog`: pass.
 - [ ] **Step 5: Commit** `feat: Me gusta, Puntaje and Más escuchado in Explorar's catalog; liked lists`
 
+---
+
+### Task 5: Server: marks, likes, ratings, plays, liked, Explorar
+
+**Files:**
+- Create: `internal/server/personal.go`
+- Modify: `internal/server/server.go` (routes, `Server.pers` field)
+- Modify: `internal/server/catalog.go` (`explore` uses the personal data)
+- Test: `internal/server/personal_test.go`
+
+**Interfaces:**
+- Consumes: Tasks 2 and 4.
+- Produces:
+  - `func (s *Server) personal() (*store.Personal, error)`: cached in `personalState{mu sync.Mutex; changes, version int64; p *store.Personal}`, reloaded when `Store.Changes()` or `Store.PersonalVersion()` moved (ids move with scans).
+  - Routes:
+
+| Route | Body / query | Answer |
+|---|---|---|
+| `GET /api/marks` | | `{"tracks": {id: Mark}, "albums": {id: Mark}, "artists": [keys], "collections": [paths]}` (sorted lists; maps with ids as JSON keys) |
+| `PUT /api/likes` (jsonOnly) | `{"kind": "track"\|"album"\|"artist"\|"collection", "id": n, "key": "…", "liked": bool}` (`id` for track/album, `key` for artist and collection) | 204; 400 bad kind or missing id/key; 404 unknown track/album/folder; 409 read-only |
+| `PUT /api/ratings` (jsonOnly) | `{"kind": "track"\|"album", "id": n, "stars": 0–5}` | 204; 400 bad kind or stars (`ErrBadRating`'s text); 404; 409 |
+| `POST /api/plays` (jsonOnly) | `{"id": n, "listenedMs": n, "device": "…"}` | 204; 400 negative `listenedMs`; 404 unknown track; read-only: 204 and nothing recorded |
+| `GET /api/liked` | | `catalog.LikedLists` |
+| `GET /api/explore` | as before | now `ExploreFor` with the personal data |
+
+  - Errors in Spanish: `tipo inválido`, `falta el id`, `falta la clave`, `pista no encontrada`, `álbum no encontrado`, `carpeta no encontrada`, `cuerpo inválido`; read-only uses the existing `modo consulta: no se pueden guardar cambios`. Bodies are read with `io.LimitReader(r.Body, maxBody)` as the other endpoints do.
+
+- [ ] **Step 1: Write the failing tests** (`personal_test.go`; `newStore` has one track in the album *Locura* under `../musica/Virus - Locura`; find ids through `/api/explore?ver=pistas` or the store):
+  - `TestLikesEndpoint`: like the track, the album, the artist key `"virus"` and the folder `../musica/Virus - Locura` → each 204, and `/api/marks` shows them; `kind: "x"` → 400; track id 999 → 404; folder `../nope` → 404; no `Content-Type` → 415; `ReadOnly: true` → 409.
+  - `TestRatingsEndpoint`: stars 4 on the track → `/api/marks` rating 4; stars 6 → 400; `kind: "artist"` → 400.
+  - `TestPlaysEndpoint`: POST a play → 204 and `Store.Personal().Plays[id].Count == 1`; read-only server → 204 and still 1; id 999 → 404; `listenedMs: -1` → 400.
+  - `TestExploreFollowsLikes`: `/api/explore?megusta=si` total 0; like the album → 1; unlike → 0. And the catalog is **not rebuilt** by the like: in package `server`, compare `s.cat.cat` (the pointer) before and after the like, with a call to `/api/explore` in between to build it first.
+  - `TestLikedEndpoint`: like the track and the artist → `/api/liked` lists the track under `tracks` and the artist under `artists`; `albums` and `collections` are `[]`, not `null`.
+- [ ] **Step 2: Run** `go test ./internal/server -run 'Likes|Ratings|Plays|Explore|Liked'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/server` and `go test -race ./internal/server ./internal/store`: pass.
+- [ ] **Step 5: Commit** `feat: endpoints for likes, ratings, plays and liked lists; Explorar with the user's data`
+
+---
+
+### Task 6: Server: playlists, play sources
+
+`/api/play`'s parsing becomes `resolve`, shared by playing and by adding to a playlist, and learns `?playlist=` and `?liked=1`.
+
+**Files:**
+- Create: `internal/server/playlists.go`
+- Modify: `internal/server/media.go` (`play` through `resolve`)
+- Modify: `internal/server/server.go` (routes)
+- Test: `internal/server/playlists_test.go`, `internal/server/media_test.go`
+
+**Interfaces:**
+- Consumes: Task 3; `LikedTrackIDs` (Task 2).
+- Produces:
+
+```go
+// httpError is a request the server refuses, with the status and text to answer.
+type httpError struct {
+	code int
+	msg  string
+}
+
+func (e *httpError) Error() string { return e.msg }
+
+// resolve lists the tracks a play query names: album, folder, artist,
+// track (repeatable), playlist (its available entries in order) or liked=1
+// (the liked tracks, most recent first). Bad or unknown references are
+// *httpError (400, 404).
+func (s *Server) resolve(q url.Values) ([]store.PlayItem, error)
+
+// what is a play query as a JSON body: {"album": 3}, {"folder": "…"},
+// {"artist": "…"}, {"tracks": [1, 2]}, {"playlist": 4}.
+type what struct {
+	Album    *int64  `json:"album"`
+	Folder   *string `json:"folder"`
+	Artist   *string `json:"artist"`
+	Tracks   []int64 `json:"tracks"`
+	Playlist *int64  `json:"playlist"`
+}
+
+func (w what) values() url.Values
+```
+
+  - The missing-source error text becomes `falta qué reproducir: album, folder, artist, track, playlist o liked`.
+  - Routes (writes 409 in read-only mode; POST/PUT wrapped in `jsonOnly`):
+
+| Route | Body | Answer |
+|---|---|---|
+| `GET /api/playlists` | | `[]store.PlaylistSummary` |
+| `POST /api/playlists` | `{"name": "…", "add": what?}` | 201 + the new summary; `add` is resolved **before** creating, so a bad `add` creates nothing |
+| `GET /api/playlists/{id}` | | the playlist; each entry also has `"playable"` (false when unavailable or needing ffmpeg) and `"artistKey"` (from the catalog's track) |
+| `PUT /api/playlists/{id}` | `{"name": "…"}` | 204; 400 `ErrPlaylistName`; 404 |
+| `DELETE /api/playlists/{id}` | | 204; 404 |
+| `POST /api/playlists/{id}/items` | `what` | 200 `{"added": n}`; 400 `ErrPlaylistFull`'s text; 404 |
+| `DELETE /api/playlists/{id}/items/{item}` | | 204; 404 |
+| `PUT /api/playlists/{id}/order` | `{"items": [itemIds]}` | 204; 400 `ErrPlaylistOrder`'s text; 404 |
+| `GET /api/play?playlist={id}` / `?liked=1` | | as other play sources |
+
+  - `play` and the playlist handlers turn an `*httpError` into `http.Error(w, e.msg, e.code)` and anything else into `fail(w, err)`.
+
+- [ ] **Step 1: Write the failing tests** (`playlists_test.go`, on `mediaServer(t, "")`: two tracks of *Locura*, the WMA one unplayable without ffmpeg):
+  - `TestPlaylistEndpoints`: `POST /api/playlists {"name": "Viaje", "add": {"album": A}}` → 201, 2 tracks; `GET /api/playlists` lists it; `GET /api/playlists/{id}` → 2 entries, the WMA one `playable: false`; add `{"tracks": [mp3]}` → `{"added": 1}`; reorder to reversed → 204 and that order; remove one entry → 204; rename → 204; `{"name": " "}` → 400; delete → 204 then 404.
+  - `TestPlaylistErrors`: unknown playlist → 404 on every route; `add: {"album": 999}` → 404 and no playlist created; bad JSON → 400; read-only → 409 on POST/PUT/DELETE, GET still 200.
+  - `TestPlayPlaylistAndLiked` (in `media_test.go`): a playlist with both tracks → `/api/play?playlist=` gives 1 item and `skipped: 1`; liking the MP3 track through the store → `/api/play?liked=1` gives it; `/api/play?playlist=999` → 404; `/api/play` with nothing → 400 with the new text.
+  - Existing `TestPlayEndpoint` keeps passing.
+- [ ] **Step 2: Run** `go test ./internal/server -run 'Playlist|Play'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/server`: pass.
+- [ ] **Step 5: Commit** `feat: playlist endpoints; play a playlist or the liked tracks`
+
+---
+
+### Task 7: `internal/loudness`: math and ffmpeg analysis
+
+Pure functions and the ffmpeg call, given whole. The store will import this package for its types (`Job`, `Track`), so it must **not** import `store`.
+
+**Files:**
+- Create: `internal/loudness/loudness.go`
+- Test: `internal/loudness/loudness_test.go`
+
+**Interfaces:**
+- Produces: `Reference`, `Floor`, `ErrNoMeasure`, `Gain`, `FromGain`, `Part`, `AlbumLoudness`, `ParseEBUR128`, `Analyze`, `Job`, `Track`, `TrackGain`, `Gains` (below).
+
+- [ ] **Step 1: Write the failing test** `internal/loudness/loudness_test.go`:
+
+```go
+package loudness
+
+import (
+	"context"
+	"math"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
+
+// summary is ffmpeg 9's ebur128 output for a 440 Hz tone, trimmed.
+const summary = `  Stream #0:0: Audio: pcm_s16le, 44100 Hz, mono, s16, 705 kb/s
+[Parsed_ebur128_0 @ 0x126005490] Summary:
+
+  Integrated loudness:
+    I:         -22.2 LUFS
+    Threshold: -32.2 LUFS
+
+  Loudness range:
+    LRA:        20.0 LU
+    Threshold: -42.2 LUFS
+    LRA low:   -42.2 LUFS
+    LRA high:  -22.2 LUFS
+[out#0/null @ 0x12600b930] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown
+`
+
+func TestParseEBUR128(t *testing.T) {
+	if v, err := ParseEBUR128(summary); err != nil || v != -22.2 {
+		t.Fatalf("got %v, %v", v, err)
+	}
+	for name, out := range map[string]string{
+		"no summary": "    I:         -22.2 LUFS\n",
+		"silence":    "Summary:\n\n  Integrated loudness:\n    I:         -70.0 LUFS\n",
+		"inf":        "Summary:\n    I:         -inf LUFS\n",
+		"empty":      "",
+	} {
+		if _, err := ParseEBUR128(out); err != ErrNoMeasure {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+}
+
+func TestGainMath(t *testing.T) {
+	if g := Gain(-10); g != -8 {
+		t.Errorf("Gain(-10) = %v", g)
+	}
+	if l := FromGain(-8); l != -10 {
+		t.Errorf("FromGain(-8) = %v", l)
+	}
+	if _, ok := AlbumLoudness(nil); ok {
+		t.Error("no parts: no loudness")
+	}
+	// Two equal halves keep their loudness; a loud track dominates a quiet
+	// one of the same length (energy, not the mean of the LUFS values).
+	if l, _ := AlbumLoudness([]Part{{-12, 1000}, {-12, 1000}}); math.Abs(l+12) > 1e-9 {
+		t.Errorf("equal = %v", l)
+	}
+	l, _ := AlbumLoudness([]Part{{-10, 1000}, {-30, 1000}})
+	if math.Abs(l-(-12.97)) > 0.01 {
+		t.Errorf("mixed = %v, want ≈ -12.97", l)
+	}
+	// Longer tracks weigh more.
+	if l, _ := AlbumLoudness([]Part{{-10, 3000}, {-30, 1000}}); l < -11.3 || l > -11.2 {
+		t.Errorf("weighted = %v", l)
+	}
+}
+
+func f(v float64) *float64 { return &v }
+
+func TestGains(t *testing.T) {
+	facts := map[int64]Track{
+		1: {AlbumID: 7, DurationMs: 1000, TagTrack: f(-6), TagAlbum: f(-5)}, // tags win
+		2: {AlbumID: 8, DurationMs: 1000, LUFS: f(-10)},
+		3: {AlbumID: 8, DurationMs: 1000, LUFS: f(-10)},
+		4: {AlbumID: 9, DurationMs: 1000, LUFS: f(-10)},
+		5: {AlbumID: 9, DurationMs: 1000}, // not measured yet: album 9 has no album gain
+		6: {DurationMs: 1000, LUFS: f(-14)}, // a loose track
+		7: {AlbumID: 10, DurationMs: 1000, TagTrack: f(-4)},
+		8: {AlbumID: 10, DurationMs: 1000, LUFS: f(-14)}, // a tag track gain counts as a measure
+	}
+	g := Gains(facts)
+	check := func(id int64, track, album *float64) {
+		t.Helper()
+		got := g[id]
+		eq := func(a, b *float64) bool { return (a == nil) == (b == nil) && (a == nil || math.Abs(*a-*b) < 0.006) }
+		if !eq(got.Track, track) || !eq(got.Album, album) {
+			t.Errorf("%d: got %+v", id, got)
+		}
+	}
+	check(1, f(-6), f(-5))
+	check(2, f(-8), f(-8))
+	check(4, f(-8), nil)
+	check(5, nil, nil)
+	check(6, f(-4), nil)
+	check(7, f(-4), f(-4))
+}
+
+// TestAnalyze runs the real ffmpeg on a generated tone, when there is one.
+func TestAnalyze(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("sin ffmpeg")
+	}
+	file := filepath.Join(t.TempDir(), "tone.wav")
+	if out, err := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+		"-i", "sine=frequency=440:duration=3", "-y", file).CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	v, err := Analyze(context.Background(), ffmpeg, file)
+	if err != nil || v > -15 || v < -30 {
+		t.Fatalf("got %v, %v", v, err)
+	}
+	if err := os.WriteFile(file, []byte("not audio"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Analyze(context.Background(), ffmpeg, file); err == nil {
+		t.Fatal("a broken file has no loudness")
+	}
+}
+```
+
+- [ ] **Step 2: Run** `go test ./internal/loudness`: fails to compile.
+- [ ] **Step 3: Write** `internal/loudness/loudness.go`:
+
+```go
+// Package loudness gives tracks a gain toward a common loudness, from their
+// ReplayGain tags or measured with ffmpeg's EBU R128 filter. It only reads
+// the audio files.
+package loudness
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"math"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// Reference is the loudness tracks are brought to, in LUFS: ReplayGain 2's.
+const Reference = -18.0
+
+// Floor is the quietest loudness taken as a measure: at or below it
+// (silence, a broken decode) there is nothing to normalize.
+const Floor = -70.0
+
+// ErrNoMeasure means ffmpeg gave no usable integrated loudness.
+var ErrNoMeasure = errors.New("ffmpeg no midió el volumen")
+
+// Gain is the gain in dB that brings a track of this loudness to Reference.
+func Gain(lufs float64) float64 { return Reference - lufs }
+
+// FromGain is the loudness a ReplayGain gain implies.
+func FromGain(gain float64) float64 { return Reference - gain }
+
+// Part is a track of an album: its loudness and length.
+type Part struct {
+	LUFS       float64
+	DurationMs int64
+}
+
+// AlbumLoudness is the loudness of tracks played in a row: the mean of
+// their energy, weighted by duration (EBU R128 integrates energy, not
+// LUFS values). false when there are no parts.
+func AlbumLoudness(parts []Part) (float64, bool) {
+	var energy float64
+	var total int64
+	for _, p := range parts {
+		d := max(p.DurationMs, 1)
+		energy += float64(d) * math.Pow(10, p.LUFS/10)
+		total += d
+	}
+	if total == 0 {
+		return 0, false
+	}
+	return 10 * math.Log10(energy/float64(total)), true
+}
+
+var integratedRe = regexp.MustCompile(`(?m)^\s*I:\s*(-inf|-?[0-9]+(?:\.[0-9]+)?)\s*LUFS`)
+
+// ParseEBUR128 reads the integrated loudness from the summary ffmpeg's
+// ebur128 filter writes at the end.
+func ParseEBUR128(out string) (float64, error) {
+	i := strings.LastIndex(out, "Summary:")
+	if i < 0 {
+		return 0, ErrNoMeasure
+	}
+	m := integratedRe.FindStringSubmatch(out[i:])
+	if m == nil || m[1] == "-inf" {
+		return 0, ErrNoMeasure
+	}
+	v, err := strconv.ParseFloat(m[1], 64)
+	if err != nil || v <= Floor {
+		return 0, ErrNoMeasure
+	}
+	return v, nil
+}
+
+// Analyze measures a file's integrated loudness with ffmpeg: its first audio
+// stream, one thread, nothing written.
+func Analyze(ctx context.Context, ffmpeg, file string) (float64, error) {
+	cmd := exec.CommandContext(ctx, ffmpeg, "-nostats", "-hide_banner", "-nostdin", "-threads", "1",
+		"-i", file, "-map", "0:a:0", "-af", "ebur128=framelog=quiet", "-f", "null", "-")
+	var out bytes.Buffer
+	cmd.Stderr = &out
+	runErr := cmd.Run()
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	v, err := ParseEBUR128(out.String())
+	if err != nil && runErr != nil {
+		return 0, fmt.Errorf("%w: %s", ErrNoMeasure, lastLine(out.String()))
+	}
+	return v, err
+}
+
+// lastLine is the last non-empty line of ffmpeg's output: usually the error.
+func lastLine(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	return strings.TrimSpace(lines[len(lines)-1])
+}
+
+// Job is a track to measure: its file id, its fingerprint ref and its path
+// relative to the app folder.
+type Job struct {
+	ID   int64
+	Ref  string
+	Path string
+}
+
+// Track is what a track's gains come from (see the store's LoudnessFacts).
+type Track struct {
+	AlbumID    int64
+	DurationMs int64
+	TagTrack   *float64 // ReplayGain tags, dB
+	TagAlbum   *float64
+	LUFS       *float64 // measured by Analyze
+}
+
+// TrackGain is a track's gains in dB, nil when unknown.
+type TrackGain struct {
+	Track *float64 `json:"trackGain,omitempty"`
+	Album *float64 `json:"albumGain,omitempty"`
+}
+
+// loudnessOf is a track's known loudness: from its track gain tag, else
+// measured.
+func loudnessOf(t Track) (float64, bool) {
+	if t.TagTrack != nil {
+		return FromGain(*t.TagTrack), true
+	}
+	if t.LUFS != nil {
+		return *t.LUFS, true
+	}
+	return 0, false
+}
+
+func round(v float64) *float64 {
+	r := math.Round(v*100) / 100
+	return &r
+}
+
+// Gains computes every track's gains. facts must hold every track of the
+// albums involved: an album gain without tags needs all of them measured.
+func Gains(facts map[int64]Track) map[int64]TrackGain {
+	albums := map[int64][]Part{}
+	unknown := map[int64]bool{}
+	for _, t := range facts {
+		if t.AlbumID == 0 {
+			continue
+		}
+		if l, ok := loudnessOf(t); ok {
+			albums[t.AlbumID] = append(albums[t.AlbumID], Part{l, t.DurationMs})
+		} else {
+			unknown[t.AlbumID] = true
+		}
+	}
+	out := make(map[int64]TrackGain, len(facts))
+	for id, t := range facts {
+		var g TrackGain
+		if l, ok := loudnessOf(t); ok {
+			g.Track = round(Gain(l))
+		}
+		switch {
+		case t.TagAlbum != nil:
+			g.Album = round(*t.TagAlbum)
+		case t.AlbumID != 0 && !unknown[t.AlbumID]:
+			if l, ok := AlbumLoudness(albums[t.AlbumID]); ok {
+				g.Album = round(Gain(l))
+			}
+		}
+		out[id] = g
+	}
+	return out
+}
+```
+
+- [ ] **Step 4: Run** `go test ./internal/loudness -v`: pass (`TestAnalyze` runs where ffmpeg is installed, skips elsewhere).
+- [ ] **Step 5: Commit** `feat: loudness package: gains toward -18 LUFS, album loudness, ffmpeg ebur128 analysis`
+
+---
+
+### Task 8: Loudness: store, runner, gains, config, status, wiring
+
+**Files:**
+- Create: `internal/store/loudness.go`
+- Create: `internal/loudness/runner.go`
+- Modify: `internal/config/config.go`
+- Modify: `internal/server/server.go` (fields, status, route `GET /api/gains`)
+- Modify: `internal/server/media.go` (gains on play items)
+- Modify: `cmd/tordo/main.go`
+- Test: `internal/store/loudness_test.go`, `internal/loudness/runner_test.go`, `internal/config/config_test.go`, `internal/server/media_test.go`, `internal/server/server_test.go`
+
+**Interfaces:**
+- Consumes: Task 7; `sideWrite` (Task 1).
+- Produces:
+
+```go
+// store
+func (s *Store) LoudnessPending(limit int) ([]loudness.Job, error)   // newest first
+func (s *Store) LoudnessJobs(ids []int64) ([]loudness.Job, error)     // those of ids still to measure
+func (s *Store) LoudnessPendingCount() (int, error)
+func (s *Store) SaveLoudness(ref string, lufs *float64, errText string) error // side write, not personal
+func (s *Store) LoudnessFacts(ids []int64) (map[int64]loudness.Track, error)
+
+// loudness
+type Catalog interface {
+	LoudnessPending(limit int) ([]Job, error)
+	LoudnessJobs(ids []int64) ([]Job, error)
+	LoudnessPendingCount() (int, error)
+	SaveLoudness(ref string, lufs *float64, errText string) error
+}
+
+type Status struct {
+	State   string `json:"state"` // idle | running
+	Done    int    `json:"done"`  // measured since the program started
+	Pending int    `json:"pending"`
+}
+
+type Runner struct {
+	Catalog Catalog
+	AppDir  string
+	FFmpeg  string
+	Analyze func(ctx context.Context, ffmpeg, file string) (float64, error) // nil: the package's Analyze
+	// unexported: mu, running, queue of prioritized ids, done, pending, ctx/cancel, wg
+}
+
+func (r *Runner) Trigger()               // start a pass when none is running
+func (r *Runner) Prioritize(ids []int64) // measure these first; starts a pass when idle
+func (r *Runner) Status() Status
+func (r *Runner) Close()                 // cancels the pass and waits for it
+
+// config
+type Config struct { …; Normalize *bool `json:"normalize,omitempty"` }
+func (c Config) Normalizing() bool // nil: true
+
+// server
+type Loudness interface {
+	Prioritize(ids []int64)
+	Status() loudness.Status
+}
+// Server gains: Loudness Loudness (nil: no analysis), Normalize bool.
+```
+
+Rules:
+- **Store.** A track needs measuring when it is present, its `audio.tags` has no `trackGain` (`json_extract(a.tags, '$.trackGain') IS NULL`), and its ref has no `loudness` row. One job per ref (the lowest file id). `LoudnessPending` orders by the newest `first_seen` of the ref. `LoudnessFacts(ids)` returns the facts of the given present tracks **and of every present track of their albums** (`t.album_id IN (SELECT album_id FROM tracks WHERE file_id IN (…))`), with `TagTrack`/`TagAlbum` from `json_extract(a.tags, '$.trackGain'|'$.albumGain')` and `LUFS` from `loudness` by ref (NULL stays nil). Query ids in chunks of 500. `SaveLoudness` upserts with `measured_at = now`, through `sideWrite(false, …)`.
+- **Runner.** One goroutine at most. A pass loops: if prioritized ids are queued, take `Catalog.LoudnessJobs(those ids)` (clearing the queue); else `Catalog.LoudnessPending(20)`; none → the pass ends (`idle`). For each job, check for newly prioritized ids before it (they go first), then `Analyze(ctx, FFmpeg, appdir.Abs(AppDir, job.Path))`: a value → `SaveLoudness(ref, &v, "")`; an error other than the context's → `SaveLoudness(ref, nil, err.Error())` (so it is not retried); a store error → log `volumen: …` and end the pass. `Pending` is read with `LoudnessPendingCount` when a pass starts and decremented per job; `Done` counts measured jobs. `Close` cancels and waits. `Trigger`/`Prioritize` after `Close` do nothing.
+- **Config.** `Load` of a missing file returns `Normalize: true` (a pointer), so a new `config.json` has `"normalize": true`. An existing file without the key reads as `nil` → `Normalizing()` true.
+- **Server.** `/api/status` gains `"normalize": s.Normalize` and `"loudness"`: `s.Loudness.Status()`, or `{"state": "off"}` when nil. `/api/play` items gain `trackGain`/`albumGain` (embed `loudness.TrackGain` in `playItem`): one `LoudnessFacts` call for the returned ids, `loudness.Gains` on it; then `Prioritize` the first 20 returned ids without a track gain (when `s.Loudness != nil`). `GET /api/gains?track=1&track=2` (at most 100 ids, else 400) answers `{id: TrackGain}` for those ids and prioritizes the ones without a track gain.
+- **main.** Look up ffmpeg before building the scanner. When not read-only **and** ffmpeg exists, build `loudness.Runner{Catalog: st, AppDir: appDir, FFmpeg: ffmpeg}`, set `server.Loudness` (only when non-nil, as with `Identifier`), and make the scanner's `OnDone` call both `runner.Trigger()` and `loud.Trigger()`; `a.close` closes it before the store. Without ffmpeg, log nothing new (the existing "sin ffmpeg" line covers it). `server.Normalize = cfg.Normalizing()`.
+
+- [ ] **Step 1: Write the failing tests:**
+  - `internal/store/loudness_test.go` (on `library(t)`; give one track a `TrackGain` tag through a custom `catalog` call): `LoudnessPending` lists every present track but the tagged one, newest first, each ref once; `SaveLoudness` of one removes it from the list and from `LoudnessPendingCount`; an error row (`nil`, "roto") removes it too; `LoudnessJobs([tagged, measured, other])` returns only `other`; `LoudnessFacts([Signos 01])` returns both *Signos* tracks with their album id, duration, the saved `LUFS` on one and nil on the other; `Changes()` unchanged by `SaveLoudness` and `PersonalVersion()` too.
+  - `internal/loudness/runner_test.go`: a fake `Catalog` in memory (jobs by id, saved results) and a fake `Analyze` (returns −10 for most paths, an error for one, and blocks on a channel for a "slow" one): `Trigger` measures all and saves them (the failing one with its error text and nil LUFS); `Status` goes `running` → `idle` with `Done` counted; with a pass running on the slow job, `Prioritize([x])` makes `x` the next one measured (check the order of saves); `Close` during the slow job returns (the fake `Analyze` honors `ctx`) and nothing more is saved. Use channels, not sleeps, to sequence.
+  - `internal/config/config_test.go`: a new config has `Normalizing()` true and its JSON contains `"normalize": true`; a file with `"normalize": false` → false; a file without the key → true.
+  - `internal/server/media_test.go` `TestPlayGains`: in `mediaServer`, save loudness −10 for the MP3's ref (its fingerprint is its path, see the helper) → `/api/play?album=` gives it `trackGain: -8` and, since the WMA track is unmeasured, no `albumGain`; a fake `Loudness` records `Prioritize` calls → the WMA id was prioritized; `/api/gains?track=<mp3>` → `{"<mp3>": {"trackGain": -8}}`; 101 ids → 400.
+  - `internal/server/server_test.go`: `/api/status` has `"normalize"` and `"loudness": {"state": "off"}` with no runner.
+- [ ] **Step 2: Run** the new tests: they fail.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...` and `go test -race ./internal/loudness ./internal/server ./internal/store ./cmd/tordo`: pass.
+- [ ] **Step 5: Commit** `feat: measure loudness in the background with ffmpeg; gains on play items; normalize in config`
+
