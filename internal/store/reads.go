@@ -1,7 +1,9 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
+	"strconv"
 
 	"tordo/internal/audiofile"
 	"tordo/internal/grouping"
@@ -98,8 +100,32 @@ func (s *Store) SaveReads(rs []ReadResult) error {
 		if _, err := fp.Exec(r.Fingerprint, r.Target.FileID); err != nil {
 			return err
 		}
+		if r.Fingerprint != "" {
+			if err := rekey(tx, r.Target.FileID, r.Fingerprint); err != nil {
+				return err
+			}
+		}
 	}
 	return tx.Commit()
+}
+
+// rekey moves the user's data of a file keyed by its id ("id:N", from before
+// it had a fingerprint) to its fingerprint. A mark already on the fingerprint
+// wins; a loudness measure is dropped (it is taken again on the fingerprint).
+func rekey(tx *sql.Tx, fileID int64, fingerprint string) error {
+	old := "id:" + strconv.FormatInt(fileID, 10)
+	for _, q := range []string{
+		`UPDATE OR IGNORE marks SET ref = ?1 WHERE ref = ?2`,
+		`DELETE FROM marks WHERE ref = ?2`,
+		`UPDATE plays SET ref = ?1 WHERE ref = ?2`,
+		`UPDATE playlist_items SET ref = ?1 WHERE ref = ?2`,
+		`DELETE FROM loudness WHERE ref = ?2`,
+	} {
+		if _, err := tx.Exec(q, fingerprint, old); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GroupingInput returns the present, readable audio files with their tags,
