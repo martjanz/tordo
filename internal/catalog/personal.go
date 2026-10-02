@@ -10,15 +10,21 @@ import (
 // ratingValues[r] are the Puntaje values of an item rated r: "1" to r.
 var ratingValues = [6][]string{nil, {"1"}, {"1", "2"}, {"1", "2", "3"}, {"1", "2", "3", "4"}, {"1", "2", "3", "4", "5"}}
 
-// personalValues gives an item's Me gusta and Puntaje values, nil when it
-// has none.
-func personalValues(m store.Mark, ok bool) map[string][]string {
-	if !ok {
-		return nil
-	}
+// personalValues gives an item's Me gusta, Puntaje and Escucha values (m is
+// its mark when ok; listened its Escucha values), nil when it has none.
+func personalValues(m store.Mark, ok bool, listened []string) map[string][]string {
 	var out map[string][]string
+	if len(listened) > 0 {
+		out = map[string][]string{FacetListened: listened}
+	}
+	if !ok {
+		return out
+	}
 	if m.Liked {
-		out = map[string][]string{FacetLiked: {LikedYes}}
+		if out == nil {
+			out = map[string][]string{}
+		}
+		out[FacetLiked] = []string{LikedYes}
 	}
 	if m.Rating >= 1 && m.Rating <= 5 {
 		if out == nil {
