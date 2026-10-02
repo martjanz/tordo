@@ -132,6 +132,7 @@ type AlbumView struct {
 	CoverPath    string      `json:"coverPath"`
 	CoverFileID  int64       `json:"coverFileId"`
 	CoverCache   string      `json:"coverCache"`
+	Picture      bool        `json:"picture"` // a folder image, an embedded picture or a cached one
 	Genres       []GenreLink `json:"genres"`
 	RawGenres    []string    `json:"rawGenres"`
 	Status       string      `json:"status"`
@@ -194,7 +195,10 @@ type CollectionView struct {
 const albumCols = `id, CASE WHEN mb_title != '' THEN mb_title ELSE title END,
 	CASE WHEN mb_artist != '' THEN mb_artist ELSE artist END, year, original_year, compilation OR mb_compilation,
 	selection, discs, tracks, duration_ms, dir, position, cover_path, cover_file_id, cover_cache, genres, status,
-	release_id, confidence, country, artist_id, title, artist, match_query`
+	release_id, confidence, country, artist_id, title, artist, match_query, ` + hasPicture
+
+// hasPicture tells, in SQL over albums, whether an album has a picture.
+const hasPicture = `(cover_path != '' OR cover_file_id != 0 OR cover_cache != '')`
 
 func (s *Store) queryAlbums(q string, args ...any) ([]AlbumView, error) {
 	out, err := s.scanAlbums(q, args...)
@@ -216,7 +220,7 @@ func (s *Store) scanAlbums(q string, args ...any) ([]AlbumView, error) {
 		var raw string
 		if err := rows.Scan(&a.ID, &a.Title, &a.Artist, &a.Year, &a.OriginalYear, &a.Compilation, &a.Selection, &a.Discs,
 			&a.Tracks, &a.DurationMs, &a.Dir, &a.Position, &a.CoverPath, &a.CoverFileID, &a.CoverCache, &raw, &a.Status,
-			&a.ReleaseID, &a.Confidence, &a.Country, &a.ArtistID, &a.TagTitle, &a.TagArtist, &a.MatchQuery); err != nil {
+			&a.ReleaseID, &a.Confidence, &a.Country, &a.ArtistID, &a.TagTitle, &a.TagArtist, &a.MatchQuery, &a.Picture); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(raw), &a.RawGenres); err != nil {

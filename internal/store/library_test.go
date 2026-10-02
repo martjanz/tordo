@@ -120,14 +120,42 @@ func TestAlbumPictures(t *testing.T) {
 		t.Fatalf("files = %q", files)
 	}
 	cover, ok, err := s.AlbumCover(signos)
-	if err != nil || !ok || cover != la+"/[LA-10] Soda Stereo - Signos/cover.jpg" {
-		t.Fatalf("cover %q, ok %v, err %v", cover, ok, err)
+	if err != nil || !ok || cover != (CoverFiles{Folder: la + "/[LA-10] Soda Stereo - Signos/cover.jpg"}) {
+		t.Fatalf("cover %+v, ok %v, err %v", cover, ok, err)
 	}
-	if files, _ := s.AlbumPictureFiles(albumNamed(t, s, "Locura")); len(files) != 0 {
+	locura := albumNamed(t, s, "Locura")
+	if files, _ := s.AlbumPictureFiles(locura); len(files) != 0 {
 		t.Fatalf("Locura has no pictures: %q", files)
+	}
+	if a, _, _ := s.Album(locura); a.Picture {
+		t.Fatal("Locura has a picture")
+	}
+	if err := s.ApplyIdentities([]AlbumIdentity{{AlbumID: locura, Status: StatusAuto, ReleaseID: "r1",
+		CoverCache: "cache/covers/r1.jpg"}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if cover, _, _ := s.AlbumCover(locura); cover != (CoverFiles{Cache: "cache/covers/r1.jpg"}) {
+		t.Fatalf("cached cover: %+v", cover)
+	}
+	if a, _, _ := s.Album(locura); !a.Picture {
+		t.Fatal("a cached cover is a picture")
 	}
 	if _, ok, _ := s.AlbumCover(9999); ok {
 		t.Fatal("unknown album found")
+	}
+}
+
+func TestPlayItemsUseMusicBrainzTitles(t *testing.T) {
+	s := library(t)
+	id := albumNamed(t, s, "Locura")
+	before, _ := s.PlayAlbum(id)
+	if err := s.ApplyIdentities([]AlbumIdentity{{AlbumID: id, Status: StatusAuto, ReleaseID: "r1", Title: "Locura (MB)",
+		Artist: "Virus", Tracks: []TrackIdentity{{FileID: before[0].ID, Title: "Una luna de miel en la mano (MB)"}}}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	items, err := s.PlayAlbum(id)
+	if err != nil || len(items) != 1 || items[0].Title != "Una luna de miel en la mano (MB)" || items[0].Album != "Locura (MB)" {
+		t.Fatalf("items = %+v, err %v", items, err)
 	}
 }
 

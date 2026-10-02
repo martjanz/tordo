@@ -7,8 +7,8 @@
   import { count } from '../lib/format.js'
   import { folderHref } from '../lib/router.js'
 
-  // The albums with a picture: the folder's image or an embedded one.
-  const withPicture = (albums) => albums.filter((a) => a.coverPath || a.coverFileId).slice(0, 4)
+  // The albums with a picture: a folder image, an embedded or a cached one.
+  const withPicture = (albums) => albums.filter((a) => a.picture).slice(0, 4)
 
   let collections = $state(null)
   let error = $state('')

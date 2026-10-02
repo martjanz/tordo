@@ -49,7 +49,8 @@ type PlayItem struct {
 	track      int
 }
 
-const playQuery = `SELECT t.file_id, t.title, t.artist, COALESCE(al.title, ''), COALESCE(t.album_id, 0), t.duration_ms,
+const playQuery = `SELECT t.file_id, CASE WHEN t.mb_title != '' THEN t.mb_title ELSE t.title END, t.artist,
+	COALESCE(CASE WHEN al.mb_title != '' THEN al.mb_title ELSE al.title END, ''), COALESCE(t.album_id, 0), t.duration_ms,
 	a.format, a.codec, a.lossless, t.dir, f.path, t.disc, t.track
 	FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id
 	LEFT JOIN albums al ON al.id = t.album_id `
@@ -209,16 +210,21 @@ func (s *Store) AlbumPictureFiles(albumID int64) ([]string, error) {
 	return out, rows.Err()
 }
 
-// AlbumCover returns where an album's picture can come from: the folder
-// image chosen by the grouping (a path relative to the app folder, or "")
-// and whether the album exists.
-func (s *Store) AlbumCover(albumID int64) (string, bool, error) {
-	var p string
-	err := s.db.QueryRow(`SELECT cover_path FROM albums WHERE id = ?`, albumID).Scan(&p)
+// CoverFiles are the image files an album's picture can come from, as
+// paths relative to the app folder ("" when there is none).
+type CoverFiles struct {
+	Folder string // the folder image the grouping chose
+	Cache  string // the Cover Art Archive image the identification downloaded
+}
+
+// AlbumCover returns an album's image files and whether the album exists.
+func (s *Store) AlbumCover(albumID int64) (CoverFiles, bool, error) {
+	var c CoverFiles
+	err := s.db.QueryRow(`SELECT cover_path, cover_cache FROM albums WHERE id = ?`, albumID).Scan(&c.Folder, &c.Cache)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
+		return CoverFiles{}, false, nil
 	}
-	return p, err == nil, err
+	return c, err == nil, err
 }
 
 // FolderArt returns, for each subfolder of p, up to four of the albums with
@@ -231,7 +237,7 @@ func (s *Store) FolderArt(p string) (map[string][]int64, error) {
 		return out, nil // the top level lists the roots: they get no art
 	}
 	prefix := p + "/"
-	rows, err := s.db.Query(`SELECT id, dir, cover_path != '' OR cover_file_id != 0 FROM albums
+	rows, err := s.db.Query(`SELECT id, dir, `+hasPicture+` FROM albums
 		WHERE substr(dir, 1, length(?1)) = ?1`, prefix)
 	if err != nil {
 		return nil, err

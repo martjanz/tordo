@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"tordo/internal/appdir"
 	"tordo/internal/genres"
 	"tordo/internal/httpx"
 	"tordo/internal/identify"
@@ -140,29 +139,6 @@ func (s *Server) afterCorrection(w http.ResponseWriter, id int64, err error) {
 		return
 	}
 	writeJSON(w, a)
-}
-
-// cover serves an album's folder image or its cached Cover Art Archive
-// image. Paths come from the catalog, never from the request.
-func (s *Server) cover(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r)
-	if !ok {
-		return
-	}
-	a, ok, err := s.Store.Album(id)
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	p := a.CoverPath
-	if p == "" {
-		p = a.CoverCache
-	}
-	if !ok || p == "" {
-		http.Error(w, "sin carátula", http.StatusNotFound)
-		return
-	}
-	http.ServeFile(w, r, appdir.Abs(s.AppDir, p))
 }
 
 func (s *Server) genreTaxonomy(w http.ResponseWriter, r *http.Request) { writeJSON(w, genres.Taxonomy) }

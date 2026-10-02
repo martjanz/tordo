@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"testing"
 
+	"tordo/internal/covers"
 	"tordo/internal/httpx"
 	"tordo/internal/identify"
 	"tordo/internal/musicbrainz"
@@ -140,9 +141,12 @@ func TestUnidentifiedEndpoint(t *testing.T) {
 	}
 }
 
-func TestCoverEndpoint(t *testing.T) {
+// TestCachedCover: an album without a picture of its own gets the Cover Art
+// Archive image the identification downloaded, through the covers endpoint.
+func TestCachedCover(t *testing.T) {
 	s, _, id := identifyServer(t)
-	url := "/api/albums/" + strconv.FormatInt(id, 10) + "/cover"
+	s.Covers = covers.New(s.Store, s.AppDir, "")
+	url := "/api/covers/album/" + strconv.FormatInt(id, 10)
 	if rec := do(t, s.Handler(), "GET", url, ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("no cover: %d", rec.Code)
 	}
@@ -150,15 +154,20 @@ func TestCoverEndpoint(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(name, []byte("jpeg"), 0o644); err != nil {
+	jpeg := []byte("\xff\xd8\xff\xe0 jpeg")
+	if err := os.WriteFile(name, jpeg, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Store.ApplyIdentities([]store.AlbumIdentity{{AlbumID: id, Status: store.StatusAuto, ReleaseID: "r1",
 		CoverCache: "cache/covers/r1.jpg"}}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if rec := do(t, s.Handler(), "GET", url, ""); rec.Code != http.StatusOK || rec.Body.String() != "jpeg" {
-		t.Fatalf("cached cover: %d %q", rec.Code, rec.Body)
+	rec := do(t, s.Handler(), "GET", url, "")
+	if rec.Code != http.StatusOK || rec.Body.String() != string(jpeg) || rec.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("cached cover: %d %q %v", rec.Code, rec.Body, rec.Header())
+	}
+	if rec := do(t, s.Handler(), "GET", "/api/albums/"+strconv.FormatInt(id, 10)+"/cover", ""); rec.Code != http.StatusNotFound {
+		t.Fatal("the M2 cover route is gone: /api/covers/album serves every picture")
 	}
 }
 

@@ -43,7 +43,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/review/unidentified", s.unidentified)
 	mux.HandleFunc("PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification))
 	mux.HandleFunc("DELETE /api/albums/{id}/identification", s.resetIdentification)
-	mux.HandleFunc("GET /api/albums/{id}/cover", s.cover)
 	mux.HandleFunc("GET /api/genres", s.genreTaxonomy)
 	mux.HandleFunc("GET /api/genres/unmapped", s.unmappedGenres)
 	mux.HandleFunc("GET /api/genres/aliases", s.genreAliases)
