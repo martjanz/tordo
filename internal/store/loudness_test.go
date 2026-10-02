@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"tordo/internal/audiofile"
+	"tordo/internal/loudness"
 )
 
 const signos = la + "/[LA-10] Soda Stereo - Signos/"
@@ -126,6 +127,57 @@ func TestLoudnessPendingNewestFirst(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Fatalf("order = %q", got)
 	}
+}
+
+func TestLoudnessJobOfDuplicatesIsLowestID(t *testing.T) {
+	s := loudnessLibrary(t)
+	// Two present files with the same audio (same fingerprint); the higher id
+	// is the newer one.
+	if _, err := s.db.Exec(`UPDATE files SET first_seen = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE files SET fingerprint = 'dup' WHERE path IN (?, ?)`, signos+"01.mp3", signos+"02.mp3"); err != nil {
+		t.Fatal(err)
+	}
+	var lowID, highID int64
+	var lowPath string
+	if err := s.db.QueryRow(`SELECT id, path FROM files WHERE fingerprint = 'dup' ORDER BY id LIMIT 1`).Scan(&lowID, &lowPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.QueryRow(`SELECT id FROM files WHERE fingerprint = 'dup' ORDER BY id DESC LIMIT 1`).Scan(&highID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE files SET first_seen = 99 WHERE id = ?`, highID); err != nil {
+		t.Fatal(err)
+	}
+	check := func(jobs []loudness.Job) {
+		t.Helper()
+		n := 0
+		for _, j := range jobs {
+			if j.Ref == "dup" {
+				n++
+				if j.ID != lowID || j.Path != lowPath {
+					t.Fatalf("job = %+v, want id %d and its own path", j, lowID)
+				}
+			}
+		}
+		if n != 1 {
+			t.Fatalf("dup listed %d times: %+v", n, jobs)
+		}
+	}
+	pending, err := s.LoudnessPending(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(pending)
+	if pending[0].Ref != "dup" {
+		t.Fatalf("newest ref (first_seen 99) should lead: %+v", pending)
+	}
+	jobs, err := s.LoudnessJobs([]int64{highID}) // asked through the higher id
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(jobs)
 }
 
 func TestLoudnessChunks(t *testing.T) {

@@ -101,8 +101,15 @@ func (r *Runner) start(ids []int64) {
 func (r *Runner) loop(ctx context.Context) {
 	defer r.wg.Done()
 	for {
-		r.pass(ctx)
+		ok := r.pass(ctx)
 		r.mu.Lock()
+		if !ok { // a store error ends the loop: the next Trigger starts afresh
+			r.queue = nil
+			r.running = false
+			r.again = false
+			r.mu.Unlock()
+			return
+		}
 		if (!r.again && len(r.queue) == 0) || r.closed || ctx.Err() != nil {
 			r.running = false
 			r.again = false
@@ -123,11 +130,12 @@ func (r *Runner) takeQueue() []int64 {
 	return q
 }
 
-func (r *Runner) pass(ctx context.Context) {
+// pass measures until nothing is left. false: it ended on a store error.
+func (r *Runner) pass(ctx context.Context) bool {
 	n, err := r.Catalog.LoudnessPendingCount()
 	if err != nil {
 		log.Printf("volumen: %v", err)
-		return
+		return false
 	}
 	r.mu.Lock()
 	r.pending = n
@@ -152,14 +160,14 @@ func (r *Runner) pass(ctx context.Context) {
 		}
 		if err != nil {
 			log.Printf("volumen: %v", err)
-			return
+			return false
 		}
 		if len(batch) == 0 {
 			// Prioritized tracks that need nothing do not end the pass.
 			if r.hasQueue() {
 				continue
 			}
-			return
+			return true
 		}
 		seen := map[string]bool{}
 		for len(batch) > 0 {
@@ -167,7 +175,7 @@ func (r *Runner) pass(ctx context.Context) {
 				first, err := r.Catalog.LoudnessJobs(q)
 				if err != nil {
 					log.Printf("volumen: %v", err)
-					return
+					return false
 				}
 				batch = append(first, batch...)
 			}
@@ -178,10 +186,11 @@ func (r *Runner) pass(ctx context.Context) {
 			}
 			seen[job.Ref] = true
 			if !r.measure(ctx, analyze, job) {
-				return
+				return ctx.Err() == nil
 			}
 		}
 	}
+	return true
 }
 
 func (r *Runner) hasQueue() bool {

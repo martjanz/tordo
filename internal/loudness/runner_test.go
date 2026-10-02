@@ -259,6 +259,36 @@ func TestRunnerEndsOnStoreError(t *testing.T) {
 	r.Close()
 }
 
+// countFailCatalog fails every pending count, announcing each call.
+type countFailCatalog struct {
+	fakeCatalog
+	calls chan struct{}
+}
+
+func (c *countFailCatalog) LoudnessPendingCount() (int, error) {
+	c.calls <- struct{}{}
+	return 0, errors.New("base cerrada")
+}
+
+func TestRunnerStoreErrorWithQueueDoesNotSpin(t *testing.T) {
+	cat := &countFailCatalog{fakeCatalog: fakeCatalog{jobs: jobsOf(2)}, calls: make(chan struct{}, 100)}
+	r := &Runner{Catalog: cat, AppDir: "/app", Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+		return -10, nil
+	}}
+	r.Prioritize([]int64{1, 2})
+	waitIdle(t, r)
+	if n := len(cat.calls); n != 1 {
+		t.Fatalf("pending count called %d times, want 1 (the pass must not spin)", n)
+	}
+	// A new request starts a new pass.
+	r.Prioritize([]int64{1})
+	waitIdle(t, r)
+	if n := len(cat.calls); n != 2 {
+		t.Fatalf("calls = %d, want 2", n)
+	}
+	r.Close()
+}
+
 type errCatalog struct{ fakeCatalog }
 
 func (c *errCatalog) SaveLoudness(string, *float64, string) error { return errors.New("disco lleno") }

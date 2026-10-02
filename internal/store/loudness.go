@@ -16,20 +16,31 @@ const needsMeasure = `FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio 
 	WHERE f.missing = 0 AND json_extract(a.tags, '$.trackGain') IS NULL
 	AND NOT EXISTS (SELECT 1 FROM loudness l WHERE l.ref = ` + trackRef + `)`
 
+// oneJobPerRef selects (id, ref, path) of the lowest file id of each ref
+// that needs measuring, with its newest first_seen as mx. extra filters the
+// outer query.
+func oneJobPerRef(extra string) string {
+	return `SELECT id, ref, path FROM (
+		SELECT f.id AS id, ` + trackRef + ` AS ref, f.path AS path,
+			ROW_NUMBER() OVER (PARTITION BY ` + trackRef + ` ORDER BY f.id) AS rn,
+			MAX(f.first_seen) OVER (PARTITION BY ` + trackRef + `) AS mx ` + needsMeasure + `
+	) WHERE rn = 1 ` + extra
+}
+
 // LoudnessPending lists the tracks still to measure, one per ref (the lowest
 // file id), newest first.
 func (s *Store) LoudnessPending(limit int) ([]loudness.Job, error) {
-	return s.loudnessJobs(`SELECT MIN(f.id), `+trackRef+`, f.path `+needsMeasure+`
-		GROUP BY `+trackRef+` ORDER BY MAX(f.first_seen) DESC, MIN(f.id) DESC LIMIT ?`, limit)
+	return s.loudnessJobs(oneJobPerRef(`ORDER BY mx DESC, id DESC LIMIT ?`), limit)
 }
 
-// LoudnessJobs lists, among ids, the tracks still to measure (one per ref).
+// LoudnessJobs lists, among ids, the tracks still to measure (one per ref,
+// its lowest file id).
 func (s *Store) LoudnessJobs(ids []int64) ([]loudness.Job, error) {
 	var out []loudness.Job
 	seen := map[string]bool{}
 	for _, chunk := range chunks(ids) {
-		jobs, err := s.loudnessJobs(`SELECT MIN(f.id), `+trackRef+`, f.path `+needsMeasure+`
-			AND f.id IN (`+placeholders(len(chunk))+`) GROUP BY `+trackRef+` ORDER BY MIN(f.id)`, int64Args(chunk)...)
+		jobs, err := s.loudnessJobs(oneJobPerRef(`AND ref IN (SELECT `+trackRef+` FROM files f WHERE f.id IN (`+
+			placeholders(len(chunk))+`)) ORDER BY id`), int64Args(chunk)...)
 		if err != nil {
 			return nil, err
 		}
