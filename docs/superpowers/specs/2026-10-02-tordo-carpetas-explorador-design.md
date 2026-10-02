@@ -45,9 +45,32 @@ Dos paneles, como el Explorador de Windows o el Finder con barra lateral.
 - Orden por defecto: subcarpetas y archivos en orden natural; un clic en el encabezado de una columna ordena por ella (y otro invierte), dentro de cada grupo.
 - Carpeta vacía de archivos propios: solo las subcarpetas. Carpeta inexistente: "Esta carpeta ya no está en el catálogo."
 
-### 2.3 Teléfono
+### 2.3 Pantallas angostas: listas al estilo iPod
 
-No hay lugar para dos paneles: el árbol es la página. Tocar ▸ expande en su lugar; tocar el nombre abre el panel derecho a pantalla completa (con la ruta en la URL); volver regresa al árbol donde estaba. Columnas visibles en el teléfono: Nombre, barra y Pistas (o la duración, en los archivos).
+Con poco ancho (teléfonos, o una ventana de escritorio de menos de ~720 px) los dos paneles se reemplazan por **una lista por pantalla**, como el iPod classic:
+
+```
+┌──────────────────────────────┐
+│ ‹ complete     Low_ID     ⋯  │
+├──────────────────────────────┤
+│ RARAS PARTITURAS      183   ›│
+│ Lhasa de Sela          35   ›│
+│ 💿 music of the cru…   19   ›│
+│ suelto.mp3           3:07    │
+│ folder.jpg          84 KB    │
+└──────────────────────────────┘
+```
+
+- Cada pantalla es una carpeta: primero las subcarpetas (nombre, cantidad de pistas, ›), después los archivos (nombre y duración; los demás archivos atenuados con su tamaño). Una línea por fila, un solo número a la derecha, sin columnas ni barras. Los niveles de paso se fusionan igual que en el árbol.
+- Tocar una subcarpeta la abre: la lista nueva entra deslizándose desde la derecha, y al volver sale hacia la derecha. Con "reducir movimiento" (`prefers-reduced-motion`) cambia sin animación.
+- Cada nivel es una entrada del historial (`?ruta=`): el gesto de volver del teléfono y el botón atrás funcionan, y la lista vuelve a la posición donde estaba.
+- Encabezado: "‹ carpeta madre" (o nada en la raíz), el nombre de la carpeta, y **⋯** con sus acciones: Reproducir, Aleatorio, A la cola, No es una colección / Es una colección. En una carpeta de álbum, la primera fila es "Ver álbum".
+- Tocar un archivo de audio reproduce desde él los de la carpeta.
+- "Filtrar carpetas…" está arriba de la lista de la raíz; los resultados son una lista plana de carpetas con su ruta abreviada.
+
+### 2.4 Teclado (pantallas anchas)
+
+El árbol se maneja con el teclado, a la manera de la rueda del iPod: ↑/↓ mueven la selección por las filas visibles, → abre la carpeta (o baja a su primera hija si ya está abierta), ← la cierra (o sube a la madre), Enter muestra su contenido en el panel derecho, / pone el foco en "Filtrar carpetas…". Sigue el patrón `tree` de WAI-ARIA (`role="tree"`, `aria-expanded`, un solo elemento con `tabindex=0`).
 
 ## 3. Datos y API
 
@@ -68,5 +91,5 @@ Sin cambios de esquema.
 ## 5. Pruebas
 
 - **Go (store/server):** subcarpetas por nivel; fusión de cadenas (una y varias), sin fusionar cuando la carpeta tiene pistas propias o más de una hija; tamaños recursivos (sin `basura`, sin archivos faltantes); archivos directos con su tipo y datos de audio; `playable` sin ffmpeg; la búsqueda de carpetas con nombres NFD y acentos; carpeta desconocida → 404.
-- **Vitest:** estado del árbol (expandir/colapsar, recordar en `localStorage`, abrir la rama de `?ruta=`, combinar los resultados del filtro), orden de columnas, formato de tamaños ("7,2 MB", "1,4 GB") y la barra relativa.
-- **En el navegador, contra la colección real:** la raíz no mezcla `Soulseek` con carpetas de una pista; `Soulseek › complete` en una fila; *História da MPB* (49) y *Zitarrosa* (46) navegables; filtro por un nombre con acento; ancho de teléfono.
+- **Vitest:** estado del árbol (expandir/colapsar, recordar en `localStorage`, abrir la rama de `?ruta=`, combinar los resultados del filtro), las teclas del árbol (qué fila queda seleccionada o abierta con cada tecla), orden de columnas, formato de tamaños ("7,2 MB", "1,4 GB") y la barra relativa.
+- **En el navegador, contra la colección real:** la raíz no mezcla `Soulseek` con carpetas de una pista; `Soulseek › complete` en una fila; *História da MPB* (49) y *Zitarrosa* (46) navegables; filtro por un nombre con acento; el árbol solo con el teclado; ancho de teléfono (listas al estilo iPod, gesto de volver).
