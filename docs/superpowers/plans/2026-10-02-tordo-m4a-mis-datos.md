@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go 1.27 (standard library + `modernc.org/sqlite`), Svelte 5 + Vite 8 + Vitest 5 (as in M3).
 
-**Spec:** `docs/superpowers/specs/2026-10-01-tordo-design.md` (Spanish). M4 in §10 is "Inicio, estaciones, historial y estadísticas, me gusta y puntajes, listas de reproducción, normalización de volumen". It is split like M3: **M4a (this plan)** covers §4 "Datos de usuario" (but saved stations), §7.1 "Normalización", §7.3's counting rule (stats are M4b), §7.4 whole, §8 Listas, the ♥/★ of Álbum, Artista and Colección, and Explorar's "me gusta", "puntaje" and "más escuchado" (§8). **M4b** (separate plan, after this one merges) covers §7.2 Estaciones, §7.3 statistics, §8 Inicio and the "▶ Estación" buttons.
+**Spec:** `docs/superpowers/specs/2026-10-01-tordo-design.md` (Spanish). M4 in §10 is "Inicio, estaciones, historial y estadísticas, me gusta y puntajes, listas de reproducción, normalización de volumen". It is split like M3: **M4a (this plan)** covers §4 "Datos de usuario" (but saved stations), §7.1 "Normalización", §7.3's counting rule (stats are M4b), §7.4 whole, §8 Listas, the ♥/★ of Álbum, Artista and Colección, and Explorar's "me gusta", "puntaje" and "más escuchado" (§8). **M4b** (separate plan, after this one merges) covers §7.2 Estaciones (with saved stations, "Me gusta" as a source and likes/ratings as weights), §7.3 statistics, §8 Inicio, the artist page's "más escuchadas", playing a playlist as a station, and the "▶ Estación" buttons.
 
 ## Decisions this plan takes (not spelled out in the spec)
 
@@ -1191,7 +1191,7 @@ Behavior (no new exports from the player):
 
 - [ ] **Step 1:** Implement as above (the logic is tested in Task 9; this is wiring).
 - [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
-- [ ] **Step 3: Check in the browser** (`go run ./cmd/tordo -dir .run` after the build, with a few albums in `.run`'s roots, ffmpeg installed): play an album; in the network panel, `GET /api/gains` follows the play; after half of a short track, `POST /api/plays` once (204); seek ahead past the half on another track → no play recorded until enough is actually heard. With the dev tools, `document.querySelectorAll('audio')` are created by the player, not in the DOM: instead log `active.volume` temporarily, or check `/api/play`'s `trackGain` values and the audible level against the same track with `"normalize": false` in `config.json` (restart).
+- [ ] **Step 3: Check in the browser** (`go run ./cmd/tordo -dir .run` after the build, with a few albums in `.run`'s roots, ffmpeg installed): play an album; in the network panel, `GET /api/gains` follows the play; after half of a short track, `POST /api/plays` once (204); seek ahead past the half on another track → no play recorded until enough is actually heard. The `<audio>` elements are not in the DOM, so check the gain by logging `active.volume` temporarily (remove the log before committing), and by ear against the same track with `"normalize": false` in `config.json` (restart).
 - [ ] **Step 4: Commit** `feat(web): the player records plays and normalizes volume`
 
 ---
