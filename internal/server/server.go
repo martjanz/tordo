@@ -12,7 +12,10 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
+	"tordo/internal/auth"
 	"tordo/internal/config"
 	"tordo/internal/covers"
 	"tordo/internal/engine"
@@ -47,8 +50,20 @@ type Server struct {
 	// well-known release once.
 	VerifyToken func(ctx context.Context, token string) error
 
+	// interfaces gives the host's IP addresses and name for the LAN addresses;
+	// nil: the real ones. now is the clock of the LAN gate; nil: time.Now.
+	interfaces func() ([]net.IP, string)
+	now        func() time.Time
+
 	cat  catalogState
 	pers personalState
+
+	muxOnce sync.Once
+	mux     http.Handler
+
+	lan     lanListener
+	limiter auth.Limiter // one for every device: there is a single user
+	loginMu sync.Mutex   // logins one at a time, so parallel guesses cannot skip the limiter
 }
 
 // parts are the pieces config.json decides, read once per request.
@@ -88,8 +103,24 @@ func (s *Server) parts() parts {
 // readOnly tells whether nothing can be written to the app folder.
 func (s *Server) readOnly() bool { return s.ReadOnly || (s.Engine != nil && s.Engine.ReadOnly) }
 
-func (s *Server) Handler() http.Handler {
+// Handler serves the local listener: only requests addressed to localhost.
+func (s *Server) Handler() http.Handler { return localOnly(s.routes()) }
+
+// routes is the mux of both listeners, built once.
+func (s *Server) routes() http.Handler {
+	s.muxOnce.Do(func() { s.mux = s.buildMux() })
+	return s.mux
+}
+
+func (s *Server) buildMux() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/auth", s.authState)
+	mux.HandleFunc("POST /api/auth/login", jsonOnly(s.login))
+	mux.HandleFunc("POST /api/auth/logout", jsonOnly(s.logout))
+	mux.HandleFunc("GET /api/sessions", settings(s.sessions))
+	mux.HandleFunc("DELETE /api/sessions/{id}", settings(s.closeSession))
+	mux.HandleFunc("GET /api/lan", settings(s.lanInfo))
+	mux.HandleFunc("GET /api/lan/qr", settings(s.lanQR))
 	mux.HandleFunc("GET /api/status", s.status)
 	mux.HandleFunc("GET /api/config", settings(s.withEngine(s.getConfig)))
 	mux.HandleFunc("PUT /api/config", settings(jsonOnly(s.withEngine(s.putConfig))))
@@ -143,7 +174,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
 	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
 	mux.Handle("GET /", s.static())
-	return localOnly(mux)
+	return mux
 }
 
 // localOnly rejects requests whose Host is not localhost (DNS rebinding) and
@@ -159,15 +190,25 @@ func localOnly(next http.Handler) http.Handler {
 			http.Error(w, "prohibido", http.StatusForbidden)
 			return
 		}
-		site := r.Header.Get("Sec-Fetch-Site")
-		navigation := r.Method == http.MethodGet && r.Header.Get("Sec-Fetch-Mode") == "navigate"
-		if (site == "cross-site" || site == "same-site") && !navigation {
-			http.Error(w, "prohibido", http.StatusForbidden)
+		if !sameSiteOnly(w, r) {
 			return
 		}
-		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		next.ServeHTTP(w, withLocal(r))
 	})
+}
+
+// sameSiteOnly rejects (403) requests made by other sites' pages, except plain
+// navigations, and marks the answer same-origin only. It reports whether the
+// request may go on.
+func sameSiteOnly(w http.ResponseWriter, r *http.Request) bool {
+	site := r.Header.Get("Sec-Fetch-Site")
+	navigation := r.Method == http.MethodGet && r.Header.Get("Sec-Fetch-Mode") == "navigate"
+	if (site == "cross-site" || site == "same-site") && !navigation {
+		http.Error(w, "prohibido", http.StatusForbidden)
+		return false
+	}
+	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+	return true
 }
 
 type localKey struct{}
