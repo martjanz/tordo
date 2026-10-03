@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -81,5 +82,34 @@ func TestListenModeBlocksCuration(t *testing.T) {
 	setListen("false")
 	if status() {
 		t.Fatal("status still reports listenMode")
+	}
+}
+
+// The settings page saves listen mode on its own: a body with only
+// listenMode keeps the folders and everything else.
+func TestListenModeAloneKeepsTheRest(t *testing.T) {
+	s := settingsServer(t, false)
+	putConfig(t, s, `{"roots":["../musica"],"ignore":["tmp"],"normalize":false,"lan":{"enabled":false,"port":4800}}`)
+	before := saved(t, s)
+	rec := putConfig(t, s, `{"listenMode":true}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("listenMode alone: %d %s", rec.Code, rec.Body)
+	}
+	after := saved(t, s)
+	if !after.ListenMode {
+		t.Fatal("listenMode not saved")
+	}
+	after.ListenMode = before.ListenMode
+	if !reflect.DeepEqual(after, before) {
+		t.Fatalf("other settings changed:\n%+v\n%+v", before, after)
+	}
+}
+
+// On first use there are no folders to keep: listen mode alone cannot end
+// the setup.
+func TestListenModeAloneDuringSetup(t *testing.T) {
+	s := settingsServer(t, false)
+	if rec := putConfig(t, s, `{"listenMode":true}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("listenMode alone during setup: %d %s", rec.Code, rec.Body)
 	}
 }

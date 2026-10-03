@@ -153,19 +153,21 @@ func cleanIgnore(in []string) ([]string, error) {
 }
 
 // putConfig validates and saves the settings, and restarts what depends on
-// them. A null token or PIN keeps the saved one; a "" token removes it.
+// them. A null token or PIN keeps the saved one; a "" token removes it. An
+// absent (or null) roots, ignore, normalize, lan or listenMode keeps the saved
+// value, so the page can save listen mode on its own.
 func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	if s.readOnly() {
 		http.Error(w, engine.ErrReadOnly.Error(), http.StatusConflict)
 		return
 	}
 	var req struct {
-		Roots      []string `json:"roots"`
-		Ignore     []string `json:"ignore"`
-		Token      *string  `json:"token"`
-		Normalize  bool     `json:"normalize"`
-		ListenMode *bool    `json:"listenMode"` // null (absent) keeps the saved value
-		LAN        struct {
+		Roots      *[]string `json:"roots"`
+		Ignore     *[]string `json:"ignore"`
+		Token      *string   `json:"token"`
+		Normalize  *bool     `json:"normalize"`
+		ListenMode *bool     `json:"listenMode"`
+		LAN        *struct {
 			Enabled bool    `json:"enabled"`
 			Port    int     `json:"port"`
 			Pin     *string `json:"pin"`
@@ -177,7 +179,8 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	// A new PIN is saved and every session closed as one step with respect to
 	// logins (see login): they take the same lock.
-	if req.LAN.Pin != nil {
+	newPin := req.LAN != nil && req.LAN.Pin != nil
+	if newPin {
 		s.loginMu.Lock()
 		defer s.loginMu.Unlock()
 	}
@@ -186,32 +189,45 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	// that serializes every change. Roots and ignore are never nil: the
 	// engine tells "same parts" by comparing them.
 	err := s.Engine.Update(func(cur config.Config) (config.Config, error) {
-		roots := append([]string{}, req.Roots...)
+		roots := append([]string{}, cur.Roots...)
+		if req.Roots != nil {
+			roots = append([]string{}, *req.Roots...)
+		}
+		// Kept roots pass as saved ones; there must still be one (first use).
 		if err := config.CheckRoots(s.AppDir, roots, cur.Roots); err != nil {
 			return invalid(err)
 		}
-		ignore, err := cleanIgnore(req.Ignore)
-		if err != nil {
-			return invalid(err)
-		}
-		if req.LAN.Port < 1024 || req.LAN.Port > 65535 {
-			return invalid(errors.New("el puerto tiene que estar entre 1024 y 65535"))
-		}
-		lan := config.LAN{Enabled: req.LAN.Enabled, Port: req.LAN.Port, PinHash: cur.LAN.PinHash}
-		if req.LAN.Pin != nil {
-			if err := auth.CheckFormat(*req.LAN.Pin); err != nil {
+		ignore := append([]string{}, cur.Ignore...)
+		if req.Ignore != nil {
+			var err error
+			if ignore, err = cleanIgnore(*req.Ignore); err != nil {
 				return invalid(err)
 			}
-			if lan.PinHash, err = auth.HashPIN(*req.LAN.Pin); err != nil {
-				return config.Config{}, err
-			}
 		}
-		if lan.Enabled && lan.PinHash == "" {
-			return invalid(errors.New("elegí un PIN para usar Tordo desde la red"))
+		lan := cur.LAN
+		if req.LAN != nil {
+			if req.LAN.Port < 1024 || req.LAN.Port > 65535 {
+				return invalid(errors.New("el puerto tiene que estar entre 1024 y 65535"))
+			}
+			lan = config.LAN{Enabled: req.LAN.Enabled, Port: req.LAN.Port, PinHash: cur.LAN.PinHash}
+			if req.LAN.Pin != nil {
+				if err := auth.CheckFormat(*req.LAN.Pin); err != nil {
+					return invalid(err)
+				}
+				var err error
+				if lan.PinHash, err = auth.HashPIN(*req.LAN.Pin); err != nil {
+					return config.Config{}, err
+				}
+			}
+			if lan.Enabled && lan.PinHash == "" {
+				return invalid(errors.New("elegí un PIN para usar Tordo desde la red"))
+			}
 		}
 		cfg := cur
 		cfg.Roots, cfg.Ignore, cfg.LAN = roots, ignore, lan
-		cfg.Normalize = &req.Normalize
+		if req.Normalize != nil {
+			cfg.Normalize = req.Normalize
+		}
 		if req.ListenMode != nil {
 			cfg.ListenMode = *req.ListenMode
 		}
@@ -223,7 +239,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	var verr *engine.ValidationError
 	switch {
 	case err == nil:
-		if req.LAN.Pin != nil {
+		if newPin {
 			if err := s.Store.DeleteSessions(); err != nil {
 				log.Printf("no se pudieron cerrar las sesiones: %v", err)
 			}
