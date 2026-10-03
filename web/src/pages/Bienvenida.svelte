@@ -12,6 +12,8 @@
   let d = $state(null)
   let step = $state(0)
   let saving = $state(false)
+  let forbidden = $state(false) // another device: only the computer running Tordo sets it up
+  let loadError = $state('')
 
   $effect(() => {
     api.config().then(
@@ -20,7 +22,10 @@
         config = c
         d = { ...draft(c), normalize: true } // on by default
       },
-      (e) => notify(e.message),
+      (e) => {
+        if (e.status === 403) forbidden = true
+        else loadError = e.message
+      },
     )
   })
 
@@ -41,7 +46,11 @@
 
 <svelte:head><title>Bienvenida · Tordo</title></svelte:head>
 
-{#if d}
+{#if forbidden}
+  <p class="bienvenida warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
+{:else if loadError}
+  <p class="bienvenida warn" role="alert">{loadError}</p>
+{:else if d}
   <div class="bienvenida">
     <ol class="steps">
       {#each steps as name, i (name)}
@@ -100,6 +109,9 @@
   .bienvenida {
     max-width: 640px;
     margin: 32px auto 0;
+  }
+  .warn {
+    color: var(--warn);
   }
   .steps {
     display: flex;

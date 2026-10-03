@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte'
   import Raices from '../components/Raices.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
@@ -10,6 +11,7 @@
   let saving = $state(false)
   let forbidden = $state(false) // another device: the settings are not its to change
   let error = $state('')
+  let loadError = $state('')
   let version = $state(0) // remounts the token field after saving
 
   $effect(() => {
@@ -20,9 +22,15 @@
       },
       (e) => {
         if (e.status === 403) forbidden = true
-        else notify(e.message)
+        else loadError = e.message
       },
     )
+  })
+
+  // Editing the draft clears the error of the last save.
+  $effect(() => {
+    JSON.stringify(d)
+    untrack(() => (error = ''))
   })
 
   const dirty = $derived(!!config && !!d && changed(config, d))
@@ -50,6 +58,8 @@
   <h1>Ajustes</h1>
   {#if forbidden}
     <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
+  {:else if loadError}
+    <p class="warn" role="alert">{loadError}</p>
   {:else if d}
     {#if config.readOnly}
       <p class="warn">Modo consulta: la configuración no se puede cambiar.</p>

@@ -46,9 +46,7 @@
 
 <svelte:window {onclick} />
 
-{#if current.page !== 'bienvenida'}
-  <Nav page={current.page} />
-{/if}
+<Nav page={current.page} bare={current.page === 'bienvenida'} />
 
 <main>
   {#if current.page === 'inicio'}
