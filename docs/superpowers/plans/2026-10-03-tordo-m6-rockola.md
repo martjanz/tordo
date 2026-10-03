@@ -20,8 +20,8 @@ Agreed with the user while writing the spec: the speaker is a browser tab (no na
 4. **One speaker.** Registering a speaker replaces the previous one: the old connection gets a `replaced` event and is closed. A replaced tab turns its switch off and forgets it (no auto-reconnect, so two tabs never fight). After a network error the tab's `EventSource` reconnects on its own and registers again with a new token (the spec's earlier "reusing the token" was dropped: a fresh registration is equivalent and simpler; the spec already says so).
 5. **Events.** Speaker stream: `hello {token}`, `command {remote, session, role, command, args}`, `replaced {}`. Remote stream: `hello {remote, session, role}`, then the current `state` (raw JSON as published) or `speaker-off {}`; later `state`, `notice {text}`, `role {role}`, `speaker-off {}`. There is no `speaker-on`: a remote only connects while Rockola mode is on and leaves it on `speaker-off`. Heartbeat: an SSE comment `: ping` every 20 s (`Server.beat`, settable in tests).
 6. **Availability.** `/api/status` gains `"jukebox": {"speaker": bool}`; the phone enables the Rockola switch from it (polled every 30 s like the rest of the status). A stale "available" is harmless: the command answers 409 and the phone leaves the mode.
-7. **Commands and roles** (in Go and, as a second check, in the speaker tab): invitado and anfitrión: `enqueue`, `toggle`, `removeAt`; anfitrión only: `play`, `playStation`, `stopStation`, `setStation`, `next`, `prev`, `jumpTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`. (`setStation` — "Ajustar" on the running station — is added to the spec's list.)
-8. **Queue positions travel as entry keys.** `jumpTo` and `removeAt` carry `{key}` (the entry's queue key), not a play-order position: positions shift between a published state and the command. The speaker converts the key to its current position; an unknown key does nothing.
+7. **Commands and roles** (in Go and, as a second check, in the speaker tab): invitado and anfitrión: `enqueue`, `toggle`, `removeAt`; anfitrión only: `play`, `playStation`, `stopStation`, `setStation`, `next`, `prev`, `jumpTo`, `moveTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`. (`setStation` — "Ajustar" on the running station — and `moveTo` — dragging a row of the queue, added 2026-10-03 — are added to the spec's list.)
+8. **Queue positions travel as entry keys.** `jumpTo` and `removeAt` carry `{key}` (the entry's queue key), not a play-order position: positions shift between a published state and the command. `moveTo` carries `{key, toKey}`: move the entry `key` to the place the entry `toKey` holds now. The speaker converts keys to their current positions; an unknown key does nothing.
 9. **`addedBy`.** Entries added by a remote `enqueue` carry `addedBy: <session id>`; entries added by the computer or by a local request carry none. An invitado's `removeAt` on an entry whose `addedBy` differs from their session is refused by the speaker with the notice `Solo podés quitar lo que agregaste.`
 10. **Invitado's ▶.** The facade turns an invitado's `play(what, {shuffle, startId})` into `enqueue` with `startIfIdle: true`: with `startId` it adds **only that track** (`{tracks: [startId]}`: tapping a song means that song); with `shuffle` it adds the tracks shuffled; otherwise it adds `what` in order. "+ cola" and "a continuación" are plain `enqueue` (no `startIfIdle`).
 11. **"Idle" for `startIfIdle`:** nothing playing **and** either the queue was empty or the last track ended (`player.ended`, set when the queue runs out, cleared by `start`). A paused track is not idle: the invitado's tracks are only added.
@@ -247,7 +247,7 @@ const buffer = 64
 var commands = map[string]Role{
 	"enqueue": Guest, "toggle": Guest, "removeAt": Guest,
 	"play": Host, "playStation": Host, "stopStation": Host, "setStation": Host,
-	"next": Host, "prev": Host, "jumpTo": Host, "clearUpcoming": Host,
+	"next": Host, "prev": Host, "jumpTo": Host, "moveTo": Host, "clearUpcoming": Host,
 	"seek": Host, "setVolume": Host, "toggleMute": Host, "toggleShuffle": Host, "cycleRepeat": Host,
 }
 
@@ -752,7 +752,7 @@ Pure module (no Svelte runes, no imports but `./queue.js` if needed). Implementa
 export const ROLES = {
   enqueue: 'guest', toggle: 'guest', removeAt: 'guest',
   play: 'host', playStation: 'host', stopStation: 'host', setStation: 'host',
-  next: 'host', prev: 'host', jumpTo: 'host', clearUpcoming: 'host',
+  next: 'host', prev: 'host', jumpTo: 'host', moveTo: 'host', clearUpcoming: 'host',
   seek: 'host', setVolume: 'host', toggleMute: 'host', toggleShuffle: 'host', cycleRepeat: 'host',
 }
 
@@ -800,6 +800,8 @@ export function cleanArgs(command, args) {
     case 'jumpTo':
     case 'removeAt':
       return isId(a.key) ? { key: a.key } : null
+    case 'moveTo':
+      return isId(a.key) && isId(a.toKey) ? { key: a.key, toKey: a.toKey } : null
     case 'seek':
       return isNum(a.seconds) && a.seconds >= 0 ? { seconds: a.seconds } : null
     case 'setVolume':
@@ -857,6 +859,12 @@ export async function run({ command, args, session, role }, P, say) {
       if (pos >= 0) P.jumpTo(pos)
       return
     }
+    case 'moveTo': {
+      const from = P.posOfKey(a.key)
+      const to = P.posOfKey(a.toKey)
+      if (from >= 0 && to >= 0) P.moveTo(from, to)
+      return
+    }
     case 'removeAt': {
       const entry = P.entryOfKey(a.key)
       if (!entry) return
@@ -876,9 +884,9 @@ export async function run({ command, args, session, role }, P, say) {
 - [ ] **Step 1: Write the failing tests** (`jukebox.test.js`; a fake `P` built with `vi.fn()` for every function, `posOfKey`/`entryOfKey` backed by a small fake queue):
   - `allowed`: every guest command for both roles; a host command → false for `guest`, true for `host`; `'nope'` → false.
   - `ROLES` keys equal the Go table's (list them in the test as a literal array and compare sorted).
-  - `cleanArgs`: `play` without `what` → null; `what` with only unknown keys → null; `{album: 3, evil: 1}` → `{album: 3}`; `tracks` with a string → dropped; `seek` −1 → null; `setVolume` 1.5 → null; `jumpTo` key 0 → null; `toggle` with junk → `{}`; unknown command → null.
+  - `cleanArgs`: `play` without `what` → null; `what` with only unknown keys → null; `{album: 3, evil: 1}` → `{album: 3}`; `tracks` with a string → dropped; `seek` −1 → null; `setVolume` 1.5 → null; `jumpTo` key 0 → null; `moveTo` without `toKey` → null; `toggle` with junk → `{}`; unknown command → null.
   - `snapshot`: a 300-entry queue at pos 150 → `order` length 111, `pos` 10, `upcoming` 149, `list` only those keys; at pos −1 → first 100, `pos` −1, `upcoming` 300; carries `time`, `blocked` etc.
-  - `run`: guest `next` → `say('Solo el anfitrión puede hacer esto.')`, `P.next` not called; host `next` → called; guest `enqueue` passes `addedBy: 7` (session 7) and `say`; local `enqueue` (session 0) passes `addedBy: null`; guest `removeAt` of an entry with `addedBy: 7` from session 7 → `P.removeAt(pos)`; from session 8 → `say('Solo podés quitar lo que agregaste.')`; host removes anything; `jumpTo` an unknown key → nothing; invalid args → nothing called, no say.
+  - `run`: guest `next` → `say('Solo el anfitrión puede hacer esto.')`, `P.next` not called; host `next` → called; guest `enqueue` passes `addedBy: 7` (session 7) and `say`; local `enqueue` (session 0) passes `addedBy: null`; guest `removeAt` of an entry with `addedBy: 7` from session 7 → `P.removeAt(pos)`; from session 8 → `say('Solo podés quitar lo que agregaste.')`; host removes anything; `jumpTo` an unknown key → nothing; host `moveTo {key, toKey}` → `P.moveTo(posOfKey(key), posOfKey(toKey))`, guest → refused; invalid args → nothing called, no say.
 - [ ] **Step 2: Run** `cd web && npx vitest run src/lib/jukebox.test.js`: fails.
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run** `cd web && npx vitest run`: pass.
@@ -969,7 +977,7 @@ export function shown()                            // what the bar shows: rockol
 export function remote()                           // rockola.on
 export function can(command, entry = null)         // local: true; Rockola: allowed(role, command), and for removeAt a guest needs entry.addedBy === rockola.session
 export function play(what, opts = {}), enqueue(what, opts = {}), playStation(st), stopStation(), setStation(st),
-  toggle(), next(), prev(), jumpTo(pos), removeAt(pos), clearUpcoming(), seek(seconds), setVolume(v),
+  toggle(), next(), prev(), jumpTo(pos), moveTo(from, to), removeAt(pos), clearUpcoming(), seek(seconds), setVolume(v),
   toggleMute(), toggleShuffle(), cycleRepeat()
 ```
 
@@ -983,7 +991,7 @@ Facade behavior (each function: when `!rockola.on`, call the player's function w
 - `play(what, { shuffle, startId })`: anfitrión → `send('play', { what, shuffle: !!shuffle, startId: startId ?? null })`; invitado → `send('enqueue', { what: startId != null ? { tracks: [startId] } : what, shuffle: !!shuffle && startId == null, startIfIdle: true })` (decision 10).
 - `enqueue(what, { next })` → `send('enqueue', { what, next: !!next })`.
 - `playStation(st)` → `send('playStation', { station: st })`; `setStation(st)` → `send('setStation', { station: st })`.
-- `jumpTo(pos)` / `removeAt(pos)` → `send(cmd, { key: shown().queue.order[pos] })` (positions are the view's; decision 8).
+- `jumpTo(pos)` / `removeAt(pos)` → `send(cmd, { key: shown().queue.order[pos] })` (positions are the view's; decision 8). `moveTo(from, to)` → `send('moveTo', { key: order[from], toKey: order[to] })`, with `order = shown().queue.order`.
 - `seek(seconds)` → `send('seek', { seconds })`; `setVolume(v)` → `send('setVolume', { volume: v })`.
 - The rest → `send(name)`.
 
@@ -991,7 +999,7 @@ Importers to switch to `playback.svelte.js` (same names; nothing else changes in
 
 - [ ] **Step 1: Write the failing tests.**
   - `rockola.svelte.test.js` (`vi.mock('./api.js')` keeping the real `ApiError`, `vi.mock('./player.svelte.js')`, `vi.mock('./app.svelte.js')` for `notify` and `app`, `vi.mock('./auth.svelte.js')`, `FakeSource` as in Task 6): turning on pauses a playing local player and connects to `/api/jukebox/events`; `hello`/`state`/`role` fill `rockola`; `notice` → `notify`; `speaker-off` right after `hello` → the "no está disponible" text and off; later → "Se perdió la conexión…" and off; `send` with a 409 → notice and off; 403 → notice, still on; closed source → off and `checkAuth` called.
-  - `playback.svelte.test.js` (mock `./player.svelte.js` and `./rockola.svelte.js`, the latter exposing a plain `rockola` object the test mutates and `send` as `vi.fn()`): off → every function forwards to the player with the same arguments; on as host → `play({album: 1}, {startId: 5})` sends `play {what: {album: 1}, shuffle: false, startId: 5}`; on as guest → the same call sends `enqueue {what: {tracks: [5]}, shuffle: false, startIfIdle: true}`, `play({folder: 'x'}, {shuffle: true})` sends `enqueue {what: {folder: 'x'}, shuffle: true, startIfIdle: true}`; `jumpTo(2)` sends the key at `view.queue.order[2]`; `can('next')` false for a guest, true for a host and when off; `can('removeAt', {addedBy: 3})` true for guest session 3, false for 4; `shown()` is the view when on.
+  - `playback.svelte.test.js` (mock `./player.svelte.js` and `./rockola.svelte.js`, the latter exposing a plain `rockola` object the test mutates and `send` as `vi.fn()`): off → every function forwards to the player with the same arguments; on as host → `play({album: 1}, {startId: 5})` sends `play {what: {album: 1}, shuffle: false, startId: 5}`; on as guest → the same call sends `enqueue {what: {tracks: [5]}, shuffle: false, startIfIdle: true}`, `play({folder: 'x'}, {shuffle: true})` sends `enqueue {what: {folder: 'x'}, shuffle: true, startIfIdle: true}`; `jumpTo(2)` sends the key at `view.queue.order[2]`; `moveTo(2, 4)` sends `{key: order[2], toKey: order[4]}`; `can('next')` false for a guest, true for a host and when off; `can('removeAt', {addedBy: 3})` true for guest session 3, false for 4; `shown()` is the view when on.
 - [ ] **Step 2: Run** `cd web && npx vitest run src/lib/rockola.svelte.test.js src/lib/playback.svelte.test.js`: fails.
 - [ ] **Step 3: Implement** both libraries and switch the importers.
 - [ ] **Step 4: Run** `cd web && npx vitest run` and `cd web && npm run build`: pass; the grep above is empty.
@@ -1009,7 +1017,7 @@ Importers to switch to `playback.svelte.js` (same names; nothing else changes in
 
 Changes:
 - **Reproductor.svelte:** read `const p = $derived(shown())` and use `p` wherever it uses `player` today (`p.queue`, `p.playing`, `p.time`, …). Each control renders only when `can(<command>)`: ⤮ `toggleShuffle`, ⏮ `prev`, ⏭ `next`, 🔁 `cycleRepeat`, the progress input is `disabled` unless `can('seek')`, mute/volume only with `can('setVolume')`; ⏯ is always there. In Rockola mode (`remote()`): the seek and volume inputs send on `onchange` (decision 18; locally keep `oninput`); a label **Rockola · en la compu** above the title (`.rockola-tag`, accent color, small caps, 11 px); and when there is no entry the bar still shows, with the label and the text *La cola de la compu está vacía.* (so the mode is visible and can be turned off). The space-bar shortcut calls the facade's `toggle`.
-- **Cola.svelte:** read `p = shown()`; "Vaciar" only with `can('clearUpcoming')`; "Ajustar" and "Detener" of a station only with `can('setStation')`/`can('stopStation')`; a row's play button (`jumpTo`) is a plain row (not a button) unless `can('jumpTo')`; the ✕ shows only when `can('removeAt', u.entry)`. The "y N pistas más" line uses `(p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN)` so a phone sees the computer's real total.
+- **Cola.svelte:** read `p = shown()`; "Vaciar" only with `can('clearUpcoming')`; "Ajustar" and "Detener" of a station only with `can('setStation')`/`can('stopStation')`; a row's play button (`jumpTo`) is a plain row (not a button) unless `can('jumpTo')`; the drag handles show only with `can('moveTo')`; the ✕ shows only when `can('removeAt', u.entry)`. The "y N pistas más" line uses `(p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN)` so a phone sees the computer's real total.
 - **Nav.svelte:** when `!speaker.on && (rockolaAvailable() || rockola.on)`, a toggle button before `<Estado />`: `🎵 Rockola` with `aria-pressed={rockola.on}` and class `on` while on, calling `setRockola(!rockola.on)`; title *Elegí qué suena en la compu*. (A tab that is the speaker never shows it.)
 - **Dispositivos.svelte:** each session row gains a checkbox **Anfitrión de la rockola** (`checked={s.host}`, disabled like the close button) calling `api.setSessionHost(s.id, checked)` then `load()`; errors → `notify`. Under the heading, one help line: *Los anfitriones controlan la rockola por completo; el resto solo agrega temas, pausa y quita lo que agregó.*
 

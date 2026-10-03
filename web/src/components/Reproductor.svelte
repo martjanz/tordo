@@ -15,7 +15,9 @@
     toggleShuffle,
   } from '../lib/player.svelte.js'
   import * as Q from '../lib/queue.js'
+  import { app } from '../lib/app.svelte.js'
   import { albumHref } from '../lib/router.js'
+  import AgregarALista from './AgregarALista.svelte'
   import Cola from './Cola.svelte'
   import Icono from './Icono.svelte'
   import MeGusta from './MeGusta.svelte'
@@ -27,6 +29,7 @@
 
   let sheet = $state(false) // the full player, on phones
   let queueOpen = $state(false)
+  let adding = $state(null) // where the list picker is open: 'bar' or 'sheet'
 
   // Space plays and pauses, unless typing or on a button.
   function onkeydown(event) {
@@ -58,6 +61,16 @@
   </div>
 {/snippet}
 
+{#snippet addToList(where, size)}
+  {#if !app.status?.readOnly}
+    <span class="add">
+      <button class="icon" onclick={(e) => (e.stopPropagation(), (adding = adding === where ? null : where))} aria-haspopup="dialog"
+        aria-expanded={adding === where} title="Agregar a una lista" aria-label="Agregar a una lista"><Icono name="lists" {size} /></button>
+      {#if adding === where}<AgregarALista up right={where === 'sheet'} what={{ tracks: [entry.id] }} onclose={() => (adding = null)} />{/if}
+    </span>
+  {/if}
+{/snippet}
+
 {#snippet progress()}
   <div class="progress">
     <span class="time">{duration(player.time * 1000)}</span>
@@ -85,6 +98,7 @@
         <span class="artist">{entry.artist}</span>
       </span>
       <span class="like"><MeGusta kind="track" ref={entry.id} size={18} /></span>
+      <span class="like bar-add">{@render addToList('bar', 18)}</span>
       <button class="open cover-all" onclick={() => (sheet = true)} aria-label="Abrir el reproductor"></button>
     </div>
     <div class="center">
@@ -118,7 +132,10 @@
       </header>
       <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
       <div class="big-text">
-        <div class="big-title"><b>{entry.title}</b><MeGusta kind="track" ref={entry.id} size={24} /></div>
+        <div class="big-title">
+          <b>{entry.title}</b>
+          <span class="big-marks">{@render addToList('sheet', 24)}<MeGusta kind="track" ref={entry.id} size={24} /></span>
+        </div>
         <span>{entry.artist}</span>
         {#if entry.albumId}
           <a href={albumHref(entry.albumId)} onclick={() => (sheet = false)}>{entry.album}</a>
@@ -307,6 +324,15 @@
     z-index: 1;
     flex: none;
   }
+  .add {
+    position: relative;
+    display: inline-flex;
+  }
+  .big-marks {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
   .big-text b {
     font-size: 20px;
     color: var(--strong);
@@ -344,6 +370,9 @@
     }
     .pic {
       width: 44px;
+    }
+    .bar-add {
+      display: none; /* in the sheet instead */
     }
     .cover-all {
       display: block;

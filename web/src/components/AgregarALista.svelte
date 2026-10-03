@@ -1,11 +1,12 @@
 <script>
   // A popover to add something ({album}, {folder}, {tracks}…) to a playlist:
-  // pick one, or create a new one with it. The parent must be positioned.
+  // pick one, or create a new one with it. The parent must be positioned;
+  // up opens it above the parent (in the player bar).
   import { api } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
   import { count } from '../lib/format.js'
 
-  let { what, onclose, right = false } = $props()
+  let { what, onclose, right = false, up = false } = $props()
 
   let lists = $state(null)
   let name = $state('')
@@ -64,7 +65,7 @@
 
 <svelte:window onclick={onwindowclick} {onkeydown} />
 
-<div class="pop" class:right bind:this={root} role="dialog" aria-label="Agregar a una lista">
+<div class="pop" class:right class:up bind:this={root} role="dialog" aria-label="Agregar a una lista">
   {#if lists === null}
     <p class="sub">Cargando…</p>
   {:else if lists.length}
@@ -99,6 +100,11 @@
   .right {
     left: auto;
     right: 0;
+  }
+  .up {
+    top: auto;
+    bottom: 100%;
+    margin: 0 0 4px;
   }
   ul {
     list-style: none;

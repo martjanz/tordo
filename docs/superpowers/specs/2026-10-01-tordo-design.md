@@ -172,9 +172,9 @@ Tordo nunca borra: solo muestra.
 
 ### 7.1 Reproductor (simple en v1)
 
-- **Barra persistente** abajo (hoja desplegable en móvil): carátula, título/artista, ⏮ ⏯ ⏭, barra de progreso, volumen, ⤮ aleatorio, 🔁 repetir, botón de **cola**.
+- **Barra persistente** abajo (hoja desplegable en móvil): carátula, título/artista, ⏮ ⏯ ⏭, barra de progreso, volumen, ⤮ aleatorio, 🔁 repetir, botón de **cola** y **agregar a una lista** la pista que suena.
 - Un elemento `<audio>` activo y un segundo que **precarga** la siguiente pista y toma el relevo al terminar (casi-gapless).
-- **Cola en el navegador** (`localStorage`): cada dispositivo tiene la suya y sobrevive a recargar. "Reproducir" reemplaza la cola; "Agregar a la cola" y "Reproducir a continuación" agregan.
+- **Cola en el navegador** (`localStorage`): cada dispositivo tiene la suya y sobrevive a recargar. "Reproducir" reemplaza la cola; "Agregar a la cola" y "Reproducir a continuación" agregan. Lo que viene a continuación se **reordena** arrastrando (o con Alt + flechas), como en una lista; con aleatorio activo el cambio vale para el orden mezclado y se pierde al desactivarlo.
 - **Media Session API**: controles en pantalla bloqueada y auriculares; teclas multimedia.
 - **Streaming:** `GET /stream/{trackId}` con **Range**; los formatos que el navegador reproduce (mp3, flac, m4a/aac, opus, ogg, wav) se sirven tal cual. WMA, APE, WV, AIFF, ALAC se transcodifican al vuelo con ffmpeg a Opus o MP3 (sin seek). Sin ffmpeg: "no reproducible". Siempre por id, nunca por ruta.
 - **Normalización:** ganancia por pista (por álbum si se escucha un álbum en orden), aplicada con `audio.volume` (solo atenúa), objetivo ~−18 LUFS. Desactivable.
@@ -211,10 +211,10 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 **En el teléfono:**
 
 - La barra tiene el interruptor **🎵 Rockola**, habilitado solo si hay parlante conectado. Encendido, la barra dice *Rockola · en la compu*.
-- En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
+- En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/reordenar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
 - **Roles: anfitrión e invitado.** En Ajustes → Dispositivos (solo desde localhost) cada sesión tiene la marca **Anfitrión**; la compu misma siempre lo es. Por defecto, toda sesión es **invitado**, para que nadie interrumpa ni borre la cola sin querer.
   - **Anfitrión:** controla la rockola como su propio reproductor: ▶ reemplaza la cola, y todo lo demás sin restricciones ni confirmaciones.
-  - **Invitado:** solo aporta. ▶ agrega al final de la cola y, si en la compu no suena nada (cola vacía o terminada; una pausa no cuenta), además empieza a sonar; ▶ sobre una pista suelta agrega solo esa pista; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`); + cola y a continuación, como siempre. Puede ⏯ y quitar de la cola **solo las pistas que agregó él**. No puede ⏭ ⏮, seek, volumen, silencio, aleatorio/repetir, vaciar, reemplazar la cola ni iniciar o detener estaciones: esos botones no se muestran en su teléfono, y el servidor los rechaza (**403** *Solo el anfitrión puede hacer esto*).
+  - **Invitado:** solo aporta. ▶ agrega al final de la cola y, si en la compu no suena nada (cola vacía o terminada; una pausa no cuenta), además empieza a sonar; ▶ sobre una pista suelta agrega solo esa pista; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`); + cola y a continuación, como siempre. Puede ⏯ y quitar de la cola **solo las pistas que agregó él**. No puede ⏭ ⏮, seek, volumen, silencio, aleatorio/repetir, vaciar o reordenar la cola, reemplazarla ni iniciar o detener estaciones: esos botones no se muestran en su teléfono, y el servidor los rechaza (**403** *Solo el anfitrión puede hacer esto*).
   - El rol se consulta en cada orden, así que marcar o desmarcar un dispositivo rige de inmediato; el teléfono recibe su rol al conectarse y cuando cambia.
 - Los avisos de la acción (*Suena a continuación*, *2 pistas agregadas*, errores) aparecen en el teléfono que la mandó.
 - Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cada uno controla según su rol; las órdenes se aplican en orden de llegada, sin bloqueos.
@@ -234,7 +234,7 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 - **Órdenes permitidas** (lista blanca en Go, que valida el nombre, el rol y que `args` sea JSON chico; el parlante valida `args` antes de llamar al reproductor). Cada una corresponde 1:1 a una función exportada de `player.svelte.js`.
   - Invitado y anfitrión: `enqueue`, `toggle`, `removeAt`.
-  - Solo anfitrión: `play`, `playStation`, `stopStation`, `setStation`, `next`, `prev`, `jumpTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`.
+  - Solo anfitrión: `play`, `playStation`, `stopStation`, `setStation`, `next`, `prev`, `jumpTo`, `moveTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`.
 - **Quién agregó qué:** cada entrada de la cola guarda `addedBy` (la sesión de la orden que la agregó; vacío si la agregó la compu). El parlante, que recibe la sesión de origen con cada orden, rechaza el `removeAt` de un invitado sobre una entrada ajena, con aviso *Solo podés quitar lo que agregaste*. El estado publicado incluye `addedBy` para que el teléfono muestre ✕ solo en lo suyo.
 - **Rol en la base:** columna `host` (0/1) en `sessions` (migración de esquema); las peticiones desde localhost cuentan siempre como anfitrión.
 - **Estado publicado:** pista actual, tiempo, duración, sonando, volumen, silencio, aleatorio, repetir, estación, `blocked` (falta el clic de autoplay) y la cola recortada (hasta ~100 próximas y ~10 ya sonadas). Se publica en cada cambio con debounce de ~250 ms, más el tiempo cada ~1 s mientras suena.

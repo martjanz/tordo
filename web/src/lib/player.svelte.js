@@ -461,6 +461,12 @@ export function removeAt(pos) {
   else stop()
 }
 
+// moveTo moves an upcoming entry from one place of the play order to another.
+export function moveTo(from, to) {
+  player.queue = Q.move(player.queue, from, to)
+  persist()
+}
+
 export function clearUpcoming() {
   player.queue = Q.clearUpcoming(player.queue)
   persist()

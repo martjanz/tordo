@@ -131,6 +131,25 @@ export function remove(q, pos) {
   return { ...q, list, order, pos: order.length ? p : -1 }
 }
 
+// move takes the entry at place from of the play order to place to; both
+// are clamped to what is still to play. Without shuffle the list follows,
+// so the new order survives turning shuffle on and off.
+export function move(q, from, to) {
+  if (from <= q.pos || from >= q.order.length) return q
+  to = Math.min(Math.max(to, q.pos + 1), q.order.length - 1)
+  if (to === from) return q
+  const key = q.order[from]
+  const order = [...q.order]
+  order.splice(from, 1)
+  order.splice(to, 0, key)
+  if (q.shuffle) return { ...q, order }
+  // Without shuffle, put it in the list right after the entry now before it.
+  const list = q.list.filter((e) => e.key !== key)
+  const at = list.findIndex((e) => e.key === order[to - 1]) + 1
+  list.splice(at, 0, byKey(q, key))
+  return { ...q, list, order }
+}
+
 // clearUpcoming keeps what was played and the current entry, and drops the
 // rest.
 export function clearUpcoming(q) {

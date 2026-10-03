@@ -76,6 +76,42 @@ describe('moving', () => {
   })
 })
 
+describe('reordering', () => {
+  const q = Q.jump(Q.replace(Q.empty(), items(1, 2, 3, 4, 5), 0), 1) // playing 2
+  const listIds = (q) => q.list.map((e) => e.id)
+  it('moves an upcoming track, in the play order and the list', () => {
+    const m = Q.move(q, 4, 2)
+    expect(ids(m)).toEqual([1, 2, 5, 3, 4])
+    expect(listIds(m)).toEqual([1, 2, 5, 3, 4])
+    expect(cur(m)).toBe(2)
+    expect(ids(Q.move(q, 2, 4))).toEqual([1, 2, 4, 5, 3])
+  })
+  it('keeps the move after shuffle is turned off and on again', () => {
+    const m = Q.setShuffle(Q.setShuffle(Q.move(q, 4, 2), true, first), false)
+    expect(ids(m)).toEqual([1, 2, 5, 3, 4])
+  })
+  it('only moves within what is still to play', () => {
+    expect(ids(Q.move(q, 4, 0))).toEqual([1, 2, 5, 3, 4]) // clamped after the current one
+    expect(ids(Q.move(q, 2, 99))).toEqual([1, 2, 4, 5, 3])
+    expect(Q.move(q, 1, 3)).toBe(q) // the current track stays
+    expect(Q.move(q, 0, 3)).toBe(q) // and what was played
+    expect(Q.move(q, 9, 2)).toBe(q)
+    expect(Q.move(q, 3, 3)).toBe(q)
+  })
+  it('with shuffle on, moves only in the play order', () => {
+    const s = Q.setShuffle(q, true, first)
+    const m = Q.move(s, 4, 2)
+    expect(ids(m)).toEqual([...ids(s).slice(0, 2), ids(s)[4], ...ids(s).slice(2, 4)])
+    expect(listIds(m)).toEqual([1, 2, 3, 4, 5])
+  })
+  it('tells apart the same track queued twice', () => {
+    const d = Q.append(Q.replace(Q.empty(), items(1, 2), 0), items(1))
+    const m = Q.move(d, 2, 1)
+    expect(ids(m)).toEqual([1, 1, 2])
+    expect(m.order).toEqual([d.order[0], d.order[2], d.order[1]])
+  })
+})
+
 describe('removing', () => {
   const q = Q.jump(Q.replace(Q.empty(), items(1, 2, 3, 4), 0), 1)
   it('keeps the current track when another goes', () => {

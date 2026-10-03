@@ -1,7 +1,8 @@
 <script>
   import { itemCoverURL } from '../lib/api.js'
   import { count, duration } from '../lib/format.js'
-  import { clearUpcoming, jumpTo, player, removeAt, stopStation } from '../lib/player.svelte.js'
+  import { RowDrag } from '../lib/drag.svelte.js'
+  import { clearUpcoming, jumpTo, moveTo, player, removeAt, stopStation } from '../lib/player.svelte.js'
   import * as Q from '../lib/queue.js'
   import { summary } from '../lib/stations.js'
   import EstacionAjustes from './EstacionAjustes.svelte'
@@ -15,6 +16,24 @@
   const SHOWN = 200 // rows drawn; the rest are summed up
   const now = $derived(Q.current(player.queue))
   const next = $derived(Q.upcoming(player.queue))
+
+  // Upcoming rows reorder by dragging their handle or with Alt+arrows.
+  let list = $state()
+  const rows = new RowDrag({ rows: () => [...list.children], onmove: (from, to) => moveTo(next[from].pos, next[to].pos) })
+
+  // When the track changes the rows shift under a drag: drop it.
+  $effect(() => {
+    now?.key
+    rows.cancel()
+  })
+
+  function onkey(event, i) {
+    const to = rows.key(event, i, Math.min(next.length, SHOWN))
+    if (to < 0) return
+    // The row moves: keep the focus on its handle.
+    const key = next[to].entry.key
+    queueMicrotask(() => list?.querySelector(`[data-key="${key}"] .grip`)?.focus())
+  }
 </script>
 
 <aside class="cola" aria-label="Cola">
@@ -47,8 +66,13 @@
     {/if}
     {#if next.length > 0}
       <p class="label">A continuación</p>
-      {#each next.slice(0, SHOWN) as u (u.entry.key)}
-        <div class="row">
+      <div bind:this={list}>
+      {#each next.slice(0, SHOWN) as u, i (u.entry.key)}
+        <div class="row" class:dragging={rows.drag?.from === i} data-key={u.entry.key}
+          style:transform={rows.transform(i)} style:transition={rows.transition(i)}>
+          <button class="icon grip" aria-label="Mover {u.entry.title} (Alt + flechas)" title="Arrastrar para reordenar"
+            onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
+            onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
           <button class="play" onclick={() => jumpTo(u.pos)}>
             <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
             <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
@@ -59,6 +83,7 @@
           </button>
         </div>
       {/each}
+      </div>
       {#if next.length > SHOWN}
         <p class="more">y {count(next.length - SHOWN, 'pista más', 'pistas más')}</p>
       {/if}
@@ -70,6 +95,7 @@
 
 <style>
   .cola {
+    --grip-w: 32px;
     position: fixed;
     right: 0;
     top: 0;
@@ -133,8 +159,25 @@
     gap: 8px;
   }
   .row {
+    position: relative;
     display: flex;
     align-items: center;
+    border-radius: var(--radius);
+  }
+  .row.dragging {
+    z-index: 5;
+    background: var(--surface-2);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+  }
+  .grip {
+    flex: none;
+    width: var(--grip-w);
+    cursor: grab;
+    touch-action: none; /* a touch on the handle drags instead of scrolling */
+    color: var(--faint);
+  }
+  .dragging .grip {
+    cursor: grabbing;
   }
   .row .play,
   .current {
@@ -149,6 +192,7 @@
     text-align: left;
   }
   .current {
+    margin-left: var(--grip-w);
     padding-right: 48px;
   }
   .row .play:hover {

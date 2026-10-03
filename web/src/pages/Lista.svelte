@@ -8,6 +8,7 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { count, duration, length } from '../lib/format.js'
+  import { RowDrag } from '../lib/drag.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { move } from '../lib/order.js'
   import { play } from '../lib/player.svelte.js'
@@ -20,8 +21,8 @@
   let error = $state('')
   let renaming = $state(false)
   let draft = $state('')
-  let drag = $state(null) // { from, to, dy, h }
   let ol = $state()
+  const rows = new RowDrag({ rows: () => [...ol.children], onmove: reorder, onend: () => settle() })
 
   const writable = $derived(!app.status?.readOnly)
 
@@ -44,13 +45,13 @@
 
   // refresh reads the list again, or later if it is being edited.
   function refresh() {
-    if (drag || saving) stale = true
+    if (rows.drag || saving) stale = true
     else load()
   }
 
   // settle runs the deferred read once the drag and the saves are over.
   function settle() {
-    if (drag || saving || !(stale || failed)) return
+    if (rows.drag || saving || !(stale || failed)) return
     stale = failed = false
     load()
   }
@@ -131,60 +132,11 @@
   }
 
   function onkey(event, i) {
-    if (drag || !event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
-    event.preventDefault()
-    const to = i + (event.key === 'ArrowUp' ? -1 : 1)
-    if (to < 0 || to >= list.entries.length) return
-    reorder(i, to)
+    const to = rows.key(event, i, list.entries.length)
+    if (to < 0) return
     // The row moves: keep the focus on its handle.
     const itemId = list.entries[to].itemId
     queueMicrotask(() => ol?.querySelector(`[data-item="${itemId}"] .grip`)?.focus())
-  }
-
-  let rects = [] // the rows' boxes when the drag began
-  let startY = 0
-
-  function down(event, i) {
-    if (event.button > 0) return
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    rects = [...ol.children].map((li) => li.getBoundingClientRect())
-    startY = event.clientY
-    drag = { from: i, to: i, dy: 0, h: rects[i].height }
-  }
-
-  function movePointer(event) {
-    if (!drag) return
-    const dy = event.clientY - startY
-    const center = rects[drag.from].top + rects[drag.from].height / 2 + dy
-    // The new place: how many of the other rows lie above the dragged row's center.
-    let to = 0
-    rects.forEach((r, j) => {
-      if (j !== drag.from && r.top + r.height / 2 < center) to++
-    })
-    drag = { ...drag, dy, to }
-  }
-
-  function up() {
-    if (!drag) return
-    const { from, to } = drag
-    drag = null
-    reorder(from, to)
-    settle()
-  }
-
-  function cancel() {
-    drag = null
-    settle()
-  }
-
-  // shift is how far a row moves while another is dragged past it.
-  function shift(i) {
-    if (!drag) return 0
-    const { from, to, h } = drag
-    if (from < to && i > from && i <= to) return -h
-    if (from > to && i >= to && i < from) return h
-    return 0
   }
 
   // Focuses an input that appears after a click (autofocus does not fire then).
@@ -225,16 +177,16 @@
         <li
           class="row"
           class:unplayable={!e.trackId || e.playable === false}
-          class:dragging={drag?.from === i}
+          class:dragging={rows.drag?.from === i}
           data-item={e.itemId}
-          style:transform={drag ? `translateY(${drag.from === i ? drag.dy : shift(i)}px)` : undefined}
-          style:transition={drag && drag.from !== i ? 'transform 0.12s' : undefined}>
+          style:transform={rows.transform(i)}
+          style:transition={rows.transition(i)}>
           {#if e.trackId && e.playable !== false}
             <button class="play" onclick={() => play({ playlist: list.id }, { startId: e.trackId })} aria-label="Reproducir {e.title}"></button>
           {/if}
           {#if writable}
             <button class="icon grip" aria-label="Mover {e.title} (Alt + flechas)" title="Arrastrar para reordenar"
-              onpointerdown={(ev) => down(ev, i)} onpointermove={movePointer} onpointerup={up} onpointercancel={cancel}
+              onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
               onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
           {/if}
           <span class="n">{i + 1}</span>
