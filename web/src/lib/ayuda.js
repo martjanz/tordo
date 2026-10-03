@@ -31,7 +31,7 @@ export const SECTIONS = [
     id: 'secciones',
     title: 'Secciones',
     items: [
-      { term: 'Inicio', href: '/', text: 'Filas de álbumes para retomar: agregados recientemente, tus estaciones, seguir escuchando, tus me gusta y sugerencias que cambian en cada visita.' },
+      { term: 'Inicio', href: '/', text: 'Filas de álbumes para retomar: agregados recientemente, tus estaciones, seguir escuchando, tus canciones favoritas, tus álbumes preferidos y sugerencias que cambian en cada visita.' },
       { term: 'Explorar', href: '/explorar', text: 'Toda la colección por álbumes, artistas o pistas, con filtros combinables (década, país, género, formato, ♥, ★…) y orden.' },
       { term: 'Carpetas', href: '/carpetas', text: 'La colección tal como está en el disco, con un árbol de carpetas.' },
       { term: 'Listas', href: '/listas', text: 'Tus listas de reproducción y tus ♥.' },
@@ -43,8 +43,8 @@ export const SECTIONS = [
     id: 'conceptos',
     title: 'Conceptos',
     items: [
-      { term: 'Estaciones', text: 'Una cola sin fin con música parecida a lo que elegiste (un artista, un país, un género, una carpeta, tus ♥…). Tordo la alimenta de a diez pistas, varía los artistas y da más peso a lo que te gusta. Podés guardar una estación y la ves en Inicio.' },
-      { term: '♥ y ★', text: 'El ♥ marca pistas, álbumes, artistas y colecciones que te gustan; la ★ puntúa pistas y álbumes de 1 a 5. Sirven para filtrar en Explorar, para armar estaciones y pesan en ellas.' },
+      { term: 'Estaciones', text: 'Una cola sin fin con música parecida a lo que elegiste (un artista, un país, un género, una carpeta, tus ♥ y ✦…). Tordo la alimenta de a diez pistas, varía los artistas y da más peso a lo que te gusta. Podés guardar una estación y la ves en Inicio.' },
+      { term: '♥, ✦ y ★', text: 'El ♥ marca tus canciones favoritas (y los artistas y colecciones que te gustan); el ✦ marca álbumes preferidos, una lista corta a la que volver; la ★ puntúa pistas y álbumes de 1 a 5. Sirven para filtrar en Explorar (en Álbumes, «Preferidos»), para armar estaciones y pesan en ellas.' },
       { term: 'Duplicados', href: '/revisar/duplicados', blockedInListen: true, text: 'Tordo los muestra, nunca los borra. Exactas: el mismo audio en dos o más rutas (muestra el espacio recuperable). Formatos: la misma grabación en varios formatos dentro de un álbum, con la marca MEJOR en la de mayor calidad. Sospechas: mismo artista y título en álbumes distintos; es informativo y suele ser legítimo (un tema del disco y de un compilado).' },
       { term: 'Identificación', text: 'Después de cada escaneo, Tordo busca cada álbum en MusicBrainz y lo completa con títulos, año original y país del artista. Los géneros y estilos salen de Discogs (con un token en Ajustes; sin él, de MusicBrainz y de los tags). Lo que no puede resolver solo queda en Revisar, en Sin identificar, para elegir a mano. Sin conexión todo lo demás sigue funcionando y se reintenta solo.' },
       { term: 'Modo escucha', href: '/ajustes', text: 'Una opción de Ajustes que oculta Revisar y la curaduría y bloquea identificaciones, escaneos y cambios de géneros. Los ♥, las ★, las listas y las estaciones siguen funcionando. Es útil para dejar la música a otras personas.' },

@@ -71,6 +71,17 @@ describe('my data facets', () => {
     expect(valueLabel('puntaje', '4')).toBe('★★★★ o más')
     expect(valueLabel('megusta', 'si')).toBe('Me gusta')
   })
+  it('calls the megusta facet Preferidos on the albums tab only', async () => {
+    const F = await import('./facets.js')
+    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'albumes')).toBe('Preferidos')
+    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'pistas')).toBe('Me gusta')
+    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'artistas')).toBe('Me gusta')
+    expect(F.facetLabel({ name: 'pais', label: 'País' }, 'albumes')).toBe('País')
+    expect(valueLabel('megusta', 'si', undefined, 'albumes')).toBe('Preferidos')
+    expect(valueLabel('megusta', 'si', undefined, 'pistas')).toBe('Me gusta')
+    expect(chips({ view: 'albumes', facets: { megusta: 'si' } })[0].label).toBe('Preferidos')
+    expect(chips({ view: 'pistas', facets: { megusta: 'si' } })[0].label).toBe('Me gusta')
+  })
 })
 
 describe('escucha', () => {

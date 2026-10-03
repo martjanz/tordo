@@ -12,6 +12,8 @@ describe('station', () => {
   })
   it('has the built-ins', () => {
     expect(S.LIKED).toEqual({ name: 'Tus me gusta', source: { liked: true } })
+    expect(S.FAVORITE_TRACKS).toEqual({ name: 'Tus canciones favoritas', source: { view: 'pistas', facets: { megusta: 'si' } } })
+    expect(S.PREFERRED_ALBUMS).toEqual({ name: 'Álbumes preferidos', source: { view: 'albumes', facets: { megusta: 'si' } } })
     expect(S.LIBRARY).toEqual({ name: 'Toda la colección', source: {} })
     expect([S.LOW_WATER, S.RECENT, S.KEEP_PLAYED]).toEqual([3, 100, 100])
   })
@@ -26,6 +28,9 @@ describe('exploreStation', () => {
     const st = S.exploreStation({ view: 'pistas', facets: { decada: '1980', megusta: 'si' } })
     expect(st.name).toBe('1980s · Me gusta')
     expect(st.source).toEqual({ view: 'pistas', facets: { decada: '1980', megusta: 'si' } })
+  })
+  it('names the megusta facet after the tab', () => {
+    expect(S.exploreStation({ view: 'albumes', facets: { megusta: 'si' } }).name).toBe('Preferidos')
   })
   it('is the whole collection without facets', () => {
     expect(S.exploreStation({ view: 'albumes', facets: {} })).toEqual({ name: 'Toda la colección', source: { view: 'albumes', facets: {} } })

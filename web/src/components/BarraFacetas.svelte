@@ -3,7 +3,7 @@
   // applied.
   import { listenMode } from '../lib/app.svelte.js'
   import { count } from '../lib/format.js'
-  import { chips, FACETS, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
+  import { chips, FACETS, facetLabel, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
 
   // query: the applied query; facets: the server's counts per facet;
   // onchange(query): a new query was chosen.
@@ -33,7 +33,7 @@
     const all = facets?.[name] ?? []
     const f = (filters[name] ?? '').trim().toLowerCase()
     if (!f) return all
-    return all.filter((v) => valueLabel(name, v.value, v).toLowerCase().includes(f))
+    return all.filter((v) => valueLabel(name, v.value, v, query.view).toLowerCase().includes(f))
   }
 
   function onwindowclick(event) {
@@ -57,7 +57,7 @@
     {#each list as v (v.value)}
       <li>
         <button class="option" class:chosen={query.facets[name] === v.value} onclick={() => choose(name, v.value)}>
-          <span>{valueLabel(name, v.value, v)}</span><span class="count">{v.count}</span>
+          <span>{valueLabel(name, v.value, v, query.view)}</span><span class="count">{v.count}</span>
         </button>
       </li>
     {:else}
@@ -91,7 +91,7 @@
   {#each main as f (f.name)}
     <div class="facet">
       <button class="dd" class:on={query.facets[f.name]} onclick={() => toggle(f.name)} aria-expanded={open === f.name}>
-        {f.label} ▾
+        {facetLabel(f, query.view)} ▾
       </button>
       {#if open === f.name}
         <div class="menu">{@render menu(f.name)}</div>
@@ -105,7 +105,7 @@
     {#if open === 'more'}
       <div class="menu wide">
         {#each more as f (f.name)}
-          <div class="label sub">{f.label}</div>
+          <div class="label sub">{facetLabel(f, query.view)}</div>
           {@render menu(f.name)}
         {/each}
       </div>

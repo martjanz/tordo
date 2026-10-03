@@ -40,7 +40,7 @@ Colección completa: ~1,5 TB, en 1–5 carpetas de un mismo disco. Muestra anali
 - Reproducción en los parlantes del equipo que corre tordo **sin navegador** (equipo sin pantalla, p. ej. Raspberry Pi: salida de audio desde el servidor). La variante con una pestaña abierta en la compu es la **Rockola** (§7.5, M6).
 - Importación de `.m3u`.
 - Multiusuario.
-- **Favoritos separados por tipo** (pedido 2026-10-02, después de M5): el ♥ de pistas y el ♥ de álbumes dejan de ser una sola bolsa "Me gusta". Las pistas con ♥ forman una lista de reproducción automática (*Canciones favoritas*); los álbumes con ♥ van a una sección propia, una **colección de cabecera** (*comfort collection*) para volver a ellos, no mezclada con la de pistas.
+- **Favoritos separados por tipo** (pedido 2026-10-02, después de M5; **implementado**): el ♥ de pistas y la marca de álbumes dejan de ser una sola bolsa "Me gusta". Las pistas con ♥ son las **Canciones favoritas** (una lista de reproducción automática); los álbumes se marcan con ✦ y son los **Álbumes preferidos**, una lista corta para volver a ellos (no son "favoritos"), no mezclada con la de pistas. Artistas y colecciones conservan el ♥ y "Me gusta". Sin cambio de esquema: la marca de álbum de siempre (`kind: album`) pasa a ser Preferido.
 - **Modo escucha / fiesta** (pedido 2026-10-02, después de M5): modo de solo lectura que oculta la curaduría y el mantenimiento: sin **Revisar** (sin identificar, duplicados, géneros por mapear, formatos a convertir) y sin las marcas de duplicados y versiones en Álbum y Explorar. Queda lo de escuchar: Inicio, Explorar, Carpetas, Listas, búsqueda, cola y estaciones. Implementado: flag global `listenMode` en config.json; el servidor responde 403 en las rutas de curaduría (escaneo, identificación, colecciones, alias de géneros); se activa en Ajustes (solo desde el equipo).
 - **Ayuda** (pedido 2026-10-03): sección de ayuda dentro de la app con atajos de teclado y comandos (⌕ Ctrl+K / ⌘K, controles del reproductor), qué hace cada sección (Inicio, Explorar, Carpetas, Listas, Revisar, Ajustes), cómo funcionan las estaciones, ♥ y ★, los duplicados y la identificación, y pautas de uso (qué escribe tordo y qué no, portabilidad, acceso desde la LAN con PIN). Contenido estático embebido, accesible desde ⚙ o con `?`.
 
@@ -194,8 +194,8 @@ Tordo nunca borra: solo muestra.
 
 ### 7.4 Me gusta, puntajes y listas
 
-- **♥ Me gusta** en pistas, álbumes, artistas y colecciones. **★ 1–5** en pistas y álbumes.
-- Ambos son faceta, fuente de estación ("Me gusta") y peso en estaciones. Fila *Tus me gusta* en Inicio; sección "Me gusta" en Listas, filtrable por tipo.
+- **♥ Me gusta** en pistas (*Canciones favoritas*), artistas y colecciones. **✦ Preferido** en álbumes (*Álbumes preferidos*). **★ 1–5** en pistas y álbumes.
+- Todos son faceta, fuente de estación y peso en estaciones. La faceta `megusta` se llama "Preferidos" en la pestaña Álbumes y "Me gusta" en Pistas y Artistas (misma URL). Filas *Tus canciones favoritas* y *Álbumes preferidos* en Inicio; en Listas, las secciones *Canciones favoritas*, *Álbumes preferidos* y "Me gusta" (artistas y colecciones).
 - **Listas de reproducción**: crear, renombrar, reordenar (arrastrar), agregar desde el menú de pista/álbum, reproducir completas o como estación. Sin importación de `.m3u` en v1.
 
 ### 7.5 Rockola (audio de esta compu)
@@ -256,10 +256,10 @@ Estética de la familia de Cinexplorer: tema oscuro, Inter, imagen primero, pero
 
 Navegación: **Inicio · Explorar · Carpetas · Listas · Revisar** + ⌕ (Ctrl+K / ⌘K) + ⚙.
 
-- **Inicio** — filas fijas (*Agregados recientemente*, *Tus estaciones*, *Seguir escuchando*, *Tus me gusta*) y rotativas por visita con ↻ (una década, un país, un género/estilo, una colección, *nunca escuchados*, *sin escuchar hace un año*, *álbumes al azar*). Cada fila: "ver todas →" (Explorar con esa faceta) y "▶ estación".
-- **Explorar** — pestañas **Álbumes / Artistas / Pistas**; facetas combinables: década/año, artista, país, género → estilo, colección, carpeta, formato (lossless/lossy/codec), me gusta, puntaje, estado (sin identificar, con duplicados, no reproducible). Orden: año, título, artista, agregado, más escuchado. Facetas en la URL.
+- **Inicio** — filas fijas (*Agregados recientemente*, *Tus estaciones*, *Seguir escuchando*, *Tus canciones favoritas*, *Álbumes preferidos*) y rotativas por visita con ↻ (una década, un país, un género/estilo, una colección, *nunca escuchados*, *sin escuchar hace un año*, *álbumes al azar*). Cada fila: "ver todas →" (Explorar con esa faceta) y "▶ estación".
+- **Explorar** — pestañas **Álbumes / Artistas / Pistas**; facetas combinables: década/año, artista, país, género → estilo, colección, carpeta, formato (lossless/lossy/codec), me gusta ("Preferidos" en Álbumes), puntaje, estado (sin identificar, con duplicados, no reproducible). Orden: año, título, artista, agregado, más escuchado. Facetas en la URL.
 - **Carpetas** — árbol del disco tal cual, orden natural, migas de pan; ▶ y ⤮ en cada nivel (recursivo, en orden).
-- **Listas** — listas de reproducción, colecciones detectadas y Me gusta.
+- **Listas** — listas de reproducción, colecciones detectadas, Canciones favoritas, Álbumes preferidos y Me gusta (artistas y colecciones).
 - **Álbum** — carátula, artista, año original, país, géneros/estilos, pistas con formato, ♥ y ★, versiones/duplicados, carpeta. Acciones: ▶, ⤮, + cola, + lista, estación, ♥, ⋯ (corregir identificación).
 - **Artista** — foto, país, años, álbumes por año, apariciones en compilados, más escuchadas, ♥, ▶ estación.
 - **Colección / Carpeta** — álbumes en el orden de la colección, ♥ (colección), ▶, ⤮, estación, ⋯ "no es una colección".

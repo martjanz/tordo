@@ -1,6 +1,7 @@
 <script>
-  // Lists: the playlists, what the user likes (tracks, albums, artists,
-  // collections) and the collections found in the folders.
+  // Lists: the playlists, favourite tracks (♥), Preferidos albums (✦), what
+  // else the user likes (artists, collections) and the collections found in
+  // the folders.
   import ListaPistas from '../components/ListaPistas.svelte'
   import Icono from '../components/Icono.svelte'
   import MeGusta from '../components/MeGusta.svelte'
@@ -22,7 +23,7 @@
   let collections = $state(null)
   let likedLists = $state(null)
   let error = $state('')
-  let tab = $state('tracks')
+  let tab = $state('artists')
   let creating = $state(false)
   let name = $state('')
   let busy = false
@@ -52,8 +53,6 @@
   })
 
   const tabs = $derived([
-    { id: 'tracks', label: 'Pistas', n: likedLists?.tracks.length ?? 0 },
-    { id: 'albums', label: 'Álbumes', n: likedLists?.albums.length ?? 0 },
     { id: 'artists', label: 'Artistas', n: likedLists?.artists.length ?? 0 },
     { id: 'collections', label: 'Colecciones', n: likedLists?.collections.length ?? 0 },
   ])
@@ -120,6 +119,30 @@
   {/if}
 {/if}
 
+<h2>Canciones favoritas</h2>
+{#if likedLists}
+  {#if likedLists.tracks.length === 0}
+    <p class="empty">Todavía no hay canciones favoritas: tocá ♥ en las que te gusten.</p>
+  {:else}
+    <div class="bar">
+      <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> Reproducir</button>
+      <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
+    </div>
+    <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(t) => play({ liked: true }, { startId: t.id })} />
+  {/if}
+{/if}
+
+<h2>Álbumes preferidos</h2>
+{#if likedLists}
+  {#if likedLists.albums.length === 0}
+    <p class="empty">Todavía no hay álbumes preferidos: tocá ✦ en los que quieras tener a mano.</p>
+  {:else}
+    <div class="grid">
+      {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
+    </div>
+  {/if}
+{/if}
+
 <h2>Me gusta</h2>
 {#if likedLists}
   <div class="tabs" role="tablist">
@@ -129,16 +152,6 @@
   </div>
   {#if tabs.find((t) => t.id === tab).n === 0}
     <p class="empty">Nada por acá todavía: tocá ♥ en lo que te guste.</p>
-  {:else if tab === 'tracks'}
-    <div class="bar">
-      <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> Reproducir</button>
-      <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
-    </div>
-    <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(t) => play({ liked: true }, { startId: t.id })} />
-  {:else if tab === 'albums'}
-    <div class="grid">
-      {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
-    </div>
   {:else if tab === 'artists'}
     <div class="grid">
       {#each likedLists.artists as a (a.key)}<TarjetaArtista artist={a} />{/each}

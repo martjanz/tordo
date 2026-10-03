@@ -76,7 +76,7 @@ que corre Tordo", and you can only close your session.
 Explorar lists albums, artists or tracks of the whole catalog, filtered by
 decade and year, artist, country, genre and style, collection, folder,
 quality, format and state (not identified, not playable); it also filters by
-Me gusta (♥) and Puntaje (★ N or more), and orders by Más escuchado. The
+Me gusta (♥; labelled Preferidos on the Álbumes tab, where it filters by the ✦ mark) and Puntaje (★ N or more), and orders by Más escuchado. The
 filters live in the URL. Artist pages show their albums by year and their tracks on
 compilations. The search (Ctrl+K / ⌘K) finds artists, albums, tracks and
 folders while typing, ignoring case and accents. Carpetas is a file explorer:
@@ -96,7 +96,10 @@ cached in `cache/thumbs/`.
 
 #### Likes and ratings
 
-Mark tracks, albums, artists and collections with ♥ (me gusta). Rate tracks and
+Mark tracks, artists and collections with ♥ (me gusta; liked tracks are the
+*Canciones favoritas*). Mark albums with ✦ (*Preferido*): albums are a shortlist to
+come back to, not favourites. Preferidos are stored as album marks (`kind: album`
+in the API). Rate tracks and
 albums with ★ (1–5 stars). These marks are shown on track rows (alongside a menu
 with rating, "A continuación", "A la cola", and "Agregar a una lista…"), album
 page headers, artist pages, the player bar, collection cards and folder pages.
@@ -119,8 +122,9 @@ skipped when playing. Max 5000 entries per playlist.
 
 #### Listas page
 
-View your playlists and curation: Listas de reproducción, your Me gusta by
-type (Pistas · Álbumes · Artistas · Colecciones), and your Colecciones.
+View your playlists and curation: Listas de reproducción, Canciones favoritas (♥ tracks, an
+automatic playlist), Álbumes preferidos (✦ albums, most recently marked first),
+your Me gusta (Artistas · Colecciones), and your Colecciones.
 
 #### Stations
 
@@ -132,7 +136,8 @@ source is one of:
 - A **folder** (recursive; collections are folders too).
 - A **playlist** (the entries that can still play).
 - **Liked** (♥ me gusta): all liked tracks, all tracks of liked albums, all tracks of
-  liked artists, and all tracks of liked collections.
+  liked artists, and all tracks of liked collections (a ✦ Preferido album counts like a
+  liked album).
 
 **Modes** are `pistas` (track by track) or `albumes` (whole albums at a time; a single
 track counts as an album of one).
@@ -164,8 +169,9 @@ out. Saved stations are stored by name and live in Tus estaciones on Inicio.
 The first page, showing:
 - Fixed rows: **Agregados recientemente** (newest albums), **Tus estaciones** (saved
   stations, plus two built-ins: "Toda la colección" and "Tus me gusta" when something
-  is liked), **Seguir escuchando** (albums by their latest play), **Tus me gusta**
-  (liked albums, most recent first).
+  is liked), **Seguir escuchando** (albums by their latest play), **Tus canciones
+  favoritas** (albums holding ♥ tracks, by the latest liked) and **Álbumes
+  preferidos** (✦ albums, most recent first).
 - **Three rotating rows**, drawn with a seed from the catalog's facets (decade,
   country, genre, style, collections, never-played albums, unheard-in-a-year albums,
   random albums). Most rows need at least 4 albums to be drawn; the random albums row
@@ -220,10 +226,10 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `GET /api/review/duplicates?tipo=` | duplicate groups; `tipo` is exactas, formatos, or sospechas (default: exactas when missing or unknown); returns `{counts, recoverable, groups}` |
 | `GET /api/review/formats` | tracks needing conversion by format |
 | `GET /api/marks` | likes and ratings for tracks and albums (by id), and liked artists and collections |
-| `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
+| `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection; `album` is the ✦ Preferido mark) |
 | `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
 | `POST /api/plays` | record a play of a track (`{id, listenedMs, device}`); ignored in browse-only mode |
-| `GET /api/liked` | the liked tracks, albums, artists and collections, most recent first |
+| `GET /api/liked` | the liked tracks (♥), preferred albums (✦), liked artists and collections, most recent first |
 | `GET /api/gains?track=` | each track's gains in dB (`{id: {trackGain, albumGain}}`, from ReplayGain tags or measured loudness); unmeasured tracks go first in the analysis queue; tracks marked "unmeasurable" (no ReplayGain tag and measurement failed permanently) are not re-analyzed |
 | `GET /api/playlists` | user's playlists |
 | `POST /api/playlists` | create a new playlist |

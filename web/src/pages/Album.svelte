@@ -1,6 +1,6 @@
 <script>
   import Acciones from '../components/Acciones.svelte'
-  import MeGusta from '../components/MeGusta.svelte'
+  import Preferido from '../components/Preferido.svelte'
   import Puntaje from '../components/Puntaje.svelte'
   import Identificar from '../components/Identificar.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
@@ -79,7 +79,7 @@
       <p class="sub">{formats}{unplayable ? ` · ${count(unplayable, 'pista necesita', 'pistas necesitan')} ffmpeg` : ''}</p>
       <a class="path" href={folderHref(album.dir)}>{folderName(album.dir)}</a>
       <div class="marks">
-        <MeGusta kind="album" ref={album.id} size={20} />
+        <Preferido ref={album.id} size={20} />
         <Puntaje kind="album" id={album.id} />
       </div>
       <Acciones what={{ album: album.id }} station={albumStation(album)} />

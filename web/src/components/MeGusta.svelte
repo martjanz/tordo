@@ -1,5 +1,5 @@
 <script>
-  // A heart toggle for a track, album, artist or collection. In browse-only
+  // A heart toggle for a track, artist or collection (albums have Preferido). In browse-only
   // mode: a static heart when liked, nothing otherwise.
   import { app } from '../lib/app.svelte.js'
   import { isLiked } from '../lib/marks.js'

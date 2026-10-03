@@ -10,7 +10,7 @@
   import { mine } from '../lib/mine.svelte.js'
   import { playStation } from '../lib/player.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
-  import { LIBRARY, LIKED, rowTitle, station } from '../lib/stations.js'
+  import { FAVORITE_TRACKS, LIBRARY, LIKED, PREFERRED_ALBUMS, rowTitle, station } from '../lib/stations.js'
 
   const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 
@@ -58,7 +58,7 @@
   const stations = $derived([LIBRARY, ...(anyLike ? [LIKED] : []), ...(data?.stations ?? [])])
   const rotating = $derived((data?.rotating ?? []).filter((r) => r.albums?.length))
   const empty = $derived(
-    data && !data.recent?.length && !data.continue?.length && !data.liked?.length && !rotating.length,
+    data && !data.recent?.length && !data.continue?.length && !data.likedTracks?.length && !data.liked?.length && !rotating.length,
   )
   const scanning = $derived(!!app.status?.scan?.running)
 </script>
@@ -94,8 +94,11 @@
     {#if data.continue?.length}
       <FilaAlbumes title="Seguir escuchando" href="/explorar?orden=escuchado" albums={data.continue} />
     {/if}
+    {#if data.likedTracks?.length}
+      <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ megusta: 'si' }, 'pistas')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
+    {/if}
     {#if data.liked?.length}
-      <FilaAlbumes title="Tus me gusta" href={exploreHref({ megusta: 'si' })} station={LIKED} albums={data.liked} />
+      <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ megusta: 'si' })} station={PREFERRED_ALBUMS} albums={data.liked} />
     {/if}
     {#each rotating as row, i (row.kind + ':' + row.value)}
       <FilaAlbumes

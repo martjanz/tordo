@@ -13,6 +13,10 @@ export function station(name, source, rules = DEFAULT_RULES) {
 }
 
 export const LIKED = { name: 'Tus me gusta', source: { liked: true } }
+// Favourite (♥) tracks and Preferidos albums, as stations from Explorar's
+// "megusta" facet: the track mark on pistas, the album mark on albumes.
+export const FAVORITE_TRACKS = { name: 'Tus canciones favoritas', source: { view: 'pistas', facets: { megusta: 'si' } } }
+export const PREFERRED_ALBUMS = { name: 'Álbumes preferidos', source: { view: 'albumes', facets: { megusta: 'si' } } }
 export const LIBRARY = { name: 'Toda la colección', source: {} }
 
 // decadeName: "1980" → "Los 80", "2000" → "Los 2000".
@@ -26,7 +30,7 @@ function decadeName(decade) {
 export function exploreStation(query, counts = {}) {
   const facets = { ...query.facets }
   const labels = NAMES.filter((n) => facets[n]).map((n) =>
-    valueLabel(n, facets[n], (counts[n] ?? []).find((v) => v.value === facets[n])),
+    valueLabel(n, facets[n], (counts[n] ?? []).find((v) => v.value === facets[n]), query.view),
   )
   const view = query.view === 'pistas' ? 'pistas' : 'albumes'
   return { name: labels.length ? labels.join(' · ') : LIBRARY.name, source: { view, facets } }

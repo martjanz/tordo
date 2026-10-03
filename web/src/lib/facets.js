@@ -25,6 +25,12 @@ export const FACETS = [
   { name: 'estado', label: 'Estado', more: true },
 ]
 
+// facetLabel is a facet's name in the bar. On the albums tab the "megusta"
+// facet (same URL) reads Preferidos: albums are a shortlist, not favourites.
+export function facetLabel(facet, view) {
+  return facet.name === 'megusta' && view === 'albumes' ? 'Preferidos' : facet.label
+}
+
 // NAMES are the facets in URL order, the year and style included.
 export const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado', 'megusta', 'puntaje', 'escucha']
 
@@ -132,8 +138,8 @@ export function withOrder(query, order) {
 }
 
 // valueLabel is how a facet value reads in menus and chips. counted is the
-// server's {value, label, count} when known.
-export function valueLabel(name, value, counted) {
+// server's {value, label, count} when known; view is Explorar's tab.
+export function valueLabel(name, value, counted, view) {
   switch (name) {
     case 'decada':
       return `${value}s`
@@ -141,9 +147,10 @@ export function valueLabel(name, value, counted) {
       return country(value)
     case 'formato':
       return formatName(value)
+    case 'megusta':
+      return view === 'albumes' ? 'Preferidos' : LABELS.megusta[value] ?? value
     case 'calidad':
     case 'estado':
-    case 'megusta':
     case 'puntaje':
     case 'escucha':
       return LABELS[name][value] ?? value
@@ -158,7 +165,7 @@ export function chips(query, counts = {}) {
     const value = query.facets[name]
     if (!value) continue
     const counted = (counts[name] ?? []).find((v) => v.value === value)
-    out.push({ name, value, label: valueLabel(name, value, counted) })
+    out.push({ name, value, label: valueLabel(name, value, counted, query.view) })
   }
   return out
 }
