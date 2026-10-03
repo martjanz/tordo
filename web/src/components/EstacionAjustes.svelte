@@ -22,9 +22,14 @@
     [90, '90 días'],
   ]
 
+  // The form edits a copy: it deliberately captures the station's initial values.
+  /* svelte-ignore state_referenced_locally */
   let name = $state(station.name)
+  /* svelte-ignore state_referenced_locally */
   let mode = $state(station.mode)
+  /* svelte-ignore state_referenced_locally */
   let artistGap = $state(station.artistGap)
+  /* svelte-ignore state_referenced_locally */
   let avoidDays = $state(station.avoidDays)
   let busy = $state(false)
   let root = $state()

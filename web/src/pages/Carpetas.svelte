@@ -22,7 +22,7 @@
   // Narrow screens show one list per folder instead of the two panels.
   let narrow = $state(matchMedia('(max-width: 720px)').matches)
   let reduced = $state(matchMedia('(prefers-reduced-motion: reduce)').matches)
-  let dir = 'none' // how the shown folder changed: 'forward' | 'back' | 'none'
+  let dir = $state('none') // how the shown folder changed: 'forward' | 'back' | 'none'
   let shown = null // the folder path currently shown
   // The first load after mount restores the scroll too: arriving by going back from another page
   // fires popstate before this page exists. Later, only popstate sets it.
