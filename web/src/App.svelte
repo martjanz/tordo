@@ -2,6 +2,7 @@
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, watchStatus } from './lib/app.svelte.js'
+  import { auth, checkAuth } from './lib/auth.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
@@ -11,6 +12,7 @@
   import Bienvenida from './pages/Bienvenida.svelte'
   import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
+  import Entrar from './pages/Entrar.svelte'
   import Estadisticas from './pages/Estadisticas.svelte'
   import Explorar from './pages/Explorar.svelte'
   import Inicio from './pages/Inicio.svelte'
@@ -25,10 +27,22 @@
     if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/bienvenida', { replace: true })
   })
 
-  watchStatus()
+  // Who is asking: a device on the network without a session sees only the
+  // PIN screen, and nothing is requested until it has one.
+  checkAuth()
+  const ready = $derived(auth.checked && !auth.pinRequired)
+
+  let watching = false
+  $effect(() => {
+    if (ready && !watching) {
+      watching = true
+      watchStatus()
+    }
+  })
 
   // The ids of the marks can change after a scan.
   $effect(() => {
+    if (!ready) return
     app.generation
     loadMine()
   })
@@ -46,6 +60,12 @@
 
 <svelte:window {onclick} />
 
+{#if !ready}
+  <Nav page="" bare />
+  {#if auth.checked}
+    <main><Entrar /></main>
+  {/if}
+{:else}
 <Nav page={current.page} bare={current.page === 'bienvenida'} />
 
 <main>
@@ -85,6 +105,7 @@
 </main>
 
 <Reproductor />
+{/if}
 
 <div class="notices" aria-live="polite">
   {#each app.notices as n (n.id)}

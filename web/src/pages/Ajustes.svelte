@@ -1,10 +1,13 @@
 <script>
   import { untrack } from 'svelte'
+  import Dispositivos from '../components/Dispositivos.svelte'
   import Raices from '../components/Raices.svelte'
+  import RedLocal from '../components/RedLocal.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
   import { notify, settingsSaved } from '../lib/app.svelte.js'
-  import { body, changed, draft, savedNotice } from '../lib/settings.js'
+  import { auth, checkAuth } from '../lib/auth.svelte.js'
+  import { body, changed, draft, pinProblem, portProblem, savedNotice } from '../lib/settings.js'
 
   let config = $state(null)
   let d = $state(null)
@@ -34,6 +37,23 @@
   })
 
   const dirty = $derived(!!config && !!d && changed(config, d))
+  const lanInvalid = $derived(
+    !!d &&
+      !!config &&
+      ((d.lan.enabled && portProblem(d.lan.port) !== '') || pinProblem(d.lan.pin, config.lan.hasPin, d.lan.enabled) !== ''),
+  )
+
+  // Another device ends its own session and gets the PIN screen.
+  async function logout() {
+    try {
+      await api.logout()
+    } catch (e) {
+      error = e.message
+      return
+    }
+    auth.pinRequired = true
+    checkAuth()
+  }
 
   async function save() {
     saving = true
@@ -58,6 +78,10 @@
   <h1>Ajustes</h1>
   {#if forbidden}
     <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
+    {#if !auth.local}
+      <button onclick={logout}>Cerrar sesión en este dispositivo</button>
+      {#if error}<p class="warn" role="alert">{error}</p>{/if}
+    {/if}
   {:else if loadError}
     <p class="warn" role="alert">{loadError}</p>
   {:else if d}
@@ -103,12 +127,16 @@
 
     <section id="red">
       <h2>Red local</h2>
+      {#key version}
+        <RedLocal bind:d {config} disabled={config.readOnly} />
+        {#if config.lan.enabled}<Dispositivos disabled={config.readOnly} />{/if}
+      {/key}
     </section>
 
     {#if !config.readOnly}
       {#if error}<p class="warn" role="alert">{error}</p>{/if}
       <div class="actions">
-        <button class="primary" onclick={save} disabled={!dirty || saving || !d.roots.some((r) => r.checked)}>
+        <button class="primary" onclick={save} disabled={!dirty || saving || lanInvalid || !d.roots.some((r) => r.checked)}>
           {saving ? 'Guardando…' : 'Guardar'}
         </button>
         {#if dirty}<button onclick={() => ((d = draft(config)), version++)} disabled={saving}>Descartar</button>{/if}
