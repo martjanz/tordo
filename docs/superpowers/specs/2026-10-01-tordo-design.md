@@ -212,9 +212,12 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 - La barra tiene el interruptor **🎵 Rockola**, habilitado solo si hay parlante conectado. Encendido, la barra dice *Rockola · en la compu*.
 - En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
-- **En modo Rockola, ▶ agrega en vez de reemplazar**, para que nadie interrumpa ni borre la cola sin querer: ▶ agrega al final de la cola (*Agregado a la cola de la rockola*) y, si en la compu no suena nada, además empieza a sonar; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`). Reemplazar la cola sigue siendo posible pero deliberado: **Reproducir ahora (reemplaza la cola)** en el menú ⋯ y **▶ Estación** piden confirmación (*Esto reemplaza la cola de la rockola*). Los controles de transporte (⏯ ⏭ ⏮, seek, volumen, quitar de la cola) funcionan sin cambios.
+- **Roles: anfitrión e invitado.** En Ajustes → Dispositivos (solo desde localhost) cada sesión tiene la marca **Anfitrión**; la compu misma siempre lo es. Por defecto, toda sesión es **invitado**, para que nadie interrumpa ni borre la cola sin querer.
+  - **Anfitrión:** controla la rockola como su propio reproductor: ▶ reemplaza la cola, y todo lo demás sin restricciones ni confirmaciones.
+  - **Invitado:** solo aporta. ▶ agrega al final de la cola (*Agregado a la cola de la rockola*) y, si en la compu no suena nada, además empieza a sonar; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`); + cola y a continuación, como siempre. Puede ⏯ y quitar de la cola **solo las pistas que agregó él**. No puede ⏭ ⏮, seek, volumen, silencio, aleatorio/repetir, vaciar, reemplazar la cola ni iniciar o detener estaciones: esos botones no se muestran en su teléfono, y el servidor los rechaza (**403** *Solo el anfitrión puede hacer esto*).
+  - El rol se consulta en cada orden, así que marcar o desmarcar un dispositivo rige de inmediato; el teléfono recibe su rol al conectarse y cuando cambia.
 - Los avisos de la acción (*Suena a continuación*, *2 pistas agregadas*, errores) aparecen en el teléfono que la mandó.
-- Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cualquiera controla; las órdenes se aplican en orden de llegada, sin bloqueos.
+- Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cada uno controla según su rol; las órdenes se aplican en orden de llegada, sin bloqueos.
 - Sin parlante: *La rockola no está disponible: activá el audio en la compu*. Si el parlante se desconecta: *Se perdió la conexión con la rockola* y el teléfono sale del modo, sin reproducir solo. Si la compu necesita el clic de autoplay: *La compu necesita un clic para sonar*.
 - Reproducciones, historial y normalización ocurren en la compu, como cualquier reproducción; el dispositivo registrado es el de la compu.
 
@@ -225,10 +228,15 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 | `GET /api/jukebox/speaker` (SSE) | solo localhost | registra el parlante y reemplaza al anterior (que recibe `replaced`); recibe eventos `command` |
 | `POST /api/jukebox/state` | solo localhost, con token | publica el estado; el hub lo guarda y lo reparte a los remotos |
 | `POST /api/jukebox/notice` | solo localhost, con token | aviso dirigido a un remoto (`{remote, text}`) |
-| `GET /api/jukebox/events` (SSE) | cualquier sesión | el remoto recibe su id, el estado actual (o `speaker-off`) y luego `state`, `notice`, `speaker-on`, `speaker-off` |
-| `POST /api/jukebox/command` | cualquier sesión | `{remote, command, args}`; se reenvía al parlante, o **409** si no hay |
+| `GET /api/jukebox/events` (SSE) | cualquier sesión | el remoto recibe su id y su rol, el estado actual (o `speaker-off`) y luego `state`, `notice`, `role`, `speaker-on`, `speaker-off` |
+| `POST /api/jukebox/command` | cualquier sesión | `{remote, command, args}`; el remoto debe pertenecer a la sesión; **403** si el rol no alcanza; se reenvía al parlante con la sesión de origen, o **409** si no hay parlante |
+| `PUT /api/sessions/{id}/host` | solo localhost | marca o desmarca la sesión como anfitrión |
 
-- **Órdenes permitidas** (lista blanca en Go, que valida el nombre y que `args` sea JSON chico; el parlante valida `args` antes de llamar al reproductor): `play`, `enqueue`, `playStation`, `stopStation`, `toggle`, `next`, `prev`, `jumpTo`, `removeAt`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`. Cada una corresponde 1:1 a una función exportada de `player.svelte.js`.
+- **Órdenes permitidas** (lista blanca en Go, que valida el nombre, el rol y que `args` sea JSON chico; el parlante valida `args` antes de llamar al reproductor). Cada una corresponde 1:1 a una función exportada de `player.svelte.js`.
+  - Invitado y anfitrión: `enqueue`, `toggle`, `removeAt`.
+  - Solo anfitrión: `play`, `playStation`, `stopStation`, `next`, `prev`, `jumpTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`.
+- **Quién agregó qué:** cada entrada de la cola guarda `addedBy` (la sesión de la orden que la agregó; vacío si la agregó la compu). El parlante, que recibe la sesión de origen con cada orden, rechaza el `removeAt` de un invitado sobre una entrada ajena, con aviso *Solo podés quitar lo que agregaste*. El estado publicado incluye `addedBy` para que el teléfono muestre ✕ solo en lo suyo.
+- **Rol en la base:** columna `host` (0/1) en `sessions` (migración de esquema); las peticiones desde localhost cuentan siempre como anfitrión.
 - **Estado publicado:** pista actual, tiempo, duración, sonando, volumen, silencio, aleatorio, repetir, estación, `blocked` (falta el clic de autoplay) y la cola recortada (hasta ~100 próximas y ~10 ya sonadas). Se publica en cada cambio con debounce de ~250 ms, más el tiempo cada ~1 s mientras suena.
 - **Conexiones:** heartbeat SSE cada ~20 s; si el parlante se cae, el hub lo suelta y los remotos reciben `speaker-off`. El parlante reconecta con backoff reusando el token; los remotos reconectan solos (`EventSource`) y reciben el estado actual al conectar.
 - **Límites:** estado ≤ 256 KB, orden ≤ 16 KB, hasta 16 remotos simultáneos.
@@ -237,9 +245,9 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 - `lib/jukebox.js` (puro, con tests): orden → llamada al reproductor con validación de `args`; estado publicado derivado de `player`.
 - `lib/speaker.svelte.js` (compu): abre el SSE, ejecuta órdenes, publica estado y dirige los avisos de cada orden a su remoto (`notify` con destino opcional durante la orden).
-- `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo (en modo Rockola, ▶ y ⤮ se traducen a `enqueue`, y la orden `enqueue` lleva `startIfIdle`).
+- `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo (para un invitado, ▶ y ⤮ se traducen a `enqueue` con `startIfIdle`; un anfitrión usa las mismas órdenes que el reproductor local). Oculta los controles que el rol no permite.
 
-**Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
+**Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado, ni marcarse anfitrión; los límites del invitado se aplican en el servidor, no solo en la interfaz; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
 
 ## 8. Interfaz
 
@@ -264,7 +272,7 @@ Indicador de estado arriba a la derecha con escaneo e identificación en curso.
 
 - **LAN apagada (default):** escucha en `127.0.0.1`, sin PIN, con el control Host/Origin de Cinexplorer.
 - **LAN encendida:** escucha en `0.0.0.0` en un **puerto fijo** configurable (4747 por defecto). Ajustes muestra la URL (`http://192.168.x.x:4747`) y un **QR**.
-- Desde localhost no se pide PIN; desde otros dispositivos sí. PIN de ≥ 6 dígitos, guardado como hash, con **límite de intentos** y bloqueo creciente. Sesión por cookie `HttpOnly` de 90 días; Ajustes lista dispositivos con "cerrar sesión".
+- Desde localhost no se pide PIN; desde otros dispositivos sí. PIN de ≥ 6 dígitos, guardado como hash, con **límite de intentos** y bloqueo creciente. Sesión por cookie `HttpOnly` de 90 días; Ajustes lista dispositivos con "cerrar sesión" y la marca **Anfitrión** de la Rockola (§7.5).
 - **Endpoints de configuración** (carpetas, tokens, LAN, PIN) **solo desde localhost**. Desde el teléfono se escucha y se cura (me gusta, listas, correcciones), no se reconfigura.
 - HTTP plano en LAN: aceptable para red doméstica, documentado. Implica que no hay PWA instalable (requiere HTTPS), coherente con dejar "offline en teléfono" para después.
 
@@ -277,7 +285,7 @@ Indicador de estado arriba a la derecha con escaneo e identificación en curso.
 | **M3 Biblioteca y reproductor** | interfaz Svelte: Explorar con facetas, Carpetas, páginas de álbum/artista/colección, búsqueda, barra de reproducción con cola y aleatorio, streaming con Range, transcodificación WMA |
 | **M4 Escucha** | Inicio, estaciones, historial y estadísticas, me gusta y puntajes, listas de reproducción, normalización de volumen |
 | **M5 Revisión y red** | duplicados (3 tipos, MEJOR), formatos a convertir (detección), asistente y Ajustes, LAN + PIN + QR |
-| **M6 Rockola** | audio de esta compu como parlante, modo Rockola en el teléfono, hub jukebox con SSE (§7.5) |
+| **M6 Rockola** | audio de esta compu como parlante, modo Rockola en el teléfono con roles anfitrión/invitado, hub jukebox con SSE (§7.5) |
 | **Después** | conversión de formatos, escritura de tags con vista previa, API Subsonic, AcoustID bajo demanda, gapless real, letras, booklets, reproducción en parlantes del servidor sin navegador, importación `.m3u` |
 
 Cada etapa tiene su propio diseño detallado (si hace falta) y plan de implementación.
@@ -286,5 +294,5 @@ Cada etapa tiene su propio diseño detallado (si hace falta) y plan de implement
 
 - **Go:** tests unitarios por paquete con fixtures (archivos de audio mínimos con tags armados a mano en `testdata/`); **corpus de nombres** reales de la colección para `nameparse`; respuestas **grabadas** de MusicBrainz y Discogs para `identify` (sin red en CI); tests de corpus opcionales sobre una colección real (`TORDO_CORPUS=/ruta`).
 - **Interfaz:** Vitest para lógica de cola, estaciones y facetas.
-- **Rockola:** `internal/jukebox` con `httptest` y reloj inyectable (registro y reemplazo del parlante, reparto a N remotos, 409 sin parlante, 400 fuera de la lista blanca, límites, endpoints del parlante rechazados fuera de localhost, `speaker-off` al desconectar, heartbeat); Vitest para orden → llamada, validación de `args`, estado recortado, enrutado local/Rockola (▶ y ⤮ → `enqueue`), `enqueue` con `shuffle` y `startIfIdle`, y avisos a su origen; prueba manual compu + teléfono en la LAN.
+- **Rockola:** `internal/jukebox` con `httptest` y reloj inyectable (registro y reemplazo del parlante, reparto a N remotos, 409 sin parlante, 400 fuera de la lista blanca, 403 por rol (invitado vs. anfitrión vs. localhost), remoto de otra sesión rechazado, evento `role` al cambiar la marca, migración de `sessions.host`, límites, endpoints del parlante rechazados fuera de localhost, `speaker-off` al desconectar, heartbeat); Vitest para orden → llamada, validación de `args`, estado recortado, enrutado local/Rockola por rol (invitado: ▶ y ⤮ → `enqueue`), `enqueue` con `shuffle` y `startIfIdle`, `addedBy` y el rechazo de `removeAt` ajeno, y avisos a su origen; prueba manual compu + teléfono en la LAN.
 - **CI:** GitHub Actions en Windows, macOS y Linux (`go vet`, `go test`), y job aparte para tests y build de la interfaz.
