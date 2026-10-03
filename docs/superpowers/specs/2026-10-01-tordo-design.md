@@ -41,6 +41,7 @@ Colección completa: ~1,5 TB, en 1–5 carpetas de un mismo disco. Muestra anali
 - Importación de `.m3u`.
 - Multiusuario.
 - **Favoritos separados por tipo** (pedido 2026-10-02, después de M5): el ♥ de pistas y el ♥ de álbumes dejan de ser una sola bolsa "Me gusta". Las pistas con ♥ forman una lista de reproducción automática (*Canciones favoritas*); los álbumes con ♥ van a una sección propia, una **colección de cabecera** (*comfort collection*) para volver a ellos, no mezclada con la de pistas.
+- **Modo escucha / fiesta** (pedido 2026-10-02, después de M5): modo de solo lectura que oculta la curaduría y el mantenimiento: sin **Revisar** (sin identificar, duplicados, géneros por mapear, formatos a convertir) y sin las marcas de duplicados y versiones en Álbum y Explorar. Queda lo de escuchar: Inicio, Explorar, Carpetas, Listas, búsqueda, cola y estaciones.
 
 ## 2. Distribución y portabilidad
 
