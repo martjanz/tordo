@@ -214,7 +214,7 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 - En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
 - **Roles: anfitrión e invitado.** En Ajustes → Dispositivos (solo desde localhost) cada sesión tiene la marca **Anfitrión**; la compu misma siempre lo es. Por defecto, toda sesión es **invitado**, para que nadie interrumpa ni borre la cola sin querer.
   - **Anfitrión:** controla la rockola como su propio reproductor: ▶ reemplaza la cola, y todo lo demás sin restricciones ni confirmaciones.
-  - **Invitado:** solo aporta. ▶ agrega al final de la cola (*Agregado a la cola de la rockola*) y, si en la compu no suena nada, además empieza a sonar; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`); + cola y a continuación, como siempre. Puede ⏯ y quitar de la cola **solo las pistas que agregó él**. No puede ⏭ ⏮, seek, volumen, silencio, aleatorio/repetir, vaciar, reemplazar la cola ni iniciar o detener estaciones: esos botones no se muestran en su teléfono, y el servidor los rechaza (**403** *Solo el anfitrión puede hacer esto*).
+  - **Invitado:** solo aporta. ▶ agrega al final de la cola y, si en la compu no suena nada (cola vacía o terminada; una pausa no cuenta), además empieza a sonar; ▶ sobre una pista suelta agrega solo esa pista; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`); + cola y a continuación, como siempre. Puede ⏯ y quitar de la cola **solo las pistas que agregó él**. No puede ⏭ ⏮, seek, volumen, silencio, aleatorio/repetir, vaciar, reemplazar la cola ni iniciar o detener estaciones: esos botones no se muestran en su teléfono, y el servidor los rechaza (**403** *Solo el anfitrión puede hacer esto*).
   - El rol se consulta en cada orden, así que marcar o desmarcar un dispositivo rige de inmediato; el teléfono recibe su rol al conectarse y cuando cambia.
 - Los avisos de la acción (*Suena a continuación*, *2 pistas agregadas*, errores) aparecen en el teléfono que la mandó.
 - Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cada uno controla según su rol; las órdenes se aplican en orden de llegada, sin bloqueos.
@@ -228,23 +228,24 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 | `GET /api/jukebox/speaker` (SSE) | solo localhost | registra el parlante y reemplaza al anterior (que recibe `replaced`); recibe eventos `command` |
 | `POST /api/jukebox/state` | solo localhost, con token | publica el estado; el hub lo guarda y lo reparte a los remotos |
 | `POST /api/jukebox/notice` | solo localhost, con token | aviso dirigido a un remoto (`{remote, text}`) |
-| `GET /api/jukebox/events` (SSE) | cualquier sesión | el remoto recibe su id y su rol, el estado actual (o `speaker-off`) y luego `state`, `notice`, `role`, `speaker-on`, `speaker-off` |
+| `GET /api/jukebox/events` (SSE) | cualquier sesión | el remoto recibe `hello` (su id, sesión y rol), el estado actual (o `speaker-off`) y luego `state`, `notice`, `role`, `speaker-off`. El parlante recibe `hello` (su token), `command` y `replaced` |
 | `POST /api/jukebox/command` | cualquier sesión | `{remote, command, args}`; el remoto debe pertenecer a la sesión; **403** si el rol no alcanza; se reenvía al parlante con la sesión de origen, o **409** si no hay parlante |
 | `PUT /api/sessions/{id}/host` | solo localhost | marca o desmarca la sesión como anfitrión |
 
 - **Órdenes permitidas** (lista blanca en Go, que valida el nombre, el rol y que `args` sea JSON chico; el parlante valida `args` antes de llamar al reproductor). Cada una corresponde 1:1 a una función exportada de `player.svelte.js`.
   - Invitado y anfitrión: `enqueue`, `toggle`, `removeAt`.
-  - Solo anfitrión: `play`, `playStation`, `stopStation`, `next`, `prev`, `jumpTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`.
+  - Solo anfitrión: `play`, `playStation`, `stopStation`, `setStation`, `next`, `prev`, `jumpTo`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`.
 - **Quién agregó qué:** cada entrada de la cola guarda `addedBy` (la sesión de la orden que la agregó; vacío si la agregó la compu). El parlante, que recibe la sesión de origen con cada orden, rechaza el `removeAt` de un invitado sobre una entrada ajena, con aviso *Solo podés quitar lo que agregaste*. El estado publicado incluye `addedBy` para que el teléfono muestre ✕ solo en lo suyo.
 - **Rol en la base:** columna `host` (0/1) en `sessions` (migración de esquema); las peticiones desde localhost cuentan siempre como anfitrión.
 - **Estado publicado:** pista actual, tiempo, duración, sonando, volumen, silencio, aleatorio, repetir, estación, `blocked` (falta el clic de autoplay) y la cola recortada (hasta ~100 próximas y ~10 ya sonadas). Se publica en cada cambio con debounce de ~250 ms, más el tiempo cada ~1 s mientras suena.
-- **Conexiones:** heartbeat SSE cada ~20 s; si el parlante se cae, el hub lo suelta y los remotos reciben `speaker-off`. El parlante reconecta con backoff reusando el token; los remotos reconectan solos (`EventSource`) y reciben el estado actual al conectar.
+- **Conexiones:** heartbeat SSE cada ~20 s; si el parlante se cae, el hub lo suelta y los remotos reciben `speaker-off`. El parlante reconecta solo y se registra de nuevo (token nuevo); una pestaña reemplazada no reconecta. Los remotos reconectan solos (`EventSource`) y reciben el estado actual al conectar. `/api/status` informa `jukebox.speaker` para habilitar el interruptor de la Rockola.
+- **Posiciones:** `jumpTo` y `removeAt` viajan con la clave de la entrada (`{key}`), no con su posición, que puede haber cambiado entre el estado publicado y la orden.
 - **Límites:** estado ≤ 256 KB, orden ≤ 16 KB, hasta 16 remotos simultáneos.
 
 **Interfaz:**
 
 - `lib/jukebox.js` (puro, con tests): orden → llamada al reproductor con validación de `args`; estado publicado derivado de `player`.
-- `lib/speaker.svelte.js` (compu): abre el SSE, ejecuta órdenes, publica estado y dirige los avisos de cada orden a su remoto (`notify` con destino opcional durante la orden).
+- `lib/speaker.svelte.js` (compu): abre el SSE, ejecuta órdenes, publica estado y dirige los avisos de cada orden a su remoto (las funciones del reproductor reciben un `say` opcional, por defecto `notify`).
 - `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo (para un invitado, ▶ y ⤮ se traducen a `enqueue` con `startIfIdle`; un anfitrión usa las mismas órdenes que el reproductor local). Oculta los controles que el rol no permite.
 
 **Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado, ni marcarse anfitrión; los límites del invitado se aplican en el servidor, no solo en la interfaz; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
