@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, country, duration, folderName, formatName, length, quality, size, years } from './format.js'
+import { codecName, count, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -71,4 +71,18 @@ describe('size', () => {
     [30_100_000_000, '30 GB'], [0, '0 B'],
   ])('%d', (n, want) => expect(size(n)).toBe(want))
   it('is empty without a value', () => expect(size(undefined)).toBe(''))
+})
+
+describe('since', () => {
+  const now = Date.UTC(2026, 9, 2, 12, 0, 0)
+  it.each([
+    [now - 5_000, 'recién'],
+    [now - 60_000, 'hace 1 min'],
+    [now - 25 * 60_000, 'hace 25 min'],
+    [now - 3600_000, 'hace 1 h'],
+    [now - 5 * 3600_000, 'hace 5 h'],
+    [now - 86_400_000, 'ayer'],
+    [now - 3 * 86_400_000, 'hace 3 días'],
+    [now + 5_000, 'recién'],
+  ])('%d', (ms, want) => expect(since(ms, now)).toBe(want))
 })

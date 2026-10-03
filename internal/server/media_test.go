@@ -32,6 +32,12 @@ func mediaServer(t *testing.T, ffmpeg string) (*Server, []int64) {
 // mediaServerFiles builds a server over the given files (paths relative to
 // the music folder); the returned ids are in folder order.
 func mediaServerFiles(t *testing.T, ffmpeg string, files map[string]audiofile.Info) (*Server, []int64) {
+	return mediaServerFingerprints(t, ffmpeg, files, func(path string) string { return path })
+}
+
+// mediaServerFingerprints is mediaServerFiles with the fingerprint each
+// file gets (by its catalog path), so tests can make copies.
+func mediaServerFingerprints(t *testing.T, ffmpeg string, files map[string]audiofile.Info, fingerprint func(path string) string) (*Server, []int64) {
 	t.Helper()
 	base := t.TempDir()
 	app := filepath.Join(base, "tordo")
@@ -57,7 +63,7 @@ func mediaServerFiles(t *testing.T, ffmpeg string, files map[string]audiofile.In
 	pending, _ := st.PendingReads(env)
 	var rs []store.ReadResult
 	for _, p := range pending {
-		rs = append(rs, store.ReadResult{Target: p, Env: env, Fingerprint: p.Path, Info: files[p.Path[len("../musica/"):]]})
+		rs = append(rs, store.ReadResult{Target: p, Env: env, Fingerprint: fingerprint(p.Path), Info: files[p.Path[len("../musica/"):]]})
 	}
 	if err := st.SaveReads(rs); err != nil {
 		t.Fatal(err)

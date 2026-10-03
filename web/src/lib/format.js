@@ -92,6 +92,18 @@ export function years(first, last) {
   return last && last !== first ? `${first}–${last}` : String(first)
 }
 
+// since reads how long ago a moment (unix ms) was: "recién", "hace 25 min",
+// "hace 5 h", "ayer", "hace 3 días".
+export function since(ms, now = Date.now()) {
+  const min = Math.floor((now - ms) / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const days = Math.floor(h / 24)
+  return days === 1 ? 'ayer' : `hace ${days} días`
+}
+
 // size reads a byte count as the Finder does (decimal units): "84 KB",
 // "7,2 MB", "1,4 GB". Under 10 it keeps one decimal.
 export function size(bytes) {

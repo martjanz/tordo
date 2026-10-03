@@ -90,6 +90,7 @@ type Catalog struct {
 	artistNames map[string]string // normalized name → artist key, for track artists
 	folders     map[string]store.SnapFolder
 	snapArtists map[string]store.Artist
+	dups        Duplicates
 }
 
 // Build arranges a snapshot.
@@ -117,6 +118,7 @@ func Build(snap store.Snapshot, opt Options) *Catalog {
 		c.trackIndex[t.ID] = len(c.Tracks)
 		c.Tracks = append(c.Tracks, c.track(t, opt))
 	}
+	c.computeDuplicates(snap)
 	return c
 }
 

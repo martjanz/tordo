@@ -3,6 +3,7 @@ package catalog
 import (
 	"net/url"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"tordo/internal/store"
@@ -21,7 +22,7 @@ type fixtureAlbum struct {
 
 func tr(id int64, title, artist, format, codec string, lossless bool) store.SnapTrack {
 	return store.SnapTrack{TrackView: store.TrackView{ID: id, Title: title, Artist: artist, Format: format, Codec: codec,
-		Lossless: lossless, Track: int(id % 100), Path: "x", Fingerprint: "fp"}, Added: 1000 + id}
+		Lossless: lossless, Track: int(id % 100), Path: "x", Fingerprint: "fp" + strconv.FormatInt(id, 10)}, Added: 1000 + id}
 }
 
 // fixture is a small catalog:

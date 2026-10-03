@@ -16,11 +16,26 @@ let timer
 let wasBusy = false
 let lastProgress = ''
 let lastRefresh = Date.now() // pages load their data when they open
+let polls = 0
 
+// settingsSaved updates what the pages know right after saving the settings
+// (the first-use assistant is done) and asks for the new status, so the scan
+// and the normalization show at once.
+export function settingsSaved() {
+  if (app.status) app.status = { ...app.status, setupPending: false }
+  app.generation++
+  poll()
+}
+
+// Only the latest poll applies its result: an earlier, slower one could
+// otherwise land after settingsSaved() with the old setupPending:true and
+// bounce the assistant back.
 async function poll() {
+  const id = ++polls
   clearTimeout(timer)
   try {
     const st = await api.status()
+    if (id !== polls) return
     const now = busy(st)
     const moved = progress(st) !== lastProgress
     if ((wasBusy && !now) || (now && moved && Date.now() - lastRefresh > 20000)) {
@@ -32,8 +47,10 @@ async function poll() {
     app.status = st
     app.lost = false
   } catch {
+    if (id !== polls) return
     app.lost = true
   }
+  if (id !== polls) return
   timer = setTimeout(poll, wasBusy || app.lost ? 3000 : 30000)
 }
 
@@ -41,6 +58,13 @@ async function poll() {
 // the server is out of reach, every 30 s otherwise.
 export function watchStatus() {
   poll()
+}
+
+// stopStatus stops polling (the PIN screen is up): no request is made
+// until watchStatus() starts it again, and an in-flight one is ignored.
+export function stopStatus() {
+  polls++
+  clearTimeout(timer)
 }
 
 let seq = 0

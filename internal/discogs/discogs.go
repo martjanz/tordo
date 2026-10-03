@@ -59,6 +59,12 @@ type entity struct {
 	Styles   []string `json:"styles"`
 }
 
+// Identity checks that Discogs takes the client's token.
+func (c *Client) Identity(ctx context.Context) error {
+	var ignore struct{}
+	return c.get(ctx, "/oauth/identity", &ignore)
+}
+
 func (c *Client) Release(ctx context.Context, id int) (Info, error) {
 	var e entity
 	if err := c.get(ctx, fmt.Sprintf("/releases/%d", id), &e); err != nil {

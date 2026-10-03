@@ -221,3 +221,13 @@ CREATE TABLE IF NOT EXISTS stations (
 	created_at INTEGER NOT NULL,
 	updated_at INTEGER NOT NULL
 );
+
+-- Devices signed in from the LAN. token_hash is the SHA-256 (hex) of the
+-- cookie's token; the token itself is never stored.
+CREATE TABLE IF NOT EXISTS sessions (
+	id         INTEGER PRIMARY KEY,
+	token_hash TEXT NOT NULL UNIQUE,
+	device     TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	last_seen  INTEGER NOT NULL
+);

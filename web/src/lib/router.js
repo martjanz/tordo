@@ -5,6 +5,8 @@ import { NAMES as FACET_NAMES } from './facets.js'
 // these parameters is Explorar, without them it is Inicio.
 const EXPLORAR_PARAMS = ['ver', 'orden', 'dir', ...FACET_NAMES]
 
+const DUPLICATE_KINDS = ['exactas', 'formatos', 'sospechas']
+
 const PERIODS = ['semana', 'mes', 'anio', 'siempre']
 
 // resolve maps a pathname and query to the page to show and its parameters.
@@ -20,6 +22,13 @@ export function resolve(pathname, search = '') {
   if (pathname === '/listas') return { page: 'listas' }
   if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
   if (pathname === '/revisar') return { page: 'revisar', tab: 'sin-identificar' }
+  if (pathname === '/ajustes') return { page: 'ajustes' }
+  if (pathname === '/bienvenida') return { page: 'bienvenida' }
+  if (pathname === '/revisar/duplicados') {
+    const kind = params.get('tipo')
+    return { page: 'revisar', tab: 'duplicados', kind: DUPLICATE_KINDS.includes(kind) ? kind : 'exactas' }
+  }
+  if (pathname === '/revisar/formatos') return { page: 'revisar', tab: 'formatos' }
   if (pathname === '/revisar/generos') return { page: 'revisar', tab: 'generos' }
   let m = pathname.match(/^\/listas\/([1-9][0-9]*)$/)
   if (m) return { page: 'lista', id: Number(m[1]) }
@@ -81,4 +90,9 @@ export function searchHref(q) {
 // statsHref links the statistics page; "mes" is the default period.
 export function statsHref(period) {
   return period && period !== 'mes' ? `/estadisticas?periodo=${encodeURIComponent(period)}` : '/estadisticas'
+}
+
+// duplicatesHref links the duplicates tab of Revisar; "exactas" is the default kind.
+export function duplicatesHref(kind) {
+  return kind && kind !== 'exactas' ? `/revisar/duplicados?tipo=${encodeURIComponent(kind)}` : '/revisar/duplicados'
 }

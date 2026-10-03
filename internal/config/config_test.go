@@ -108,3 +108,72 @@ func TestNormalizeFromFile(t *testing.T) {
 		}
 	}
 }
+
+func TestLANDefaultsWhenSetupPending(t *testing.T) {
+	app := appUnder(t, "musica")
+	cfg, created, err := Load(app)
+	if err != nil || !created {
+		t.Fatalf("Load = %v, created %v", err, created)
+	}
+	if cfg.LAN.Enabled || cfg.LAN.Port != 4747 || cfg.LAN.PinHash != "" || !cfg.Normalizing() {
+		t.Fatalf("defaults: %+v", cfg)
+	}
+}
+
+func TestLANAbsentFromFile(t *testing.T) {
+	app := appUnder(t)
+	if err := os.WriteFile(filepath.Join(app, FileName), []byte(`{"roots": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, created, err := Load(app)
+	if err != nil || created {
+		t.Fatalf("Load = %v, created %v", err, created)
+	}
+	if cfg.LAN.Enabled || cfg.LAN.PortOrDefault() != DefaultPort {
+		t.Fatalf("LAN = %+v", cfg.LAN)
+	}
+	if (LAN{Port: 5000}).PortOrDefault() != 5000 {
+		t.Fatal("explicit port ignored")
+	}
+}
+
+func TestLANRoundTrip(t *testing.T) {
+	app := appUnder(t)
+	in := Config{Roots: []string{"../musica"}, Ignore: []string{}, LAN: LAN{Enabled: true, Port: 5050, PinHash: "pbkdf2-sha256$1$a$b"}}
+	if err := Save(app, in); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := Load(app)
+	if err != nil || !reflect.DeepEqual(in, out) {
+		t.Fatalf("got %+v (%v), want %+v", out, err, in)
+	}
+	data, _ := os.ReadFile(filepath.Join(app, FileName))
+	for _, s := range []string{`"lan"`, `"enabled": true`, `"port": 5050`, `"pinHash"`} {
+		if !strings.Contains(string(data), s) {
+			t.Fatalf("config.json lacks %s: %s", s, data)
+		}
+	}
+}
+
+func TestSaveIsAtomicAndLeavesNoTempFiles(t *testing.T) {
+	app := appUnder(t)
+	for i := 0; i < 3; i++ {
+		if err := Save(app, Config{Roots: []string{"../musica"}, Ignore: []string{}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entries, err := os.ReadDir(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != FileName {
+		t.Fatalf("app folder holds %v", entries)
+	}
+	if info, err := os.Stat(filepath.Join(app, FileName)); err != nil || info.Mode().Perm() != 0o644 {
+		t.Fatalf("config.json: %v %v", info, err)
+	}
+	// A failed Save leaves nothing behind.
+	if err := Save(filepath.Join(app, "missing"), Config{}); err == nil {
+		t.Fatal("saving into a missing folder succeeded")
+	}
+}

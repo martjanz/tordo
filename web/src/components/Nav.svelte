@@ -3,7 +3,8 @@
   import Estado from './Estado.svelte'
   import Icono from './Icono.svelte'
 
-  let { page } = $props()
+  // bare shows only the brand (the first-use assistant).
+  let { page, bare = false } = $props()
 
   // A single list belongs to Listas, the statistics to Inicio.
   const isActive = (s) =>
@@ -23,33 +24,40 @@
 
 <header>
   <nav>
-    <a class="brand" href="/">
+    <a class="brand" class:alone={bare} href="/">
       <svg viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">
         <circle cx="16" cy="16" r="10.5" fill="none" stroke="currentColor" stroke-width="2.5" />
         <circle cx="16" cy="16" r="3" fill="currentColor" />
       </svg>
       Tordo
     </a>
-    <span class="sections">
-      {#each SECTIONS as s (s.page)}
-        <a href={s.href} class:active={isActive(s)}>{s.label}</a>
-      {/each}
-    </span>
-    <span class="spacer"></span>
-    <Busqueda />
-    <Estado />
+    {#if !bare}
+      <span class="sections">
+        {#each SECTIONS as s (s.page)}
+          <a href={s.href} class:active={isActive(s)}>{s.label}</a>
+        {/each}
+      </span>
+      <span class="spacer"></span>
+      <Busqueda />
+      <Estado />
+      <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
+        <Icono name="settings" size={18} />
+      </a>
+    {/if}
   </nav>
 </header>
 
 <!-- On phones the sections go to tabs at the bottom, under the player. -->
-<nav class="tabs" aria-label="Secciones">
-  {#each SECTIONS as s (s.page)}
-    <a href={s.href} class:active={isActive(s)}>
-      <Icono name={s.icon} size={20} />
-      <span>{s.label}</span>
-    </a>
-  {/each}
-</nav>
+{#if !bare}
+  <nav class="tabs" aria-label="Secciones">
+    {#each SECTIONS as s (s.page)}
+      <a href={s.href} class:active={isActive(s)}>
+        <Icono name={s.icon} size={20} />
+        <span>{s.label}</span>
+      </a>
+    {/each}
+  </nav>
+{/if}
 
 <style>
   header {
@@ -88,6 +96,10 @@
     font-weight: 700;
     letter-spacing: -0.01em;
   }
+  .brand.alone {
+    border-right: none;
+    padding-right: 0;
+  }
   .brand svg {
     color: var(--accent);
   }
@@ -96,6 +108,13 @@
   }
   .spacer {
     flex: 1;
+  }
+  .gear {
+    display: inline-flex;
+    color: var(--muted);
+  }
+  .gear.active {
+    color: var(--strong);
   }
   .tabs {
     display: none;

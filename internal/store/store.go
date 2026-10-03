@@ -40,8 +40,8 @@ func OpenMemory() (*Store, error) {
 // to the derived tables: below it they are dropped and the next scan
 // rebuilds them. Version 3 (M3b) only added not_collections. The other
 // tables are only ever added to. Version 4 (M4a) added the user's tables
-// (marks, plays, playlists) and loudness. Version 5 (M4b) added saved stations.
-const schemaVersion = 5
+// (marks, plays, playlists) and loudness. Version 5 (M4b) added saved stations. Version 6 (M5) added the LAN sessions.
+const schemaVersion = 6
 
 // derivedVersion is the last version that changed the derived tables.
 const derivedVersion = 2

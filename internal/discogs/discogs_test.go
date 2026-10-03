@@ -22,6 +22,11 @@ func newTest(t *testing.T, token string) (*Client, *[]*http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		if r.URL.Path == "/oauth/identity" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("{}"))
+			return
+		}
 		files := map[string]string{"/releases/1234": "release-1234.json", "/masters/5678": "master-5678.json",
 			"/database/search": "search-signos.json"}
 		name, ok := files[r.URL.Path]
@@ -96,6 +101,26 @@ func TestNewRates(t *testing.T) {
 	}
 	if r := New("x").HTTP.Limiter.Rate; r != 55.0/60 {
 		t.Fatalf("token rate = %v", r)
+	}
+}
+
+func TestIdentity(t *testing.T) {
+	c, reqs := newTest(t, "bueno")
+	err := c.Identity(context.Background())
+	if err != nil {
+		t.Fatalf("Identity with good token: err %v", err)
+	}
+	if len(*reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(*reqs))
+	}
+	if (*reqs)[0].URL.Path != "/oauth/identity" {
+		t.Fatalf("expected /oauth/identity, got %s", (*reqs)[0].URL.Path)
+	}
+
+	c, reqs = newTest(t, "malo")
+	err = c.Identity(context.Background())
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("Identity with bad token: err %v, want ErrUnauthorized", err)
 	}
 }
 
