@@ -52,8 +52,8 @@ describe('SECTIONS', () => {
       expect(resolve(url.pathname, url.search).page, href).not.toBe('notfound')
     }
   })
-  it('marks only Revisar as blocked in listen mode', () => {
+  it('marks only what lives in Revisar as blocked in listen mode', () => {
     const blocked = SECTIONS.flatMap((s) => s.items).filter((i) => i.blockedInListen)
-    expect(blocked.map((i) => i.href)).toEqual(['/revisar'])
+    expect(blocked.map((i) => i.href)).toEqual(['/revisar', '/revisar/duplicados'])
   })
 })
