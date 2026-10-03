@@ -108,3 +108,443 @@ The plan gives the design, the exact interfaces, the test cases and the code whe
 After every task: `gofmt -l .` (empty), `go vet ./...`, `go test ./...`, and for web tasks `cd web && npx vitest run && npm run build`. Then commit.
 
 ---
+
+### Task 1: Store: file sizes and release groups in the snapshot
+
+**Files:**
+- Modify: `internal/store/catalog.go` (`TrackView`, `trackQuery`, `trackDest`), `internal/store/snapshot.go`
+- Test: `internal/store/catalog_test.go` (or the snapshot's existing test file)
+
+**Interfaces (produces):**
+
+```go
+// in TrackView, after Fingerprint:
+	SizeBytes   int64  `json:"sizeBytes"` // the file's size
+
+// in Snapshot, after Artists:
+	// ReleaseGroups maps the MusicBrainz releases the catalog holds to
+	// their release groups (only releases whose group is known); never nil.
+	ReleaseGroups map[string]string
+```
+
+`trackQuery` selects `f.size` and `trackDest` scans it into `t.SizeBytes` (every reader of `trackQuery` gets it: album pages, folders, Explorar). `Snapshot()` reads `SELECT id, json_extract(data, '$.groupId') FROM releases` inside its transaction, skipping NULL or empty groups.
+
+- [ ] **Step 1: Write the failing tests:** on `sample(t)` (or the helper that saves files with known sizes), `Snapshot().Tracks[i].SizeBytes` equals the size given to `SyncFiles`, and `Album(id)`'s tracks carry it too. Save two releases with `SaveRelease` (`{ID: "r1", GroupID: "g1"}`, `{ID: "r2"}`): `Snapshot().ReleaseGroups` is `{"r1": "g1"}`; with no releases it is an empty, non-nil map.
+- [ ] **Step 2: Run** `go test ./internal/store -run 'Snapshot|Size|Group'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...`: pass (JSON outputs gain `sizeBytes`; fix any test that compares whole track JSON).
+- [ ] **Step 5: Commit** `feat: file sizes and release groups in the catalog snapshot`
+
+---
+
+### Task 2: Catalog: duplicates, `con-duplicados`, album versions
+
+**Files:**
+- Create: `internal/catalog/duplicates.go`
+- Modify: `internal/catalog/catalog.go` (`Catalog` keeps the computed duplicates; `Build` computes them and adds the facet value), `internal/catalog/facets.go` (`StateDuplicated`)
+- Test: `internal/catalog/duplicates_test.go`
+
+**Consumes:** `store.TrackView.SizeBytes`, `store.Snapshot.ReleaseGroups` (Task 1); `store.AlbumView.ReleaseID`; `nameparse.Norm`; `FormatKey`.
+
+**Interfaces (produces):**
+
+```go
+// Kinds of duplicate groups, as Revisar names them.
+const (
+	DupExact   = "exacta"   // the same audio (fingerprint) in several files
+	DupFormats = "formatos" // the same recording in one album, in several files
+	DupSuspect = "sospecha" // the same artist, title and length in different albums
+)
+
+// in facets.go, with the other FacetState values:
+	StateDuplicated = "con-duplicados"
+
+// DupFile is one file of a duplicate group.
+type DupFile struct {
+	ID         int64  `json:"id"` // the file id
+	Path       string `json:"path"`
+	Dir        string `json:"dir"`
+	Title      string `json:"title"`
+	Artist     string `json:"artist"`
+	AlbumID    int64  `json:"albumId"` // 0: a loose track
+	Album      string `json:"album"`
+	Format     string `json:"format"` // FormatKey
+	Lossless   bool   `json:"lossless"`
+	Bitrate    int    `json:"bitrate"`
+	SampleRate int    `json:"sampleRate"`
+	BitDepth   int    `json:"bitDepth"`
+	DurationMs int64  `json:"durationMs"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	Best       bool   `json:"best"` // MEJOR: strictly better than every other file of its group
+}
+
+// DupGroup is a set of files that hold, or may hold, the same music.
+type DupGroup struct {
+	Kind        string    `json:"kind"`
+	Title       string    `json:"title"`  // of its first file
+	Artist      string    `json:"artist"` // of its first file
+	Files       []DupFile `json:"files"`
+	SizeBytes   int64     `json:"sizeBytes"`   // all its files
+	Recoverable int64     `json:"recoverable"` // exact copies: the bytes freed keeping one; else 0
+}
+
+// Duplicates are the three kinds of groups of the catalog.
+type Duplicates struct {
+	Exact       []DupGroup
+	Formats     []DupGroup
+	Suspect     []DupGroup
+	Recoverable int64 // the exact copies' recoverable bytes
+}
+
+// Version is another album that holds some of an album's tracks.
+type Version struct {
+	AlbumID int64    `json:"albumId"`
+	Title   string   `json:"title"`
+	Artist  string   `json:"artist"`
+	Year    int      `json:"year"`
+	Formats []string `json:"formats"` // FormatKey of its shared tracks, sorted, distinct
+	Shared  int      `json:"shared"`  // this album's tracks with a counterpart there
+	Kind    string   `json:"kind"`    // DupExact when every shared track is an exact copy, else DupFormats
+}
+
+func (c *Catalog) Duplicates() Duplicates          // computed once by Build; slices never nil; callers must not modify it
+func (c *Catalog) AlbumVersions(id int64) []Version // never nil; by shared descending, then title
+```
+
+**Rules:** decisions 1–6 at the top of this plan, exactly. Present tracks only (the snapshot has only present tracks). Details:
+- The album key needs the snapshot's albums and `ReleaseGroups`: compute duplicates inside `Build` (it has the snapshot) and keep the result on the `Catalog` (unexported field). Cost must stay near linear: bucket by fingerprint, by album key, by `artist\x00title`; sort each bucket by duration; union-find (or simple merging) for the recording id rule. The catalog has ~7 000 tracks today and is meant for ~150 000.
+- Quality: write `better(a, b DupFile) int` (positive when a is better) used for sorting and for `Best`.
+- After computing, add `StateDuplicated` to `values[FacetState]` of every track in an exact or formats group and of the albums of those tracks, so Explorar's `estado` facet, its counts and its filter work with no other change. Add its label where the other `estado` labels live on the server side, if any.
+- `AlbumVersions` reads only exact and formats groups: for each group with a file in album `id`, every other album in that group is a version; `Shared` counts the distinct tracks of album `id` in groups shared with that album; files of album `id` itself and loose tracks are skipped.
+
+- [ ] **Step 1: Write the failing tests** (`duplicates_test.go`, on snapshots of your own built with `tr(…)` and `store.AlbumView`s; set `Fingerprint`, `RecordingID`, `DurationMs`, `SizeBytes`, `Bitrate`, `BitDepth`, `SampleRate`, `AlbumID`):
+  - `TestDuplicatesExact`: three files with fingerprint `fp1` (sizes 10, 12, 11) in three albums and a lone `fp2` → one exact group with the three files, `Recoverable` 21, `SizeBytes` 33, no `Best`; `Duplicates().Recoverable` 21; with a second exact group, groups are sorted by recoverable descending.
+  - `TestDuplicatesFormats`: album A (identified: release `r1`, group `g1`) holds "Zamba de mi esperanza" as MP3 320 kbps (`fp-a`); album B (identified: release `r2`, same group `g1`) holds it as FLAC 16/44.1 (`fp-b`), 1.5 s longer → one formats group, FLAC first with `Best`. A WMA and a FLAC of the same title in one unidentified album → a formats group (key `al:`). Same title, durations 10 s apart, same album → no group. Same recording id, different titles, same album → grouped. Two FLAC 16/44.1 of the same recording (different fingerprints) → grouped, no `Best`. Two files with the same fingerprint in one album → exact group only, not formats. A release with no known group: albums with the same release id still share a key.
+  - `TestDuplicatesSuspect`: the same artist/title/duration (±1 s) in two different unidentified albums with different fingerprints → one suspect group; the same in one album → not suspect (it is formats); a loose track + an album track → suspect; accents and case differ (`Canción`/`CANCION`) → still grouped; durations 3 s apart → not grouped; two exact copies in two albums and nothing else → not suspect.
+  - `TestDuplicatedFacet`: tracks of exact and formats groups and their albums have `estado=con-duplicados` (`Explore` with that facet returns exactly them; the facet's count is right); a suspect-only track does not.
+  - `TestAlbumVersions`: album A shares two tracks with B (one exact, one formats) and one track with C (exact) → `AlbumVersions(A)` is `[B (Shared 2, Kind formatos, Formats sorted), C (Shared 1, Kind exacta)]`; an album with no duplicates → empty, non-nil.
+- [ ] **Step 2: Run** `go test ./internal/catalog -run 'Duplicat|Version'`: fails to compile.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/catalog`: pass.
+- [ ] **Step 5: Commit** `feat: duplicates in the catalog: exact copies, formats with MEJOR, suspects; album versions`
+
+---
+
+### Task 3: Catalog: formats to convert
+
+**Files:**
+- Create: `internal/catalog/convert.go`
+- Test: `internal/catalog/convert_test.go`
+
+**Interfaces (produces):**
+
+```go
+// ConvertKeys are the formats Revisar suggests converting, in the order
+// it lists them; ConvertLabels names them.
+var ConvertKeys = []string{"wma", "wav", "aiff", "ape", "wavpack", "alac"}
+var ConvertLabels = map[string]string{"wma": "WMA", "wav": "WAV", "aiff": "AIFF", "ape": "APE", "wavpack": "WavPack", "alac": "ALAC"}
+
+type ConvertFormat struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+	Files int    `json:"files"`
+	Bytes int64  `json:"bytes"`
+}
+
+// ConvertItem is one album's (or, for loose tracks, one folder's) files
+// in one of those formats.
+type ConvertItem struct {
+	AlbumID    int64  `json:"albumId"` // 0: loose tracks of Dir
+	Title      string `json:"title"`   // the album's, or the folder's name
+	Artist     string `json:"artist"`
+	Dir        string `json:"dir"`
+	Format     string `json:"format"` // a key of ConvertKeys
+	Files      int    `json:"files"`
+	Bytes      int64  `json:"bytes"`
+	DurationMs int64  `json:"durationMs"`
+}
+
+type ToConvert struct {
+	Files   int             `json:"files"`
+	Bytes   int64           `json:"bytes"`
+	Formats []ConvertFormat `json:"formats"` // only those with files, in ConvertKeys order
+	Items   []ConvertItem   `json:"items"`   // by bytes descending, then title
+}
+
+func (c *Catalog) ToConvert() ToConvert // Formats and Items never nil
+```
+
+A track's format is `FormatKey(t.Format, t.Codec)`. Loose tracks group by `Dir` (title: the folder's last path element).
+
+- [ ] **Step 1: Write the failing test** `TestToConvert` on a snapshot of your own: two WMA tracks of one album (sizes 5 and 7), one ALAC (`Format: "mp4", Codec: "alac"`) of another album, one WAV (`Format: "wav", Codec: "pcm_s16le"`) loose in `../musica/sueltos`, an MP3 and a FLAC → `Files` 4, `Bytes` the sum of the four; `Formats` = WMA, WAV, ALAC in `ConvertKeys` order with their counts and bytes; `Items[0]` is the WMA album (2 files, 12 bytes); the WAV item has `AlbumID` 0 and `Title` `sueltos`. A catalog with none → zero totals, empty non-nil slices.
+- [ ] **Step 2: Run** `go test ./internal/catalog -run ToConvert`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/catalog`: pass.
+- [ ] **Step 5: Commit** `feat: formats to convert in the catalog`
+
+---
+
+### Task 4: Server: Revisar endpoints, versions on the album page
+
+**Files:**
+- Create: `internal/server/review.go`, `internal/server/review_test.go`
+- Modify: `internal/server/server.go` (routes), `internal/server/catalog.go` (`albumPage` gains `Versions`)
+- Test: `internal/server/catalog_test.go`
+
+**Consumes:** `Catalog.Duplicates`, `Catalog.AlbumVersions`, `Catalog.ToConvert` (Tasks 2, 3).
+
+**Endpoints:**
+- `GET /api/review/duplicates?tipo=exactas|formatos|sospechas` (default and unknown values: `exactas`) →
+  ```json
+  {"counts": {"exact": 3, "formats": 1, "suspect": 12}, "recoverable": 123456, "groups": [DupGroup…]}
+  ```
+  `groups` is the list of the asked kind, never null.
+- `GET /api/review/formats` → `catalog.ToConvert` as JSON.
+- `GET /api/albums/{id}` gains `"versions": [Version…]` (never null; `[]` when the album is not in the catalog).
+
+Both read `s.catalog()` (rebuilt when the store changes), as Explorar does.
+
+- [ ] **Step 1: Write the failing tests:** build a store with two copies of one file (same fingerprint, two folders) and a WMA track (`mediaServerFiles` in `media_test.go` takes a map of `audiofile.Info`; read how the fingerprints get set there and in `newStore`). Assert: `/api/review/duplicates` → one exact group with two files, `counts.exact` 1, `recoverable` > 0; `?tipo=sospechas` → `groups` `[]`; `?tipo=raro` → the exact groups; `/api/review/formats` → the WMA counted; `/api/albums/{id}` of one copy's album → `versions` lists the other album; an album without duplicates → `versions: []`.
+- [ ] **Step 2: Run** `go test ./internal/server -run 'Review|Album'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...`: pass.
+- [ ] **Step 5: Commit** `feat: Revisar endpoints for duplicates and formats to convert; versions on the album page`
+
+---
+
+### Task 5: QR encoder
+
+**Files:**
+- Create: `internal/qr/qr.go` (encoding, placement, masks, penalty), `internal/qr/rs.go` (GF(256) and Reed-Solomon), `internal/qr/svg.go`
+- Test: `internal/qr/qr_test.go`, `internal/qr/rs_test.go`; fixtures `internal/qr/testdata/v1.txt … v6.txt` (already in the repo)
+
+Implement ISO/IEC 18004 (QR Code model 2) for **byte mode, error correction level M, versions 1 to 6** only (enough for any LAN URL: up to 106 bytes). Nothing else (no numeric/alphanumeric/Kanji modes, no other levels, no version information blocks — they start at version 7).
+
+**Interfaces (produces):**
+
+```go
+package qr // QR codes for short texts (the LAN addresses): byte mode, level M, versions 1–6.
+
+var ErrTooLong = errors.New("texto demasiado largo para el código QR")
+
+// Code is a QR symbol without its quiet zone.
+type Code struct {
+	Size    int // modules per side: 17 + 4*Version
+	Version int
+	Mask    int
+	dark    []bool // row-major
+}
+
+func (c *Code) Dark(x, y int) bool // x column, y row
+
+// Encode makes the symbol of text: the smallest version that fits and the
+// mask with the lowest penalty (ties: the lowest mask number).
+func Encode(text string) (*Code, error)
+
+// encode makes the symbol with a given mask (tests compare it with the
+// reference matrices).
+func encode(text string, mask int) (*Code, error)
+
+// SVG draws the code with a quiet zone of quiet modules: a white square
+// and one black path, viewBox in modules, shape-rendering="crispEdges".
+func (c *Code) SVG(quiet int) string
+```
+
+**Tables (level M):**
+
+| Version | Size | Data codewords | Blocks × (total, data) | EC per block | Byte capacity | Alignment centers | Remainder bits |
+|---|---|---|---|---|---|---|---|
+| 1 | 21 | 16 | 1 × (26, 16) | 10 | 14 | — | 0 |
+| 2 | 25 | 28 | 1 × (44, 28) | 16 | 26 | 6, 18 | 7 |
+| 3 | 29 | 44 | 1 × (70, 44) | 26 | 42 | 6, 22 | 7 |
+| 4 | 33 | 64 | 2 × (50, 32) | 18 | 62 | 6, 26 | 7 |
+| 5 | 37 | 86 | 2 × (67, 43) | 24 | 84 | 6, 30 | 7 |
+| 6 | 41 | 108 | 4 × (43, 27) | 16 | 106 | 6, 34 | 7 |
+
+**Steps of the encoding** (each a small function, tested where noted):
+1. Bits: mode `0100`, the byte count in 8 bits, the bytes; terminator up to 4 zero bits; zero-pad to a byte; pad bytes `0xEC`, `0x11` alternating up to the data codewords.
+2. Split the data codewords into the version's blocks; Reed-Solomon over GF(256) with the primitive polynomial `0x11D` and generator `∏(x − α^i), i = 0…n−1`, n = EC per block.
+3. Interleave: data codewords column by column across blocks, then EC codewords the same way; then the remainder bits (zeros).
+4. Function patterns: three finder patterns with separators, timing patterns on row and column 6, alignment patterns at every pair of centers of the table except where they overlap a finder, the dark module at (8, 4·V + 9) (column 8, row `Size − 8`), and reserved format areas.
+5. Data placement: the standard zig-zag from the bottom-right corner, two columns at a time, upward and downward in turn, skipping column 6 and the function modules.
+6. Masks (row `i`, column `j`): 0 `(i+j)%2==0`; 1 `i%2==0`; 2 `j%3==0`; 3 `(i+j)%3==0`; 4 `(i/2+j/3)%2==0`; 5 `(i*j)%2+(i*j)%3==0`; 6 `((i*j)%2+(i*j)%3)%2==0`; 7 `((i+j)%2+(i*j)%3)%2==0`. Applied to data modules only.
+7. Format information: 5 bits = level M `00` + the mask's 3 bits; BCH(15,5) with generator `10100110111`; XOR `101010000010010`; written twice in the standard positions (bit 14 is the most significant).
+8. Penalty (to choose the mask): the four rules of ISO 18004 §7.8.3 — runs of 5+ same-color modules in rows and columns (3 + run − 5), 2×2 blocks of one color (3 each), the patterns `1011101` with four light modules on either side in rows and columns (40 each), and the dark proportion (10 per 5 % away from 50 %).
+
+- [ ] **Step 1: Write the failing tests:**
+  - `rs_test.go`: the error correction codewords of the 1-M "HELLO WORLD" example (data `32 91 11 120 209 114 220 77 67 64 236 17 236 17 236 17`, 10 EC codewords) are `196 35 39 119 235 215 231 226 93 23`. GF(256): `exp[log[x]] == x` for 1–255, and α^8 == 0x1D.
+  - `qr_test.go`: a helper reads a fixture (lines starting with `#` are the header: `text:`, `version:`, `mask:`; then one row per line, `#` dark and `.` light). For each fixture, `encode(text, mask)` has that version and size and matches every module (report the first differing module on failure). The format bits for M with mask 0 are `101010000010010`. `Encode` on each fixture's text picks the fixture's version and mask (the fixtures come from the `qrcode` Python package, which follows the spec's penalty rules; if a fixture's mask disagrees, recheck the penalty rules against the spec before changing the test, and say so in the report). `Encode` of 106 bytes works (version 6); 107 bytes → `ErrTooLong`. `SVG(4)` of the version 1 fixture starts with `<svg`, has `viewBox="0 0 29 29"` and one `<path`.
+- [ ] **Step 2: Run** `go test ./internal/qr`: fails to compile.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/qr`: pass.
+- [ ] **Step 5: Commit** `feat: QR encoder for the LAN addresses (byte mode, level M, versions 1-6)`
+
+---
+
+### Task 6: Auth: PIN, attempts, tokens
+
+**Files:**
+- Create: `internal/auth/auth.go`
+- Test: `internal/auth/auth_test.go`
+
+**Interfaces (produces):**
+
+```go
+// Package auth checks the PIN that devices on the LAN need, limits wrong
+// attempts and makes session tokens. The sessions themselves live in the
+// store; the PIN's hash lives in config.json.
+package auth
+
+var ErrPINFormat = errors.New("el PIN tiene que tener entre 6 y 12 dígitos, solo números")
+
+func CheckFormat(pin string) error // 6–12 ASCII digits
+
+// HashPIN derives a key from the PIN with PBKDF2-SHA256: the result is
+// "pbkdf2-sha256$<iterations>$<salt>$<key>" (base64.RawURLEncoding).
+func HashPIN(pin string) (string, error) // CheckFormat first; 16-byte salt from crypto/rand; 32-byte key
+
+// VerifyPIN tells whether pin matches hash; false for a malformed hash.
+func VerifyPIN(hash, pin string) bool // subtle.ConstantTimeCompare
+
+const Iterations = 100_000
+
+// Limiter slows down guessing: the first FreeAttempts wrong PINs are free,
+// then each wrong PIN locks logins for a time that starts at FirstLock and
+// doubles with every further failure, up to MaxLock. A right PIN resets it.
+// One limiter serves every device: there is a single user.
+type Limiter struct {
+	Now func() time.Time // nil: time.Now
+	mu       sync.Mutex
+	failures int
+	until    time.Time
+}
+
+const (
+	FreeAttempts = 5
+	FirstLock    = 30 * time.Second
+	MaxLock      = time.Hour
+)
+
+func (l *Limiter) Wait() time.Duration // > 0 while locked
+func (l *Limiter) Fail()
+func (l *Limiter) Reset()
+
+// NewToken makes a session token (32 random bytes, base64.RawURLEncoding)
+// and the hash the store keeps of it.
+func NewToken() (token, hash string, err error)
+func TokenHash(token string) string // hex SHA-256
+```
+
+`crypto/pbkdf2.Key(sha256.New, pin, salt, Iterations, 32)` (Go 1.24+ signature: returns `([]byte, error)`). The iteration count travels in the hash, so `VerifyPIN` reads it from there (reject counts < 1 or > 10 000 000).
+
+- [ ] **Step 1: Write the failing tests:**
+  - `TestCheckFormat`: `123456`, `000000`, `123456789012` ok; `12345`, `1234567890123`, `12345a`, `１２３４５６` (full-width digits), `" 123456"` → `ErrPINFormat`.
+  - `TestHashAndVerify`: `HashPIN("482915")` → 4 `$`-separated parts with `pbkdf2-sha256` and `100000`; two hashes of the same PIN differ (salt); `VerifyPIN` true for the PIN, false for `482916`; false for `""`, `"pbkdf2-sha256$x$y$z"`, a hash with 0 iterations; `HashPIN("12")` → `ErrPINFormat`.
+  - `TestLimiter` with a fake clock: 5 `Fail` → `Wait` 0; the 6th → 30 s; advance 30 s → 0; the 7th → 60 s; then 120 s…; never over 1 h (fail 20 times); `Reset` → 0 and the next 5 failures are free again.
+  - `TestTokens`: tokens are 43 characters, two tokens differ, `TokenHash(token) == hash`, the hash is 64 hex characters.
+- [ ] **Step 2: Run** `go test ./internal/auth`: fails to compile.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/auth`: pass.
+- [ ] **Step 5: Commit** `feat: PIN hashing, attempt limiter and session tokens`
+
+---
+
+### Task 7: Store: schema v6, sessions
+
+**Files:**
+- Modify: `internal/store/schema.sql`, `internal/store/store.go` (`schemaVersion = 6`; its comment gains "Version 6 (M5) added the LAN sessions.")
+- Create: `internal/store/sessions.go`
+- Test: `internal/store/sessions_test.go`, `internal/store/migrate_test.go`
+
+Append to `schema.sql`:
+
+```sql
+-- Devices signed in from the LAN. token_hash is the SHA-256 (hex) of the
+-- cookie's token; the token itself is never stored.
+CREATE TABLE IF NOT EXISTS sessions (
+	id         INTEGER PRIMARY KEY,
+	token_hash TEXT NOT NULL UNIQUE,
+	device     TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	last_seen  INTEGER NOT NULL
+);
+```
+
+**Interfaces (produces):**
+
+```go
+// Session is a device signed in from the LAN.
+type Session struct {
+	ID        int64  `json:"id"`
+	Device    string `json:"device"`
+	CreatedAt int64  `json:"createdAt"` // unix ms
+	LastSeen  int64  `json:"lastSeen"`  // unix ms
+}
+
+func (s *Store) CreateSession(tokenHash, device string) (int64, error) // device trimmed, cut to 60 runes, "" → "Dispositivo"
+func (s *Store) SessionByToken(tokenHash string) (Session, bool, error)
+func (s *Store) TouchSession(id int64) error                // last_seen = now()
+func (s *Store) Sessions() ([]Session, error)               // last seen first, then id descending; never nil
+func (s *Store) DeleteSession(id int64) (bool, error)
+func (s *Store) DeleteSessions() error                      // every session (a new PIN)
+func (s *Store) PruneSessions(before time.Time) (int, error) // deletes those last seen before; returns how many
+```
+
+Writes are `sideWrite(false, …)` (not catalog changes, not personal data) and use the store's `now()` (as stations and playlists do). In a read-only store they fail like other writes.
+
+- [ ] **Step 1: Write the failing tests** (`open(t)`, overriding `now` where times matter):
+  - `TestSessionLifecycle`: create two sessions → `SessionByToken` finds each with its device and `CreatedAt == LastSeen`; an unknown hash → `false, nil`; `TouchSession` moves `LastSeen` (and `Sessions()` order); `DeleteSession` → gone, a second delete → `false, nil`; `DeleteSessions` → empty list (non-nil); creating with an existing hash → error.
+  - `TestSessionDevice`: `"  "` → `Dispositivo`; 80 runes → 60.
+  - `TestPruneSessions`: sessions last seen at day 1 and day 100; `PruneSessions(day 10)` → 1, the day-100 one stays.
+  - `TestSessionWritesAreSide`: on `sample(t)`, `Changes()` and `PersonalVersion()` unchanged across create/touch/delete.
+  - `migrate_test.go`: the older catalog now migrates to `user_version` 6 with the `sessions` table.
+- [ ] **Step 2: Run** `go test ./internal/store -run 'Session|Migrat'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./internal/store`: pass.
+- [ ] **Step 5: Commit** `feat: schema v6 with LAN sessions`
+
+---
+
+### Task 8: Config: LAN, root checks, setup pending
+
+**Files:**
+- Modify: `internal/config/config.go`
+- Create: `internal/config/roots.go` (adapted from Cinexplorer's `config.go`: `Root`, `canonicalCase`, `canonicalName`, `onlyParents`, `CheckRoots`, `Available`)
+- Test: `internal/config/config_test.go`, `internal/config/roots_test.go` (adapt Cinexplorer's tests of those functions)
+
+**Interfaces (produces):**
+
+```go
+type LAN struct {
+	Enabled bool   `json:"enabled"`
+	Port    int    `json:"port"`    // 0 (absent): DefaultPort
+	PinHash string `json:"pinHash"` // auth.HashPIN; "" when no PIN was chosen
+}
+
+const DefaultPort = 4747
+
+// in Config, after Normalize:
+	LAN LAN `json:"lan"`
+
+func (l LAN) PortOrDefault() int
+
+// Root turns a folder the user typed (absolute, or relative to the app
+// folder) into a root in catalog form, or says why it cannot be one.
+func Root(appDir, input string) (string, error)
+// CheckRoots validates the roots of a settings change: each one must be in
+// catalog form; new ones must exist (saved ones may be unavailable, as when
+// a drive is unplugged); no duplicates; at least one.
+func CheckRoots(appDir string, roots, saved []string) error
+// Available tells whether a root's folder exists now.
+func Available(appDir, root string) bool
+```
+
+`Load` keeps its signature `(Config, bool, error)`; `created` now reads as **setup pending**: the file does not exist, and the defaults are the sibling folders as roots, no ignore patterns, normalization on and `LAN{Port: DefaultPort}`. `Load` never writes (it never did; the caller saved). Copy Cinexplorer's root functions with their behavior and Spanish messages, adapting names; read Cinexplorer's tests and port the ones that apply.
+
+- [ ] **Step 1: Write the failing tests:** a missing file → `created` true, `LAN.Port` 4747, `LAN.Enabled` false, `Normalizing()` true; a file without `lan` → `PortOrDefault()` 4747; a saved and reloaded config keeps `lan` (`enabled`, `port`, `pinHash`); the ported root tests (relative and absolute input, a file is not a folder, a missing folder, `CheckRoots` with an unavailable saved root, duplicates, none).
+- [ ] **Step 2: Run** `go test ./internal/config`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...`: pass.
+- [ ] **Step 5: Commit** `feat: LAN settings in config.json; root checks for the settings`
+
+---
