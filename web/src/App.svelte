@@ -5,8 +5,10 @@
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
+  import Ajustes from './pages/Ajustes.svelte'
   import Album from './pages/Album.svelte'
   import Artista from './pages/Artista.svelte'
+  import Bienvenida from './pages/Bienvenida.svelte'
   import Buscar from './pages/Buscar.svelte'
   import Carpetas from './pages/Carpetas.svelte'
   import Estadisticas from './pages/Estadisticas.svelte'
@@ -17,6 +19,11 @@
   import Revisar from './pages/Revisar.svelte'
 
   const current = $derived(resolve(route.path, route.search))
+
+  // Until the first-use settings are saved, every page is the assistant.
+  $effect(() => {
+    if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/bienvenida', { replace: true })
+  })
 
   watchStatus()
 
@@ -39,7 +46,9 @@
 
 <svelte:window {onclick} />
 
-<Nav page={current.page} />
+{#if current.page !== 'bienvenida'}
+  <Nav page={current.page} />
+{/if}
 
 <main>
   {#if current.page === 'inicio'}
@@ -68,6 +77,10 @@
     {/key}
   {:else if current.page === 'revisar'}
     <Revisar tab={current.tab} kind={current.kind} />
+  {:else if current.page === 'ajustes'}
+    <Ajustes />
+  {:else if current.page === 'bienvenida'}
+    <Bienvenida />
   {:else}
     <p class="empty">No existe esta página. <a href="/">Ir al Inicio</a></p>
   {/if}

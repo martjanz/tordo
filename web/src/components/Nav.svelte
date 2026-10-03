@@ -38,6 +38,9 @@
     <span class="spacer"></span>
     <Busqueda />
     <Estado />
+    <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
+      <Icono name="settings" size={18} />
+    </a>
   </nav>
 </header>
 
@@ -96,6 +99,13 @@
   }
   .spacer {
     flex: 1;
+  }
+  .gear {
+    display: inline-flex;
+    color: var(--muted);
+  }
+  .gear.active {
+    color: var(--strong);
   }
   .tabs {
     display: none;
