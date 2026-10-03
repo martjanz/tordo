@@ -548,3 +548,246 @@ func Available(appDir, root string) bool
 - [ ] **Step 5: Commit** `feat: LAN settings in config.json; root checks for the settings`
 
 ---
+
+### Task 9: Engine
+
+**Files:**
+- Create: `internal/engine/engine.go` (adapted from Cinexplorer's `internal/engine/engine.go`)
+- Test: `internal/engine/engine_test.go` (adapt Cinexplorer's where they apply)
+
+**Consumes:** `config.Config`, `config.LAN`, `config.Save` (Task 8); `scan.Scanner`; `identify.Runner`, `identify.API`, `identify.Discogs`; `discogs.New`.
+
+**Interfaces (produces):**
+
+```go
+// Package engine builds, from config.json, the parts of the app that depend
+// on it (the scanner and the identification runner) and replaces them when
+// the settings change. The LAN listener is opened and closed through a hook.
+package engine
+
+var ErrReadOnly = errors.New("modo consulta: la configuración no se puede modificar")
+
+type ValidationError struct{ Err error } // Error, Unwrap as in Cinexplorer
+
+type Engine struct {
+	AppDir   string
+	Store    *store.Store
+	ReadOnly bool
+	MB       identify.API                         // MusicBrainz, shared by every runtime
+	Discogs  func(token string) identify.Discogs  // nil: discogs.New
+	Loudness interface{ Trigger() }               // nil: none; triggered after every scan
+	LAN      func(config.LAN) error               // opens, moves or closes the LAN listener; nil: none
+
+	mu      sync.Mutex
+	current atomic.Pointer[Runtime]
+	pending atomic.Bool
+}
+
+type Runtime struct {
+	Config     config.Config
+	Scanner    *scan.Scanner    // nil in browse-only mode
+	Identifier *identify.Runner // nil in browse-only mode
+	*lifecycle
+}
+
+func (e *Engine) Start(cfg config.Config, setupPending bool) // builds; opens the LAN listener when enabled and not read-only (an error is logged, not returned); scans unless pending
+func (e *Engine) Current() *Runtime
+func (e *Engine) Use(rt *Runtime)          // tests: install a runtime as is
+func (e *Engine) SetupPending() bool
+func (e *Engine) Apply(cfg config.Config) error
+func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error
+func (e *Engine) Close()                   // stops the current runtime
+func (rt *Runtime) Scan()                  // a scan of every root in the background; nothing in browse-only mode, after Stop or while one runs
+func (rt *Runtime) Stop()                  // cancels its scan and identification, waits for them
+```
+
+**Behavior of `Update`** (decision 9; differs from Cinexplorer):
+1. `ErrReadOnly` in browse-only mode. Under `e.mu`: `cfg, err := f(cur)`; a `*ValidationError` is returned as is.
+2. When `cfg.LAN.Enabled` or `cfg.LAN.PortOrDefault()` differs from the current config's, and `e.LAN != nil`: call `e.LAN(cfg.LAN)` **before saving**; its error comes back as a `*ValidationError` (`no se pudo abrir el puerto 4747: …`) and nothing is saved.
+3. `config.Save`. If it fails after step 2 changed the listener, call `e.LAN(old.LAN)` to undo it and return the save error.
+4. Then: setup was pending → stop the old runtime, build, clear pending, scan. Only `Normalize` and `LAN` differ → keep the running parts (copy the runtime, swap its `Config`). `Roots` or `Ignore` differ → stop, build, scan (full incremental scan; tordo's scanner has no per-root runs and an incremental rescan is cheap). Otherwise (the Discogs token) → stop, build, `Identifier.Trigger()`.
+
+`build(cfg)`: in browse-only mode only `Config`. Else an `identify.Runner{AppDir, Store, MB: e.MB, Discogs: e.Discogs(cfg.DiscogsToken)}` and a `scan.Scanner{AppDir, Roots: path.Clean of each root, Ignore: cfg.Ignore, Store, OnDone: <runner.Trigger, then Loudness.Trigger when set>}`. Log `sin token de Discogs: …` as `cmd/tordo` does today when the token is empty.
+
+`Runtime.Scan` runs `Scanner.Run(ctx)` in a goroutine with the runtime's cancellable context; `scan.ErrBusy` and errors after cancellation are not logged.
+
+- [ ] **Step 1: Write the failing tests** (temp app dir, an in-memory store, a fake `identify.API` that fails every call or finds nothing — no network; `Discogs` returning a fake that records its token):
+  - `TestStartPending`: `Start(cfg, true)` → `SetupPending()` true, no scan ran (`Scanner.Status().Finished` zero after a short wait is fragile: instead give the scanner a root with one audio file and assert the store has no files), no `config.json`.
+  - `TestApplyFirstUse`: after `Start(cfg, true)`, `Apply(cfg)` writes `config.json`, clears pending and scans (the store gets the file; wait with a deadline loop on `Scanner.Status()`).
+  - `TestUpdateKeepsPartsForNormalize`: change only `Normalize` → `Current().Scanner` is the same pointer, config saved.
+  - `TestUpdateRootsRescans`: add a second root with a file → new scanner, both roots' files catalogued.
+  - `TestUpdateTokenRebuildsIdentifier`: change the token → new `Identifier`, the fake Discogs constructor got the new token; no scan started.
+  - `TestUpdateLAN`: a `LAN` hook that records calls; enabling LAN calls it once with the new settings, saves, keeps the parts; a change of only `PinHash` does not call it; a hook error → `*ValidationError`, config file unchanged, current config unchanged.
+  - `TestUpdateValidation` and `TestReadOnly`: `f` returning `*ValidationError` → returned, nothing saved; browse-only → `ErrReadOnly`.
+- [ ] **Step 2: Run** `go test ./internal/engine`: fails to compile.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test -race ./internal/engine`: pass.
+- [ ] **Step 5: Commit** `feat: engine: the parts that depend on config.json, replaced when it changes`
+
+---
+
+### Task 10: Server: engine wiring and settings endpoints
+
+**Files:**
+- Modify: `internal/server/server.go` (`Engine` field, `parts()`, `status`, `scan`, the `local` flag in the request context), `internal/server/identify.go` (read the identifier through `parts()`)
+- Create: `internal/server/settings.go`
+- Test: `internal/server/settings_test.go`, `internal/server/server_test.go`
+
+**Consumes:** `engine.Engine`, `engine.Runtime`, `engine.ValidationError`, `engine.ErrReadOnly` (Task 9); `config.Root`, `config.CheckRoots`, `config.Available`, `config.DefaultRoots`, `config.LAN` (Task 8); `auth.CheckFormat`, `auth.HashPIN` (Task 6); `Store.DeleteSessions` (Task 7); `discogs.New`, `discogs.ErrUnauthorized`, `httpx.ErrOffline`.
+
+**Interfaces (produces):**
+
+```go
+// in Server:
+	// Engine holds what config.json decides; nil (tests): the fixed fields
+	// Scanner, Identifier and Normalize, and no settings.
+	Engine *engine.Engine
+	// VerifyToken asks Discogs whether it takes a token; nil: asking for a
+	// well-known release once.
+	VerifyToken func(ctx context.Context, token string) error
+
+// parts are the pieces config.json decides, read once per request.
+type parts struct {
+	scanner    *scan.Scanner // nil: browse-only mode
+	identifier Identifier    // nil: browse-only mode
+	normalize  bool
+	lan        config.LAN
+	scan       func() // starts a scan in the background
+}
+
+func (s *Server) parts() parts
+
+// localRequest tells whether the request comes from the computer that runs
+// Tordo (see decision 11); set by localOnly (always) and by the LAN gate.
+func localRequest(r *http.Request) bool
+
+// settings wraps the handlers that change or reveal the configuration: 403
+// with "Los ajustes solo se cambian en la computadora que corre Tordo."
+// when the request is not local.
+func settings(h http.HandlerFunc) http.HandlerFunc
+```
+
+With an `Engine`, `parts()` reads `Engine.Current()` once (identifier set only when `rt.Identifier != nil`: never a nil pointer in the interface; `scan: rt.Scan`); without one, the old fields (`scan` runs `Scanner.Run(context.Background())` in a goroutine, as `scan` does today). Every handler that used `s.Scanner`, `s.Identifier` or `s.Normalize` reads `p := s.parts()` once. `GET /api/status` gains `"setupPending"` (false without an engine).
+
+**Endpoints** (all wrapped in `settings`; writes also in `jsonOnly`; without an `Engine`: 404):
+- `GET /api/config` →
+  ```json
+  {"setupPending": false, "readOnly": false,
+   "roots": [{"path": "../musica", "available": true}], "suggested": ["../otra"], "ignore": ["Podcasts"],
+   "hasToken": true, "tokenHint": "…a1b2", "normalize": true,
+   "lan": {"enabled": false, "port": 4747, "hasPin": false}}
+  ```
+  `suggested`: sibling folders not already roots. `tokenHint` only for tokens of 8+ characters. Never the token nor the PIN hash.
+- `PUT /api/config` with `{"roots": [...], "ignore": [...], "token": "…"|null, "normalize": true, "lan": {"enabled": true, "port": 4747, "pin": "…"|null}}`, resolved inside `Engine.Update`:
+  - roots: `config.CheckRoots(appDir, roots, cur.Roots)`; ignore: trimmed, empty ones dropped, at most 100, each without `..`;
+  - `token` null keeps the saved one, `""` removes it, else trimmed;
+  - `lan.port` 1024–65535 else `el puerto tiene que estar entre 1024 y 65535`; `lan.pin` null keeps the saved hash, else `auth.CheckFormat` and `auth.HashPIN`; enabled with no hash saved nor given → `elegí un PIN para usar Tordo desde la red`;
+  - a `*ValidationError` → 400 with its text; `ErrReadOnly` → 409; other errors → 500 `no se pudo guardar config.json` (logged).
+  - After a successful save with a new PIN: `Store.DeleteSessions()` (a failure is logged). Answer: the new `GET /api/config` view.
+- `POST /api/config/root` `{"path": "…"}` → `{"path": "../musica", "available": true}` or 400 with `config.Root`'s error.
+- `POST /api/config/token` `{"token": "…"}` → `{"valid": true|false|null}`: `discogs.ErrUnauthorized` → false; `httpx.ErrOffline` or the 15 s deadline → null; anything else (a 404 included) → true. The default `VerifyToken` builds `discogs.New(token)`, sets `HTTP.Attempts = 1` and asks `Release(ctx, 249504)`. Empty token → 400 `falta el token`.
+
+- [ ] **Step 1: Write the failing tests** (an `engine.Engine` on a temp dir with `MB` a fake and a sibling folder layout `<tmp>/tordo` + `<tmp>/musica`; `VerifyToken` replaced; requests through `do`, which is local):
+  - `GET /api/config` on a pending engine → `setupPending` true, `suggested` has `../musica`, `roots` `[]`, no `pinHash` or token anywhere in the body.
+  - `PUT` saving roots, ignore, a token and normalize off → 200, `config.json` has them, `hasToken` true, `tokenHint` ends with the token's last 4, `/api/status` says `normalize: false` and `setupPending: false`; a second `PUT` with `token: null` keeps it, `""` removes it.
+  - LAN: enabling without a PIN → 400; with `pin: "12"` → 400 with the format message; with `pin: "482915"` → 200, `hasPin` true, the saved hash verifies with `auth.VerifyPIN`; then `pin: null` keeps it; a new PIN deletes existing sessions (create one first); port 80 → 400.
+  - A root that does not exist → 400; `POST /api/config/root` with `../musica` → 200 `available` true; with a file → 400.
+  - `POST /api/config/token`: the fake returning `discogs.ErrUnauthorized` → `valid` false; `httpx.ErrOffline` → null; nil → true.
+  - Browse-only engine → `PUT` 409.
+  - A request not marked local (build one with `httptest.NewRequest` and call `settings(h)` directly, without the flag) → 403 with the message.
+  - The old tests keep passing (no engine: the fields).
+- [ ] **Step 2: Run** `go test ./internal/server -run 'Config|Settings|Status'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...`: pass.
+- [ ] **Step 5: Commit** `feat: settings endpoints on top of the engine; parts read per request`
+
+---
+
+### Task 11: Server: LAN listener, PIN login, sessions, QR
+
+**Files:**
+- Create: `internal/server/lan.go`
+- Modify: `internal/server/server.go` (the mux built once and shared by `Handler()` and `LANHandler()`; routes)
+- Test: `internal/server/lan_test.go`
+
+**Consumes:** `parts().lan` (Task 10); `auth.VerifyPIN`, `auth.Limiter`, `auth.NewToken`, `auth.TokenHash` (Task 6); the store's sessions (Task 7); `qr.Encode`, `(*Code).SVG` (Task 5); `config.LAN` (Task 8).
+
+**Interfaces (produces):**
+
+```go
+// LANHandler serves the LAN listener: the same routes as Handler, behind
+// the LAN gate (decisions 11 and 14).
+func (s *Server) LANHandler() http.Handler
+
+// ApplyLAN opens, moves or closes the LAN listener (0.0.0.0:<port>) to
+// match c. Browse-only mode: an error, nothing opened. Engine.LAN calls it.
+func (s *Server) ApplyLAN(c config.LAN) error
+
+// LANState is what Ajustes shows about the LAN.
+type LANState struct {
+	Enabled   bool     `json:"enabled"`
+	Port      int      `json:"port"`
+	Listening bool     `json:"listening"`
+	URLs      []string `json:"urls"` // never nil; empty when not listening
+}
+
+// lanURLs lists the addresses to open Tordo from another device: one per
+// private IPv4 address, then the host's .local name (decision 16).
+func lanURLs(ips []net.IP, hostname string, port int) []string
+
+// lanHost tells whether a Host header may reach the LAN listener (decision 11).
+func lanHost(host, hostname string) bool
+
+const sessionCookie = "tordo_sesion"
+const sessionDays = 90
+```
+
+The server keeps (unexported) the listener (`*http.Server` with `ReadHeaderTimeout: 10 * time.Second`, `Serve` in a goroutine), its port, and an `auth.Limiter`. `ApplyLAN`: disabled → close if open; enabled on the open port → nothing; else close and `net.Listen("tcp", fmt.Sprintf(":%d", port))` (the error, wrapped: `no se pudo abrir el puerto %d: %w`). The interfaces come from `net.Interfaces()` (up, not loopback) and `os.Hostname()` (lowercase, a trailing `.local` dropped).
+
+**The LAN gate** (wraps the shared mux in `LANHandler`):
+1. `lanHost(r.Host)` false → 403 `prohibido`. Cross-site checks and `Cross-Origin-Resource-Policy` as in `localOnly` (extract them into a shared helper).
+2. Local (`RemoteAddr` loopback **and** `Host` is `localhost`, `127.0.0.1` or `[::1]`, any port) → mark the context local and serve.
+3. Else, the open paths (decision 14: not under `/api/` nor `/stream/`, or `GET /api/auth`, `POST /api/auth/login`, `POST /api/auth/logout`) → serve, not local.
+4. Else the cookie: `SessionByToken(TokenHash(value))`; none → clear the cookie (`MaxAge: -1`) and 401 `ingresá el PIN`; found → when `LastSeen` is over 24 h old, `TouchSession` and re-send the cookie; put the session id in the context; serve.
+
+**Endpoints** (on both handlers):
+- `GET /api/auth` → `{"local": bool, "session": bool, "device": "…", "pinRequired": bool}` (`pinRequired` = not local and no valid session; reads the cookie itself, since this path is open).
+- `POST /api/auth/login` (`jsonOnly`) `{"pin": "…", "device": "…"}`: local → 400 `desde esta computadora no hace falta el PIN`; LAN not enabled or no PIN hash → 403 `el acceso desde la red está apagado`; `Limiter.Wait() > 0` → 429, `Retry-After: <seconds, rounded up>`, `Demasiados intentos. Probá de nuevo en N s.`; wrong PIN → `Fail`, 401 `PIN incorrecto`; right → `Reset`, `PruneSessions(now − 90 days)`, `NewToken`, `CreateSession(hash, device)`, the cookie (`HttpOnly`, `SameSite=Lax`, `Path=/`, `MaxAge` 90 days), 200 `{"ok": true}`. Browse-only → 409.
+- `POST /api/auth/logout` (`jsonOnly`): deletes the session of the cookie when there is one, clears the cookie, 200.
+- `GET /api/sessions` (`settings`) → `[Session…]`.
+- `DELETE /api/sessions/{id}` (`settings`) → 204, 404 unknown.
+- `GET /api/lan` (`settings`) → `LANState`.
+- `GET /api/lan/qr?url=…` (`settings`) → `image/svg+xml` (`qr.Encode(url).SVG(4)`), `Cache-Control: no-store`; a URL not in `LANState.URLs` → 400.
+
+- [ ] **Step 1: Write the failing tests** (an engine with LAN enabled and a PIN hash, installed through `Engine.Use`; requests built with `httptest.NewRequest`, `RemoteAddr` `192.168.1.20:5000` for a phone, `127.0.0.1:5000` for the computer):
+  - `TestLANHostCheck`: `lanHost` accepts `192.168.1.5:4747`, `[fe80::1]:4747`, `localhost:4747`, `mimac.local:4747`, `MIMAC:4747` (hostname `mimac`); rejects `evil.example:4747`, `mimac.evil.example`.
+  - `TestLANGate`: a phone without cookie → `/api/status` 401, `/stream/1` 401, `/` 200 (the app shell; use a test `Static` FS), `GET /api/auth` 200 with `pinRequired` true; loopback with `Host: 127.0.0.1:4747` → `/api/status` 200 and `/api/config` 200; loopback with `Host: 192.168.1.5:4747` → treated as a phone (401); a foreign Host → 403.
+  - `TestLogin`: wrong PIN → 401; right PIN → 200 and a `tordo_sesion` cookie with `HttpOnly`, `SameSite=Lax`, `Max-Age` 7776000; with it `/api/status` 200 and `/api/auth` says `session` true with the device name; `/api/config` with it → 403 (not local); with the limiter's clock faked: five wrong PINs → 401 each; the sixth wrong PIN → 401 and the lock starts; the next attempt, even with the right PIN → 429 with `Retry-After: 30`; 30 s later the right PIN → 200.
+  - `TestSessionsEndpoints`: two logins → `GET /api/sessions` (local) lists both; `DELETE` one → its cookie now gets 401 and the cookie is cleared; logout with the other → 401 after.
+  - `TestSessionTouch`: a session last seen 2 days ago (override the store's clock or create it with a fake `now`) → a request updates `LastSeen` and re-sends the cookie; a session seen 1 hour ago → no cookie in the answer.
+  - `TestApplyLAN`: a free port (listen on `:0`, read the port, close) → `ApplyLAN` enabled → `GET http://127.0.0.1:<port>/api/auth` answers; disabled → the connection is refused; a taken port → an error naming the port.
+  - `TestLANURLs`: IPs `192.168.1.5`, `10.0.0.2`, `8.8.8.8`, `127.0.0.1`, an IPv6 → `http://192.168.1.5:4747/`, `http://10.0.0.2:4747/`, then `http://mimac.local:4747/`; an empty hostname → no `.local` entry.
+  - `TestLANQR`: `/api/lan/qr?url=<one of the URLs>` → 200 SVG; another URL → 400. (Inject the addresses: let the server hold an `interfaces func() ([]net.IP, string)`, nil meaning the real ones.)
+- [ ] **Step 2: Run** `go test ./internal/server -run 'LAN|Login|Session'`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test -race ./...`: pass.
+- [ ] **Step 5: Commit** `feat: LAN listener with PIN, sessions, devices and QR`
+
+---
+
+### Task 12: `cmd/tordo`: the engine, first run, LAN at start
+
+**Files:**
+- Modify: `cmd/tordo/main.go`, `cmd/tordo/main_test.go`
+
+**Consumes:** `engine.Engine` (Task 9), `Server.Engine`, `Server.ApplyLAN` (Tasks 10, 11), `config.Load` (Task 8).
+
+`setup` builds the store, the loudness runner (unchanged: it does not depend on the settings), the server, then the engine `{AppDir, Store, ReadOnly, MB: musicbrainz.New(), Loudness: <the runner, only when not nil>, LAN: srv.ApplyLAN (not in browse-only mode)}`, sets `srv.Engine`, and calls `Start(cfg, pending)` where `pending = created && !readOnly`. The "se creó config.json…" save and log go away; on first use log `Primera vez: elegí las carpetas en el navegador (asistente).` `run` keeps the local listener as it is (127.0.0.1, `-port`) and closes the engine at the end. Remove the code that moved into the engine (scanner, identification runner, `OnDone`). The local listener's address is printed as today; when LAN is on, also log `Desde la red: <first LAN URL>`.
+
+- [ ] **Step 1: Write the failing test** (`main_test.go`, as the existing test does with a temp dir): `setup` on a folder without `config.json` → the engine's `SetupPending()` true, no `config.json` written, nothing scanned; with a `config.json` → not pending.
+- [ ] **Step 2: Run** `go test ./cmd/tordo`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `go test ./...`, then by hand: `go run ./cmd/tordo -dir <scratch dir with a sibling folder> -no-browser` starts, logs the first-use line, `curl -s localhost:<port>/api/config` answers `setupPending: true`. Stop it.
+- [ ] **Step 5: Commit** `feat: tordo runs on the engine: first-use assistant, settings without restart, LAN`
+
+---
