@@ -81,6 +81,27 @@ func TestGetConfigPending(t *testing.T) {
 	}
 }
 
+func TestConfigNeverLeaksSecrets(t *testing.T) {
+	s := settingsServer(t, false)
+	const token = "abcd1234efgh5678"
+	put := putConfig(t, s, `{"roots":["../musica"],"ignore":[],"token":"`+token+`","normalize":true,"lan":{"enabled":true,"port":4747,"pin":"482915"}}`)
+	if put.Code != http.StatusOK {
+		t.Fatalf("put: %d %s", put.Code, put.Body)
+	}
+	hash := saved(t, s).LAN.PinHash
+	if hash == "" {
+		t.Fatal("no PIN hash saved")
+	}
+	get := do(t, s.Handler(), "GET", "/api/config", "")
+	for name, body := range map[string]string{"PUT": put.Body.String(), "GET": get.Body.String()} {
+		for _, secret := range []string{token, hash, "482915"} {
+			if strings.Contains(body, secret) {
+				t.Fatalf("%s answer leaks %q: %s", name, secret, body)
+			}
+		}
+	}
+}
+
 func TestPutConfigSaves(t *testing.T) {
 	s := settingsServer(t, false)
 	if rec := putConfig(t, s, `{"roots":["../musica"],"ignore":["../x"],"normalize":true,"lan":{"port":4747}}`); rec.Code != http.StatusBadRequest {

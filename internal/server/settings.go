@@ -47,7 +47,10 @@ type configView struct {
 }
 
 func (s *Server) configView() configView {
-	cfg := s.Engine.Current().Config
+	var cfg config.Config
+	if rt := s.Engine.Current(); rt != nil {
+		cfg = rt.Config
+	}
 	v := configView{SetupPending: s.Engine.SetupPending(), ReadOnly: s.readOnly(), Roots: []rootView{}, Suggested: []string{},
 		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(),
 		LAN: lanView{Enabled: cfg.LAN.Enabled, Port: cfg.LAN.PortOrDefault(), HasPin: cfg.LAN.PinHash != ""}}
@@ -60,8 +63,8 @@ func (s *Server) configView() configView {
 			v.Suggested = append(v.Suggested, r)
 		}
 	}
-	if len(cfg.DiscogsToken) >= 8 {
-		v.TokenHint = "…" + cfg.DiscogsToken[len(cfg.DiscogsToken)-4:]
+	if tok := []rune(cfg.DiscogsToken); len(tok) >= 8 {
+		v.TokenHint = "…" + string(tok[len(tok)-4:])
 	}
 	return v
 }
