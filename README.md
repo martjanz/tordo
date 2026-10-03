@@ -361,7 +361,7 @@ the computer running Tordo.
 
 - `enabled`: whether the LAN listener is running.
 - `port`: the port to listen on (1024–65535); 0 or absent means the default port 4747.
-- `pinHash`: the hashed PIN (PBKDF2-SHA256, 100,000 iterations). Empty when LAN is off.
+- `pinHash`: the hashed PIN (PBKDF2-SHA256, 100,000 iterations). Empty until a PIN is chosen; turning LAN on requires one. Changing the PIN closes every device's session.
 
 ## Development
 
