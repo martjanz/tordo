@@ -66,7 +66,9 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 	if l.srv != nil && l.port == port {
 		return nil
 	}
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	// IPv4 only: ":port" would also open [::]:port, reachable over a global
+	// IPv6 address.
+	ln, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir el puerto %d: %w", port, err)
 	}
@@ -205,6 +207,17 @@ func loopbackAddr(remote string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+// localNetworkAddr tells whether a remote address belongs to the local
+// network: loopback, private or link-local. The LAN gate refuses anything else.
+func localNetworkAddr(remote string) bool {
+	h, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast())
+}
+
 // openPath: what the LAN listener answers without a session (decision 14).
 func openPath(r *http.Request) bool {
 	p := r.URL.Path
@@ -231,10 +244,19 @@ func sessionCookieFor(token string) *http.Cookie {
 
 // LANHandler serves the LAN listener: the same routes as Handler, behind the
 // LAN gate (decisions 11 and 14).
+//
+// Browsers do not send Fetch Metadata (Sec-Fetch-*) to plain-HTTP origins, so
+// on the LAN sameSiteOnly does little: what blocks cross-site use is
+// SameSite=Lax on the session cookie plus jsonOnly on the writes. Do not relax
+// either.
 func (s *Server) LANHandler() http.Handler {
 	mux := s.routes()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !lanHost(r.Host, s.currentHostName()) {
+			http.Error(w, "prohibido", http.StatusForbidden)
+			return
+		}
+		if !localNetworkAddr(r.RemoteAddr) {
 			http.Error(w, "prohibido", http.StatusForbidden)
 			return
 		}
@@ -249,13 +271,7 @@ func (s *Server) LANHandler() http.Handler {
 			mux.ServeHTTP(w, r)
 			return
 		}
-		c, err := r.Cookie(sessionCookie)
-		if err != nil || c.Value == "" {
-			http.SetCookie(w, clearCookie())
-			http.Error(w, "ingresá el PIN", http.StatusUnauthorized)
-			return
-		}
-		se, ok, err := s.Store.SessionByToken(auth.TokenHash(c.Value))
+		se, ok, err := s.requestSession(r)
 		if err != nil {
 			fail(w, err)
 			return
@@ -265,6 +281,7 @@ func (s *Server) LANHandler() http.Handler {
 			http.Error(w, "ingresá el PIN", http.StatusUnauthorized)
 			return
 		}
+		c, _ := r.Cookie(sessionCookie) // present: requestSession found a session by it
 		if s.clock().Sub(time.UnixMilli(se.LastSeen)) > touchAfter {
 			if err := s.Store.TouchSession(se.ID); err != nil {
 				fail(w, err)
@@ -277,12 +294,23 @@ func (s *Server) LANHandler() http.Handler {
 }
 
 // requestSession is the session of the request's cookie, if it has a valid one.
+// A session unused for over 90 days is deleted and does not count.
 func (s *Server) requestSession(r *http.Request) (store.Session, bool, error) {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil || c.Value == "" {
 		return store.Session{}, false, nil
 	}
-	return s.Store.SessionByToken(auth.TokenHash(c.Value))
+	se, ok, err := s.Store.SessionByToken(auth.TokenHash(c.Value))
+	if err != nil || !ok {
+		return se, false, err
+	}
+	if s.clock().Sub(time.UnixMilli(se.LastSeen)) > sessionMaxAge {
+		if _, err := s.Store.DeleteSession(se.ID); err != nil {
+			return se, false, err
+		}
+		return store.Session{}, false, nil
+	}
+	return se, true, nil
 }
 
 // authState tells the page whether it must ask for the PIN.
@@ -309,11 +337,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "modo consulta: no se puede iniciar sesión", http.StatusConflict)
 		return
 	}
-	lan := s.parts().lan
-	if !lan.Enabled || lan.PinHash == "" {
-		http.Error(w, "el acceso desde la red está apagado", http.StatusForbidden)
-		return
-	}
 	var in struct {
 		PIN    string `json:"pin"`
 		Device string `json:"device"`
@@ -324,6 +347,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	s.loginMu.Lock()
 	defer s.loginMu.Unlock()
+	// Read the PIN hash only now, under loginMu: putConfig holds the same lock
+	// while it saves a new PIN and closes every session, so a login can never
+	// check the old PIN and then create a session that survives the change.
+	lan := s.parts().lan
+	if !lan.Enabled || lan.PinHash == "" {
+		http.Error(w, "el acceso desde la red está apagado", http.StatusForbidden)
+		return
+	}
 	if wait := s.limiter.Wait(); wait > 0 {
 		secs := int((wait + time.Second - 1) / time.Second)
 		w.Header().Set("Retry-After", strconv.Itoa(secs))

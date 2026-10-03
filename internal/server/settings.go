@@ -173,6 +173,12 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
+	// A new PIN is saved and every session closed as one step with respect to
+	// logins (see login): they take the same lock.
+	if req.LAN.Pin != nil {
+		s.loginMu.Lock()
+		defer s.loginMu.Unlock()
+	}
 	invalid := func(err error) (config.Config, error) { return config.Config{}, &engine.ValidationError{Err: err} }
 	// "Keep the saved token/PIN" is resolved inside Update, under the lock
 	// that serializes every change. Roots and ignore are never nil: the

@@ -112,68 +112,84 @@ func (s *Server) routes() http.Handler {
 	return s.mux
 }
 
+// route is one pattern of the mux and its handler.
+type route struct {
+	pattern string
+	handler http.HandlerFunc
+}
+
+// routeTable lists every route, in one place: the mux is built from it and the
+// LAN gate test walks it, so a route added here is checked against the gate.
+func (s *Server) routeTable() []route {
+	return []route{
+		{"GET /api/auth", s.authState},
+		{"POST /api/auth/login", jsonOnly(s.login)},
+		{"POST /api/auth/logout", jsonOnly(s.logout)},
+		{"GET /api/sessions", settings(s.sessions)},
+		{"DELETE /api/sessions/{id}", settings(s.closeSession)},
+		{"GET /api/lan", settings(s.lanInfo)},
+		{"GET /api/lan/qr", settings(s.lanQR)},
+		{"GET /api/status", s.status},
+		{"GET /api/config", settings(s.withEngine(s.getConfig))},
+		{"PUT /api/config", settings(jsonOnly(s.withEngine(s.putConfig)))},
+		{"POST /api/config/root", settings(jsonOnly(s.withEngine(s.checkRoot)))},
+		{"POST /api/config/token", settings(jsonOnly(s.withEngine(s.checkToken)))},
+		{"POST /api/scan", jsonOnly(s.scan)},
+		{"GET /api/albums", s.albums},
+		{"GET /api/albums/{id}", s.album},
+		{"GET /api/folders", s.folder},
+		{"GET /api/folders/tree", s.folderTree},
+		{"GET /api/folders/tree/search", s.searchFolderTree},
+		{"GET /api/collections", s.collections},
+		{"GET /api/explore", s.explore},
+		{"GET /api/marks", s.marks},
+		{"PUT /api/likes", jsonOnly(s.setLike)},
+		{"PUT /api/ratings", jsonOnly(s.setRating)},
+		{"POST /api/plays", jsonOnly(s.recordPlay)},
+		{"GET /api/liked", s.liked},
+		{"GET /api/playlists", s.playlists},
+		{"POST /api/playlists", jsonOnly(s.createPlaylist)},
+		{"GET /api/playlists/{id}", s.playlist},
+		{"PUT /api/playlists/{id}", jsonOnly(s.renamePlaylist)},
+		{"DELETE /api/playlists/{id}", s.deletePlaylist},
+		{"GET /api/stations", s.stations},
+		{"POST /api/stations", jsonOnly(s.createStation)},
+		{"PUT /api/stations/{id}", jsonOnly(s.updateStation)},
+		{"DELETE /api/stations/{id}", s.deleteStation},
+		{"GET /api/station/next", s.stationNext},
+		{"POST /api/playlists/{id}/items", jsonOnly(s.addToPlaylist)},
+		{"DELETE /api/playlists/{id}/items/{item}", s.removeFromPlaylist},
+		{"PUT /api/playlists/{id}/order", jsonOnly(s.reorderPlaylist)},
+		{"GET /api/home", s.home},
+		{"GET /api/stats", s.stats},
+		{"GET /api/artists/{key}", s.artist},
+		{"GET /api/search", s.find},
+		{"PUT /api/folders/collection", jsonOnly(s.setCollection)},
+		{"POST /api/identify", jsonOnly(s.identify)},
+		{"GET /api/review/unidentified", s.unidentified},
+		{"GET /api/review/duplicates", s.duplicates},
+		{"GET /api/review/formats", s.formatsToConvert},
+		{"PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification)},
+		{"DELETE /api/albums/{id}/identification", s.resetIdentification},
+		{"GET /api/genres", s.genreTaxonomy},
+		{"GET /api/genres/unmapped", s.unmappedGenres},
+		{"GET /api/genres/aliases", s.genreAliases},
+		{"PUT /api/genres/aliases", jsonOnly(s.setGenreAlias)},
+		{"DELETE /api/genres/aliases", s.deleteGenreAlias},
+		{"GET /api/play", s.play},
+		{"GET /api/gains", s.gains},
+		{"GET /api/covers/album/{id}", s.albumCover},
+		{"GET /api/covers/track/{id}", s.trackCover},
+		{"GET /stream/{id}", s.streamTrack},
+		{"GET /", s.static().ServeHTTP},
+	}
+}
+
 func (s *Server) buildMux() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/auth", s.authState)
-	mux.HandleFunc("POST /api/auth/login", jsonOnly(s.login))
-	mux.HandleFunc("POST /api/auth/logout", jsonOnly(s.logout))
-	mux.HandleFunc("GET /api/sessions", settings(s.sessions))
-	mux.HandleFunc("DELETE /api/sessions/{id}", settings(s.closeSession))
-	mux.HandleFunc("GET /api/lan", settings(s.lanInfo))
-	mux.HandleFunc("GET /api/lan/qr", settings(s.lanQR))
-	mux.HandleFunc("GET /api/status", s.status)
-	mux.HandleFunc("GET /api/config", settings(s.withEngine(s.getConfig)))
-	mux.HandleFunc("PUT /api/config", settings(jsonOnly(s.withEngine(s.putConfig))))
-	mux.HandleFunc("POST /api/config/root", settings(jsonOnly(s.withEngine(s.checkRoot))))
-	mux.HandleFunc("POST /api/config/token", settings(jsonOnly(s.withEngine(s.checkToken))))
-	mux.HandleFunc("POST /api/scan", jsonOnly(s.scan))
-	mux.HandleFunc("GET /api/albums", s.albums)
-	mux.HandleFunc("GET /api/albums/{id}", s.album)
-	mux.HandleFunc("GET /api/folders", s.folder)
-	mux.HandleFunc("GET /api/folders/tree", s.folderTree)
-	mux.HandleFunc("GET /api/folders/tree/search", s.searchFolderTree)
-	mux.HandleFunc("GET /api/collections", s.collections)
-	mux.HandleFunc("GET /api/explore", s.explore)
-	mux.HandleFunc("GET /api/marks", s.marks)
-	mux.HandleFunc("PUT /api/likes", jsonOnly(s.setLike))
-	mux.HandleFunc("PUT /api/ratings", jsonOnly(s.setRating))
-	mux.HandleFunc("POST /api/plays", jsonOnly(s.recordPlay))
-	mux.HandleFunc("GET /api/liked", s.liked)
-	mux.HandleFunc("GET /api/playlists", s.playlists)
-	mux.HandleFunc("POST /api/playlists", jsonOnly(s.createPlaylist))
-	mux.HandleFunc("GET /api/playlists/{id}", s.playlist)
-	mux.HandleFunc("PUT /api/playlists/{id}", jsonOnly(s.renamePlaylist))
-	mux.HandleFunc("DELETE /api/playlists/{id}", s.deletePlaylist)
-	mux.HandleFunc("GET /api/stations", s.stations)
-	mux.HandleFunc("POST /api/stations", jsonOnly(s.createStation))
-	mux.HandleFunc("PUT /api/stations/{id}", jsonOnly(s.updateStation))
-	mux.HandleFunc("DELETE /api/stations/{id}", s.deleteStation)
-	mux.HandleFunc("GET /api/station/next", s.stationNext)
-	mux.HandleFunc("POST /api/playlists/{id}/items", jsonOnly(s.addToPlaylist))
-	mux.HandleFunc("DELETE /api/playlists/{id}/items/{item}", s.removeFromPlaylist)
-	mux.HandleFunc("PUT /api/playlists/{id}/order", jsonOnly(s.reorderPlaylist))
-	mux.HandleFunc("GET /api/home", s.home)
-	mux.HandleFunc("GET /api/stats", s.stats)
-	mux.HandleFunc("GET /api/artists/{key}", s.artist)
-	mux.HandleFunc("GET /api/search", s.find)
-	mux.HandleFunc("PUT /api/folders/collection", jsonOnly(s.setCollection))
-	mux.HandleFunc("POST /api/identify", jsonOnly(s.identify))
-	mux.HandleFunc("GET /api/review/unidentified", s.unidentified)
-	mux.HandleFunc("GET /api/review/duplicates", s.duplicates)
-	mux.HandleFunc("GET /api/review/formats", s.formatsToConvert)
-	mux.HandleFunc("PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification))
-	mux.HandleFunc("DELETE /api/albums/{id}/identification", s.resetIdentification)
-	mux.HandleFunc("GET /api/genres", s.genreTaxonomy)
-	mux.HandleFunc("GET /api/genres/unmapped", s.unmappedGenres)
-	mux.HandleFunc("GET /api/genres/aliases", s.genreAliases)
-	mux.HandleFunc("PUT /api/genres/aliases", jsonOnly(s.setGenreAlias))
-	mux.HandleFunc("DELETE /api/genres/aliases", s.deleteGenreAlias)
-	mux.HandleFunc("GET /api/play", s.play)
-	mux.HandleFunc("GET /api/gains", s.gains)
-	mux.HandleFunc("GET /api/covers/album/{id}", s.albumCover)
-	mux.HandleFunc("GET /api/covers/track/{id}", s.trackCover)
-	mux.HandleFunc("GET /stream/{id}", s.streamTrack)
-	mux.Handle("GET /", s.static())
+	for _, rt := range s.routeTable() {
+		mux.HandleFunc(rt.pattern, rt.handler)
+	}
 	return mux
 }
 
@@ -299,7 +315,20 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "counts": counts})
 }
 
+// setupPending answers 409 while the first-use assistant has not saved: nothing
+// is scanned or identified before it does (decision 8).
+func (s *Server) setupPending(w http.ResponseWriter) bool {
+	if s.Engine != nil && s.Engine.SetupPending() {
+		http.Error(w, "completá primero el asistente", http.StatusConflict)
+		return true
+	}
+	return false
+}
+
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
+	if s.setupPending(w) {
+		return
+	}
 	p := s.parts()
 	if p.scanner == nil {
 		http.Error(w, "modo consulta: no se puede escanear", http.StatusConflict)

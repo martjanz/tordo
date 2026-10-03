@@ -46,6 +46,9 @@ func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 }
 
 func (s *Server) identify(w http.ResponseWriter, r *http.Request) {
+	if s.setupPending(w) {
+		return
+	}
 	p := s.parts()
 	if noIdentifier(w, p) {
 		return

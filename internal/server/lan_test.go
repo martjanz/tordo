@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -420,5 +421,110 @@ func TestLANStateAndQR(t *testing.T) {
 	}
 	if rec := phone(h, "GET", "/api/lan", ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("phone without session: %d", rec.Code)
+	}
+}
+
+func TestLANListenerIsIPv4Only(t *testing.T) {
+	s := lanServer(t)
+	t.Cleanup(func() { s.ApplyLAN(config.LAN{}) })
+	port := freePort(t)
+	if err := s.ApplyLAN(config.LAN{Enabled: true, Port: port}); err != nil {
+		t.Fatal(err)
+	}
+	s.lan.mu.Lock()
+	addr := s.lan.ln.Addr().String()
+	s.lan.mu.Unlock()
+	if want := "0.0.0.0:" + strconv.Itoa(port); addr != want {
+		t.Fatalf("listening on %s, want %s", addr, want)
+	}
+}
+
+func TestLANGateRefusesPublicAddresses(t *testing.T) {
+	s := lanServer(t)
+	h := s.LANHandler()
+	c := cookieOf(login(h, testPIN, "Pixel"))
+	if c == nil {
+		t.Fatal("no session")
+	}
+	for _, addr := range []string{"8.8.8.8:5000", "[2001:db8::1]:5000", "garbage"} {
+		for _, withSession := range []bool{true, false} {
+			var hdr []string
+			if withSession {
+				hdr = withCookie(c)
+			}
+			if rec := lanReq(h, "GET", "/api/status", "", addr, lanHostIP, hdr...); rec.Code != http.StatusForbidden {
+				t.Errorf("%s (session %v): %d", addr, withSession, rec.Code)
+			}
+		}
+	}
+	for _, addr := range []string{"192.168.1.20:5000", "10.1.2.3:5000", "172.16.0.9:5000", "169.254.1.1:5000", "[fe80::1]:5000", "[fd00::1]:5000"} {
+		if rec := lanReq(h, "GET", "/api/status", "", addr, lanHostIP, withCookie(c)...); rec.Code != http.StatusOK {
+			t.Errorf("%s: %d", addr, rec.Code)
+		}
+	}
+}
+
+func TestSessionExpiresAfter90IdleDays(t *testing.T) {
+	s := lanServer(t)
+	h := s.LANHandler()
+	c := cookieOf(login(h, testPIN, "Pixel"))
+	exists := func() bool {
+		_, ok, err := s.Store.SessionByToken(auth.TokenHash(c.Value))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	day := 24 * time.Hour
+	s.now = func() time.Time { return time.Now().Add(89 * day) }
+	if rec := phone(h, "GET", "/api/status", "", withCookie(c)...); rec.Code != http.StatusOK || cookieOf(rec) == nil {
+		t.Fatalf("89 days: %d cookie %+v", rec.Code, cookieOf(rec))
+	}
+	if !exists() {
+		t.Fatal("session gone after 89 days")
+	}
+
+	// A session idle for 91 days is closed, whichever way it is used.
+	c2 := cookieOf(login(h, testPIN, "Viejo"))
+	s.now = func() time.Time { return time.Now().Add(91 * day) }
+	var a struct{ Session, PinRequired bool }
+	decode(t, phone(h, "GET", "/api/auth", "", withCookie(c2)...), &a)
+	if a.Session || !a.PinRequired {
+		t.Fatalf("auth of an expired session: %+v", a)
+	}
+	rec := phone(h, "GET", "/api/status", "", withCookie(c2)...)
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "ingresá el PIN") {
+		t.Fatalf("expired: %d %s", rec.Code, rec.Body)
+	}
+	if cc := cookieOf(rec); cc == nil || cc.MaxAge >= 0 {
+		t.Fatalf("cookie not cleared: %+v", cc)
+	}
+	if _, ok, _ := s.Store.SessionByToken(auth.TokenHash(c2.Value)); ok {
+		t.Fatal("expired session still stored")
+	}
+}
+
+// Every route behind the LAN listener needs a session, except the ones decision
+// 14 names and the static shell. A route added to routeTable without the gate
+// knowing about it fails here.
+func TestLANGateCoversEveryRoute(t *testing.T) {
+	s := lanServer(t)
+	h := s.LANHandler()
+	open := map[string]bool{"GET /api/auth": true, "POST /api/auth/login": true, "POST /api/auth/logout": true, "GET /": true}
+	idRe := regexp.MustCompile(`\{[^}]*\}`)
+	routes := s.routeTable()
+	if len(routes) < 50 {
+		t.Fatalf("only %d routes", len(routes))
+	}
+	for _, rt := range routes {
+		if open[rt.pattern] {
+			continue
+		}
+		method, path, _ := strings.Cut(rt.pattern, " ")
+		path = idRe.ReplaceAllString(path, "1")
+		rec := phone(h, method, path, "", "Content-Type", "application/json")
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s without a session: %d", rt.pattern, rec.Code)
+		}
 	}
 }

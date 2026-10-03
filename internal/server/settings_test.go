@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"tordo/internal/auth"
 	"tordo/internal/config"
@@ -261,6 +262,19 @@ func TestSettingsNeedAnEngine(t *testing.T) {
 
 func TestEngineBackedScanAndBrowseOnlyParts(t *testing.T) {
 	s := settingsServer(t, false)
+	// Nothing is scanned or identified before the assistant saves.
+	for _, p := range []string{"/api/scan", "/api/identify"} {
+		if rec := do(t, s.Handler(), "POST", p, "{}", "Content-Type", "application/json"); rec.Code != http.StatusConflict ||
+			!strings.Contains(rec.Body.String(), "completá primero el asistente") {
+			t.Fatalf("%s while setup is pending: %d %s", p, rec.Code, rec.Body)
+		}
+	}
+	if rec := putConfig(t, s, `{"roots":["../musica"],"normalize":true,"lan":{"port":4747}}`); rec.Code != http.StatusOK {
+		t.Fatalf("setup: %d %s", rec.Code, rec.Body)
+	}
+	for i := 0; i < 500 && s.parts().scanner.Status().Running; i++ { // saving started the first scan
+		time.Sleep(10 * time.Millisecond)
+	}
 	if rec := do(t, s.Handler(), "POST", "/api/scan", "{}", "Content-Type", "application/json"); rec.Code != http.StatusAccepted {
 		t.Fatalf("scan: %d %s", rec.Code, rec.Body)
 	}

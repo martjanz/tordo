@@ -77,7 +77,26 @@ func Save(appDir string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(appDir, FileName), append(data, '\n'), 0o644)
+	// Write a temporary file next to config.json and rename it over, so a crash
+	// never leaves a half-written config.json.
+	tmp, err := os.CreateTemp(appDir, "config-*.json")
+	if err != nil {
+		return err
+	}
+	_, err = tmp.Write(append(data, '\n'))
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), filepath.Join(appDir, FileName))
+	}
+	if err != nil {
+		os.Remove(tmp.Name())
+	}
+	return err
 }
 
 // DefaultRoots lists the sibling folders of appDir as "../<name>", skipping

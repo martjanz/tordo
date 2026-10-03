@@ -154,3 +154,26 @@ func TestLANRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveIsAtomicAndLeavesNoTempFiles(t *testing.T) {
+	app := appUnder(t)
+	for i := 0; i < 3; i++ {
+		if err := Save(app, Config{Roots: []string{"../musica"}, Ignore: []string{}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entries, err := os.ReadDir(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != FileName {
+		t.Fatalf("app folder holds %v", entries)
+	}
+	if info, err := os.Stat(filepath.Join(app, FileName)); err != nil || info.Mode().Perm() != 0o644 {
+		t.Fatalf("config.json: %v %v", info, err)
+	}
+	// A failed Save leaves nothing behind.
+	if err := Save(filepath.Join(app, "missing"), Config{}); err == nil {
+		t.Fatal("saving into a missing folder succeeded")
+	}
+}

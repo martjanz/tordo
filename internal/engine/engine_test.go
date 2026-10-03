@@ -295,12 +295,13 @@ func TestUpdateLAN(t *testing.T) {
 		t.Fatalf("runtime %+v", rt)
 	}
 
-	// Only the PIN changes: the listener is left alone.
+	// Only the PIN changes: the hook still runs (it is a no-op for a listener
+	// already on that port), so a listener that failed to open is retried.
 	cfg.LAN.PinHash = "h2"
 	if err := e.Apply(cfg); err != nil {
 		t.Fatal(err)
 	}
-	if got := hook.got(); len(got) != 1 {
+	if got := hook.got(); len(got) != 2 || got[1] != cfg.LAN {
 		t.Fatalf("calls %+v", got)
 	}
 
@@ -310,7 +311,7 @@ func TestUpdateLAN(t *testing.T) {
 	if err := e.Apply(other); err != nil {
 		t.Fatal(err)
 	}
-	if got := hook.got(); len(got) != 2 {
+	if got := hook.got(); len(got) != 3 {
 		t.Fatalf("calls %+v", got)
 	}
 
@@ -404,3 +405,51 @@ func TestLoudnessAfterScan(t *testing.T) {
 type trig struct{ ch chan struct{} }
 
 func (t *trig) Trigger() { t.ch <- struct{}{} }
+
+func TestUpdateRetriesLANWhenEnabledAndUnchanged(t *testing.T) {
+	e, hook, _ := newEngine(t)
+	cfg := cfgOf("../musica")
+	cfg.LAN = config.LAN{Enabled: true, Port: 5000, PinHash: "h"}
+	hook.err = errTest // the listener fails to open at start
+	e.Start(cfg, false)
+	waitScan(t, e)
+	if got := hook.got(); len(got) != 1 {
+		t.Fatalf("start calls %+v", got)
+	}
+	hook.err = nil
+	if err := e.Apply(cfg); err != nil { // nothing changed
+		t.Fatal(err)
+	}
+	if got := hook.got(); len(got) != 2 || got[1] != cfg.LAN {
+		t.Fatalf("calls after an unchanged save: %+v", got)
+	}
+	// With the LAN off the hook is not called for an unchanged save.
+	off := cfgOf("../musica")
+	if err := e.Apply(off); err != nil {
+		t.Fatal(err)
+	}
+	n := len(hook.got())
+	if err := e.Apply(off); err != nil {
+		t.Fatal(err)
+	}
+	if got := hook.got(); len(got) != n {
+		t.Fatalf("calls with the LAN off: %+v", got)
+	}
+}
+
+func TestSamePartsNilAndEmptyAreEqual(t *testing.T) {
+	a := config.Config{Roots: []string{"../m"}, Ignore: nil}
+	b := config.Config{Roots: []string{"../m"}, Ignore: []string{}}
+	if !sameParts(a, b) || !sameParts(b, a) {
+		t.Fatal("nil and empty ignore differ")
+	}
+	b.Ignore = []string{"x"}
+	if sameParts(a, b) {
+		t.Fatal("different ignore patterns are the same parts")
+	}
+	b.Ignore = nil
+	b.DiscogsToken = "t"
+	if sameParts(a, b) {
+		t.Fatal("a token change is the same parts")
+	}
+}

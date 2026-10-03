@@ -10,6 +10,7 @@ import (
 	"log"
 	"path"
 	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -107,8 +108,9 @@ func (e *Engine) Apply(cfg config.Config) error {
 // Update resolves the next configuration against the current one under a
 // lock, so a "keep the saved token" decision can never race a concurrent
 // change: f receives the configuration in effect right now and returns what
-// to save, or a *ValidationError if it rejects it. A change of the LAN
-// switch or port goes to the LAN hook before anything is saved; if the
+// to save, or a *ValidationError if it rejects it. The LAN hook runs
+// before anything is saved when the LAN switch or port changed, and on every
+// save while the LAN is on; if the
 // listener cannot be opened nothing is saved. Then the runtime is replaced;
 // what runs next depends on what changed:
 //   - only normalization or LAN: the running parts are kept as they are;
@@ -134,11 +136,17 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 		return err
 	}
 	lanMoved := false
-	if e.LAN != nil && (cfg.LAN.Enabled != cur.LAN.Enabled || cfg.LAN.PortOrDefault() != cur.LAN.PortOrDefault()) {
-		if err := e.LAN(cfg.LAN); err != nil {
-			return &ValidationError{fmt.Errorf("no se pudo abrir el puerto %d: %w", cfg.LAN.PortOrDefault(), err)}
+	if e.LAN != nil {
+		changed := cfg.LAN.Enabled != cur.LAN.Enabled || cfg.LAN.PortOrDefault() != cur.LAN.PortOrDefault()
+		// With the LAN on the hook runs on every save, so a listener that failed
+		// to open at start is retried; the hook does nothing when the listener is
+		// already on that port.
+		if changed || cfg.LAN.Enabled {
+			if err := e.LAN(cfg.LAN); err != nil {
+				return &ValidationError{fmt.Errorf("no se pudo abrir el puerto %d: %w", cfg.LAN.PortOrDefault(), err)}
+			}
+			lanMoved = changed
 		}
-		lanMoved = true
 	}
 	if err := config.Save(e.AppDir, cfg); err != nil {
 		if lanMoved {
@@ -167,7 +175,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 	old.Stop()
 	rt := e.build(cfg)
 	e.current.Store(rt)
-	if !reflect.DeepEqual(old.Config.Roots, cfg.Roots) || !reflect.DeepEqual(old.Config.Ignore, cfg.Ignore) {
+	if !slices.Equal(old.Config.Roots, cfg.Roots) || !slices.Equal(old.Config.Ignore, cfg.Ignore) {
 		rt.Scan()
 	} else if rt.Identifier != nil {
 		rt.Identifier.Trigger()
@@ -180,7 +188,11 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 func sameParts(a, b config.Config) bool {
 	a.Normalize, b.Normalize = nil, nil
 	a.LAN, b.LAN = config.LAN{}, config.LAN{}
-	return reflect.DeepEqual(a, b)
+	// nil and empty lists are the same; the lists are taken out so DeepEqual
+	// judges whatever else the config holds.
+	same := slices.Equal(a.Roots, b.Roots) && slices.Equal(a.Ignore, b.Ignore)
+	a.Roots, b.Roots, a.Ignore, b.Ignore = nil, nil, nil, nil
+	return same && reflect.DeepEqual(a, b)
 }
 
 func (e *Engine) build(cfg config.Config) *Runtime {
