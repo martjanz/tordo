@@ -37,7 +37,7 @@ Colección completa: ~1,5 TB, en 1–5 carpetas de un mismo disco. Muestra anali
 - AcoustID/Chromaprint bajo demanda.
 - Gapless real (Web Audio / MediaSource).
 - Letras (`.lrc`, embebidas), booklets y escaneos.
-- Reproducción en los parlantes del equipo que corre tordo (modo control remoto / jukebox).
+- Reproducción en los parlantes del equipo que corre tordo **sin navegador** (equipo sin pantalla, p. ej. Raspberry Pi: salida de audio desde el servidor). La variante con una pestaña abierta en la compu es la **Rockola** (§7.5, M6).
 - Importación de `.m3u`.
 - Multiusuario.
 - **Favoritos separados por tipo** (pedido 2026-10-02, después de M5): el ♥ de pistas y el ♥ de álbumes dejan de ser una sola bolsa "Me gusta". Las pistas con ♥ forman una lista de reproducción automática (*Canciones favoritas*); los álbumes con ♥ van a una sección propia, una **colección de cabecera** (*comfort collection*) para volver a ellos, no mezclada con la de pistas.
@@ -99,6 +99,7 @@ internal/catalog      facetas, páginas, Inicio, estaciones, duplicados, estadí
 internal/search       índice de búsqueda FTS5                        (adaptado)
 internal/stream       entrega de audio con Range; transcodificación con ffmpeg
 internal/auth         PIN, sesiones, modo LAN
+internal/jukebox      Rockola: parlante y controles remotos en memoria, retransmisión por SSE
 internal/server       API JSON + interfaz embebida
 internal/platform     abrir carpeta en el sistema                    (copiado)
 web/                  interfaz Svelte 5 + Vite
@@ -197,6 +198,48 @@ Tordo nunca borra: solo muestra.
 - Ambos son faceta, fuente de estación ("Me gusta") y peso en estaciones. Fila *Tus me gusta* en Inicio; sección "Me gusta" en Listas, filtrable por tipo.
 - **Listas de reproducción**: crear, renombrar, reordenar (arrastrar), agregar desde el menú de pista/álbum, reproducir completas o como estación. Sin importación de `.m3u` en v1.
 
+### 7.5 Rockola (audio de esta compu)
+
+Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué suena en los parlantes de la compu que corre tordo. El sonido lo produce **una pestaña de tordo abierta en esa compu**, con el reproductor de siempre (§7.1); el servidor solo retransmite órdenes y estado. En código y API se llama **jukebox**; en la interfaz, **Rockola**.
+
+**En la compu (localhost):**
+
+- Ajustes → Reproducción: interruptor **Usar el audio de esta compu para tordo**, visible solo desde localhost. Activarlo es el clic que habilita el audio del navegador. Se recuerda en `localStorage`; tras recargar, la pestaña ofrece **Reactivar audio** (un clic, por la regla de autoplay).
+- Mientras está activo, la barra muestra **🔊 Audio de esta compu**. La pestaña se sigue usando normalmente; las órdenes de los teléfonos actúan sobre la misma cola.
+- Un solo parlante a la vez: si otra pestaña de localhost lo activa, la anterior deja de serlo y avisa *Otro navegador tomó el audio de esta compu*.
+
+**En el teléfono:**
+
+- La barra tiene el interruptor **🎵 Rockola**, habilitado solo si hay parlante conectado. Encendido, la barra dice *Rockola · en la compu*.
+- En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
+- Los avisos de la acción (*Suena a continuación*, *2 pistas agregadas*, errores) aparecen en el teléfono que la mandó.
+- Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cualquiera controla; las órdenes se aplican en orden de llegada, sin bloqueos.
+- Sin parlante: *La rockola no está disponible: activá el audio en la compu*. Si el parlante se desconecta: *Se perdió la conexión con la rockola* y el teléfono sale del modo, sin reproducir solo. Si la compu necesita el clic de autoplay: *La compu necesita un clic para sonar*.
+- Reproducciones, historial y normalización ocurren en la compu, como cualquier reproducción; el dispositivo registrado es el de la compu.
+
+**Servidor (`internal/jukebox`)**: hub en memoria, sin base de datos. Guarda el parlante (una conexión SSE con un token creado al registrarse), su último estado (JSON opaco) y los controles remotos conectados. Todo detrás de la autenticación de §9.
+
+| Endpoint | Quién | Qué |
+|---|---|---|
+| `GET /api/jukebox/speaker` (SSE) | solo localhost | registra el parlante y reemplaza al anterior (que recibe `replaced`); recibe eventos `command` |
+| `POST /api/jukebox/state` | solo localhost, con token | publica el estado; el hub lo guarda y lo reparte a los remotos |
+| `POST /api/jukebox/notice` | solo localhost, con token | aviso dirigido a un remoto (`{remote, text}`) |
+| `GET /api/jukebox/events` (SSE) | cualquier sesión | el remoto recibe su id, el estado actual (o `speaker-off`) y luego `state`, `notice`, `speaker-on`, `speaker-off` |
+| `POST /api/jukebox/command` | cualquier sesión | `{remote, command, args}`; se reenvía al parlante, o **409** si no hay |
+
+- **Órdenes permitidas** (lista blanca en Go, que valida el nombre y que `args` sea JSON chico; el parlante valida `args` antes de llamar al reproductor): `play`, `enqueue`, `playStation`, `stopStation`, `toggle`, `next`, `prev`, `jumpTo`, `removeAt`, `clearUpcoming`, `seek`, `setVolume`, `toggleMute`, `toggleShuffle`, `cycleRepeat`. Cada una corresponde 1:1 a una función exportada de `player.svelte.js`.
+- **Estado publicado:** pista actual, tiempo, duración, sonando, volumen, silencio, aleatorio, repetir, estación, `blocked` (falta el clic de autoplay) y la cola recortada (hasta ~100 próximas y ~10 ya sonadas). Se publica en cada cambio con debounce de ~250 ms, más el tiempo cada ~1 s mientras suena.
+- **Conexiones:** heartbeat SSE cada ~20 s; si el parlante se cae, el hub lo suelta y los remotos reciben `speaker-off`. El parlante reconecta con backoff reusando el token; los remotos reconectan solos (`EventSource`) y reciben el estado actual al conectar.
+- **Límites:** estado ≤ 256 KB, orden ≤ 16 KB, hasta 16 remotos simultáneos.
+
+**Interfaz:**
+
+- `lib/jukebox.js` (puro, con tests): orden → llamada al reproductor con validación de `args`; estado publicado derivado de `player`.
+- `lib/speaker.svelte.js` (compu): abre el SSE, ejecuta órdenes, publica estado y dirige los avisos de cada orden a su remoto (`notify` con destino opcional durante la orden).
+- `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo.
+
+**Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
+
 ## 8. Interfaz
 
 Estética de la familia de Cinexplorer: tema oscuro, Inter, imagen primero, pero con **carátulas cuadradas**. Responsiva desde el inicio (barra de navegación inferior en móvil).
@@ -233,7 +276,8 @@ Indicador de estado arriba a la derecha con escaneo e identificación en curso.
 | **M3 Biblioteca y reproductor** | interfaz Svelte: Explorar con facetas, Carpetas, páginas de álbum/artista/colección, búsqueda, barra de reproducción con cola y aleatorio, streaming con Range, transcodificación WMA |
 | **M4 Escucha** | Inicio, estaciones, historial y estadísticas, me gusta y puntajes, listas de reproducción, normalización de volumen |
 | **M5 Revisión y red** | duplicados (3 tipos, MEJOR), formatos a convertir (detección), asistente y Ajustes, LAN + PIN + QR |
-| **Después** | conversión de formatos, escritura de tags con vista previa, API Subsonic, AcoustID bajo demanda, gapless real, letras, booklets, reproducción en parlantes del servidor, importación `.m3u` |
+| **M6 Rockola** | audio de esta compu como parlante, modo Rockola en el teléfono, hub jukebox con SSE (§7.5) |
+| **Después** | conversión de formatos, escritura de tags con vista previa, API Subsonic, AcoustID bajo demanda, gapless real, letras, booklets, reproducción en parlantes del servidor sin navegador, importación `.m3u` |
 
 Cada etapa tiene su propio diseño detallado (si hace falta) y plan de implementación.
 
@@ -241,4 +285,5 @@ Cada etapa tiene su propio diseño detallado (si hace falta) y plan de implement
 
 - **Go:** tests unitarios por paquete con fixtures (archivos de audio mínimos con tags armados a mano en `testdata/`); **corpus de nombres** reales de la colección para `nameparse`; respuestas **grabadas** de MusicBrainz y Discogs para `identify` (sin red en CI); tests de corpus opcionales sobre una colección real (`TORDO_CORPUS=/ruta`).
 - **Interfaz:** Vitest para lógica de cola, estaciones y facetas.
+- **Rockola:** `internal/jukebox` con `httptest` y reloj inyectable (registro y reemplazo del parlante, reparto a N remotos, 409 sin parlante, 400 fuera de la lista blanca, límites, endpoints del parlante rechazados fuera de localhost, `speaker-off` al desconectar, heartbeat); Vitest para orden → llamada, validación de `args`, estado recortado, enrutado local/Rockola y avisos a su origen; prueba manual compu + teléfono en la LAN.
 - **CI:** GitHub Actions en Windows, macOS y Linux (`go vet`, `go test`), y job aparte para tests y build de la interfaz.
