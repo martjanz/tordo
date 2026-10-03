@@ -1,10 +1,20 @@
 // Calls to the Go server. Errors carry the HTTP status and the server's text.
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  constructor(status, message, retryAfter = 0) {
     super(message)
     this.status = status
+    this.retryAfter = retryAfter // seconds, from Retry-After
   }
+}
+
+let unauthorized = null
+
+// onUnauthorized registers what to do when the server answers 401 (the
+// session ended or a PIN is needed). Login's own 401 means a wrong PIN and
+// does not count.
+export function onUnauthorized(fn) {
+  unauthorized = fn
 }
 
 async function call(method, path, body) {
@@ -21,7 +31,9 @@ async function call(method, path, body) {
   }
   if (!res.ok) {
     const text = (await res.text()).trim()
-    throw new ApiError(res.status, text || `Error ${res.status}`)
+    if (res.status === 401 && path !== '/api/auth/login') unauthorized?.()
+    const retryAfter = Number(res.headers?.get('Retry-After')) || 0
+    throw new ApiError(res.status, text || `Error ${res.status}`, retryAfter)
   }
   if (res.status === 204 || res.status === 202) return null
   return res.json()
@@ -114,6 +126,23 @@ export const api = {
   addToPlaylist: (id, what) => post(`/api/playlists/${id}/items`, what),
   removeFromPlaylist: (id, itemId) => del(`/api/playlists/${id}/items/${itemId}`),
   reorderPlaylist: (id, itemIds) => put(`/api/playlists/${id}/order`, { items: itemIds }),
+  config: () => get('/api/config'),
+  saveConfig: (body) => put('/api/config', body),
+  checkRoot: (path) => post('/api/config/root', { path }),
+  checkToken: (token) => post('/api/config/token', { token }),
+  lan: () => get('/api/lan'),
+  sessions: () => get('/api/sessions'),
+  closeSession: (id) => del(`/api/sessions/${id}`),
+  auth: () => get('/api/auth'),
+  login: (pin, device) => post('/api/auth/login', { pin, device }),
+  logout: () => post('/api/auth/logout'),
+  duplicates: (tipo) => get(`/api/review/duplicates?tipo=${encodeURIComponent(tipo)}`),
+  toConvert: () => get('/api/review/formats'),
+}
+
+// lanQrURL is the QR picture of an address of this computer on the network.
+export function lanQrURL(url) {
+  return `/api/lan/qr?url=${encodeURIComponent(url)}`
 }
 
 // releaseURL links a MusicBrainz release.

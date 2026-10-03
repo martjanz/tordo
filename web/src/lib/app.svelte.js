@@ -16,6 +16,13 @@ let wasBusy = false
 let lastProgress = ''
 let lastRefresh = Date.now() // pages load their data when they open
 
+// settingsSaved asks for the status right away after saving the settings, so
+// the scan and the normalization show at once.
+export function settingsSaved() {
+  app.generation++
+  poll()
+}
+
 async function poll() {
   clearTimeout(timer)
   try {

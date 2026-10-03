@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { albumCoverURL, api, itemCoverURL, playQuery, releaseURL, stationQuery, streamURL } from './api.js'
+import { albumCoverURL, api, ApiError, itemCoverURL, lanQrURL, onUnauthorized, playQuery, releaseURL, stationQuery, streamURL } from './api.js'
 
 describe('playQuery', () => {
   it('writes what to play', () => {
@@ -99,5 +99,79 @@ describe('stations', () => {
     ])
     expect(JSON.parse(calls[1][2])).toEqual(st)
     expect(JSON.parse(calls[2][2])).toEqual(st)
+  })
+})
+
+describe('config, lan and auth', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    onUnauthorized(null)
+  })
+
+  it('asks the server', async () => {
+    const calls = []
+    vi.stubGlobal('fetch', async (url, init) => {
+      calls.push([init.method, url, init.body ?? null])
+      return { ok: true, status: init.method === 'DELETE' ? 204 : 200, json: async () => ({}) }
+    })
+    await api.config()
+    await api.saveConfig({ roots: ['../m'] })
+    await api.checkRoot('../m')
+    await api.checkToken('abc')
+    await api.lan()
+    await api.sessions()
+    await api.closeSession('s 1')
+    await api.auth()
+    await api.login('123456', 'Celu')
+    await api.logout()
+    await api.duplicates('formatos')
+    await api.toConvert()
+    expect(calls).toEqual([
+      ['GET', '/api/config', null],
+      ['PUT', '/api/config', '{"roots":["../m"]}'],
+      ['POST', '/api/config/root', '{"path":"../m"}'],
+      ['POST', '/api/config/token', '{"token":"abc"}'],
+      ['GET', '/api/lan', null],
+      ['GET', '/api/sessions', null],
+      ['DELETE', '/api/sessions/s 1', null],
+      ['GET', '/api/auth', null],
+      ['POST', '/api/auth/login', '{"pin":"123456","device":"Celu"}'],
+      ['POST', '/api/auth/logout', '{}'],
+      ['GET', '/api/review/duplicates?tipo=formatos', null],
+      ['GET', '/api/review/formats', null],
+    ])
+  })
+
+  it('encodes the QR address', () => {
+    expect(lanQrURL('http://192.168.1.5:4747/')).toBe('/api/lan/qr?url=http%3A%2F%2F192.168.1.5%3A4747%2F')
+  })
+
+  function failWith(status, headers = {}) {
+    vi.stubGlobal('fetch', async () => ({
+      ok: false,
+      status,
+      headers: { get: (k) => headers[k] ?? null },
+      text: async () => 'no',
+    }))
+  }
+
+  it('tells the handler about a 401, except from login', async () => {
+    let n = 0
+    onUnauthorized(() => n++)
+    failWith(401)
+    await expect(api.sessions()).rejects.toMatchObject({ status: 401 })
+    expect(n).toBe(1)
+    await expect(api.login('1', '')).rejects.toMatchObject({ status: 401 })
+    expect(n).toBe(1)
+    failWith(403)
+    await expect(api.sessions()).rejects.toBeInstanceOf(ApiError)
+    expect(n).toBe(1)
+  })
+
+  it('reads Retry-After', async () => {
+    failWith(429, { 'Retry-After': '30' })
+    await expect(api.login('1', '')).rejects.toMatchObject({ status: 429, retryAfter: 30 })
+    failWith(500)
+    await expect(api.status()).rejects.toMatchObject({ retryAfter: 0 })
   })
 })

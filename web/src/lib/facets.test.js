@@ -41,6 +41,7 @@ describe('labels', () => {
     expect(valueLabel('formato', 'flac')).toBe('FLAC')
     expect(valueLabel('calidad', 'sin-perdida')).toBe('Sin pérdida')
     expect(valueLabel('estado', 'no-reproducible')).toBe('No reproducible')
+    expect(valueLabel('estado', 'con-duplicados')).toBe('Con duplicados')
     expect(valueLabel('artista', 'charly-garcia', { label: 'Charly García' })).toBe('Charly García')
     expect(valueLabel('artista', 'x')).toBe('x')
   })

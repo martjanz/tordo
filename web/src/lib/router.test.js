@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { albumHref, appLink, artistHref, exploreHref, folderHref, listHref, resolve, searchHref, statsHref } from './router.js'
+import { albumHref, appLink, artistHref, duplicatesHref, exploreHref, folderHref, listHref, resolve, searchHref, statsHref } from './router.js'
 
 describe('resolve', () => {
   it.each([
@@ -9,6 +9,13 @@ describe('resolve', () => {
     ['/', '?ver=pistas', { page: 'explorar' }],
     ['/', '?dir=asc', { page: 'explorar' }],
     ['/', '?foo=1', { page: 'inicio' }],
+    ['/ajustes', '', { page: 'ajustes' }],
+    ['/bienvenida', '', { page: 'bienvenida' }],
+    ['/revisar/duplicados', '', { page: 'revisar', tab: 'duplicados', kind: 'exactas' }],
+    ['/revisar/duplicados', '?tipo=formatos', { page: 'revisar', tab: 'duplicados', kind: 'formatos' }],
+    ['/revisar/duplicados', '?tipo=sospechas', { page: 'revisar', tab: 'duplicados', kind: 'sospechas' }],
+    ['/revisar/duplicados', '?tipo=otra', { page: 'revisar', tab: 'duplicados', kind: 'exactas' }],
+    ['/revisar/formatos', '', { page: 'revisar', tab: 'formatos' }],
     ['/estadisticas', '', { page: 'estadisticas', period: 'mes' }],
     ['/estadisticas', '?periodo=anio', { page: 'estadisticas', period: 'anio' }],
     ['/estadisticas', '?periodo=semana', { page: 'estadisticas', period: 'semana' }],
@@ -92,5 +99,13 @@ describe('statsHref', () => {
     expect(statsHref('mes')).toBe('/estadisticas')
     expect(statsHref()).toBe('/estadisticas')
     expect(statsHref('anio')).toBe('/estadisticas?periodo=anio')
+  })
+})
+
+describe('duplicatesHref', () => {
+  it('leaves the default kind out', () => {
+    expect(duplicatesHref('exactas')).toBe('/revisar/duplicados')
+    expect(duplicatesHref()).toBe('/revisar/duplicados')
+    expect(duplicatesHref('formatos')).toBe('/revisar/duplicados?tipo=formatos')
   })
 })
