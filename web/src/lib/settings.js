@@ -35,14 +35,15 @@ const lines = (text) =>
     .filter(Boolean)
 
 // body is the PUT /api/config request for a draft: null keeps the token
-// (or the PIN), "" removes the token.
+// (or the PIN), "" removes the token. With the network off the PIN is not
+// sent: its field is hidden and the server validates any PIN it gets.
 export function body(d) {
   return {
     roots: d.roots.filter((r) => r.checked).map((r) => r.path),
     ignore: lines(d.ignore),
     token: d.token === null ? null : d.token.trim(),
     normalize: d.normalize,
-    lan: { enabled: d.lan.enabled, port: Number(d.lan.port), pin: d.lan.pin === '' ? null : d.lan.pin },
+    lan: { enabled: d.lan.enabled, port: Number(d.lan.port), pin: !d.lan.enabled || d.lan.pin === '' ? null : d.lan.pin },
   }
 }
 

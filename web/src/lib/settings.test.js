@@ -44,11 +44,18 @@ describe('body', () => {
   it('trims the ignore lines and drops the empty ones', () => {
     const d = { ...draft(config), ignore: '  *.tmp \n\n   \nSamples\n' }
     expect(body(d).ignore).toEqual(['*.tmp', 'Samples'])
+  })
+  it('does not send the PIN while the network is off', () => {
+    const d = draft(config)
+    d.lan = { enabled: false, port: 4748, pin: '123' }
+    expect(body(d).lan).toEqual({ enabled: false, port: 4748, pin: null })
+    d.lan.enabled = true
+    expect(body(d).lan.pin).toBe('123')
     expect(body({ ...d, ignore: '' }).ignore).toEqual([])
   })
   it('sends the port as a number and a new PIN', () => {
     const d = draft(config)
-    expect(body({ ...d, lan: { ...d.lan, port: '5000', pin: '123456' } }).lan).toEqual({ enabled: false, port: 5000, pin: '123456' })
+    expect(body({ ...d, lan: { enabled: true, port: '5000', pin: '123456' } }).lan).toEqual({ enabled: true, port: 5000, pin: '123456' })
   })
 })
 
@@ -69,7 +76,7 @@ describe('changed', () => {
     expect(changed(config, { ...d, normalize: false })).toBe(true)
     expect(changed(config, { ...d, lan: { ...d.lan, enabled: true } })).toBe(true)
     expect(changed(config, { ...d, lan: { ...d.lan, port: '5000' } })).toBe(true)
-    expect(changed(config, { ...d, lan: { ...d.lan, pin: '123456' } })).toBe(true)
+    expect(changed(config, { ...d, lan: { ...d.lan, enabled: true, pin: '123456' } })).toBe(true)
   })
   it('ignores whitespace around the ignore lines and a port typed as text', () => {
     const d = draft(config)
