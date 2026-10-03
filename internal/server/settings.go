@@ -91,13 +91,12 @@ func (s *Server) checkRoot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, rootView{root, true})
 }
 
-// verifyToken asks Discogs for a well-known release with the token, once: the
-// person is waiting for the answer.
+// verifyToken checks that Discogs takes the token via /oauth/identity, once:
+// the person is waiting for the answer.
 func verifyToken(ctx context.Context, token string) error {
 	c := discogs.New(token)
 	c.HTTP.Attempts = 1
-	_, err := c.Release(ctx, 249504)
-	return err
+	return c.Identity(ctx)
 }
 
 // checkToken tells whether Discogs takes a token: valid true or false, or
