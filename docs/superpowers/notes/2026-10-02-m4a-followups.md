@@ -17,7 +17,7 @@ Deferred by the task reviews and the final review (Opus) of branch `m4-escucha` 
 - `Lista.svelte`: a `load()` already in flight when a drag starts can still replace the entries; `saveRename`/delete bypass the deferred refresh; rename draft lost on blur; no autoscroll while dragging; drag index logic untested; real touch input untested.
 - `Listas.svelte` effects lack stale guards; tabs lack `aria-controls`.
 - `mine.svelte.js` rollback snapshot can undo an overlapping later change on error; `withLike` sets no `likedAt` until the next load.
-- Changing `normalize` needs a restart (Ajustes is M5).
+- **Changing `normalize` needs a restart.** DONE: M5 Ajustes applies it live without restarting.
 
 ## Server and store polish
 

@@ -1,39 +1,70 @@
 # Tordo
 
 A local, portable catalog and player for a music collection spread over a few
-folders of one drive. **Status: M4b (Stations, Inicio and statistics)** — scanning,
+folders of one drive. **Status: M5 (duplicate detection, settings, LAN access)** — scanning,
 native tag reading, audio fingerprints, albums, folders and collections, automatic
 MusicBrainz and Discogs identification, a localhost JSON API, and the web interface
 with the player, likes, ratings, playlists, play counts, stations, Inicio, listening
-statistics, and loudness normalization; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
+statistics, loudness normalization, duplicate detection, and network access with PIN; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
 
 - **Read-only** on your music: it never moves, renames, re-tags or deletes files.
 - **Portable:** one executable per OS; the catalog (`tordo.db`) and
   `config.json` live next to it, with paths relative to it.
-- **Local:** the server only listens on `127.0.0.1`.
+- **Local or LAN:** runs on `127.0.0.1` by default; optionally listens on the home network (`0.0.0.0`) with PIN authentication.
 
 ## Use
 
 Put the `tordo/` folder on the drive, next to your music folders, and run the
-binary for your system. The first run creates `config.json` with the sibling
-folders as roots, scans them and opens Tordo in the browser (`-no-browser`
-to skip that; the address is in the log).
+binary for your system. The first run opens Bienvenida (the assistant) in the
+browser, asking for the music folders (`-no-browser` to skip that; the address
+is in the log). Choose the folders, an optional Discogs token and normalization,
+then save to create `config.json` and scan the library. An existing `config.json`
+never shows the assistant. Browse-only mode (read-only folders or `tordo`
+binary without write access) shows a settings page instead.
 
 ```json
 {
   "roots": ["../musica", "../musica-ordenar"],
   "ignore": ["Podcasts", "Soulseek/incomplete"],
-  "discogsToken": ""
+  "discogsToken": "",
+  "normalize": true,
+  "lan": {
+    "enabled": false,
+    "port": 4747,
+    "pinHash": ""
+  }
 }
 ```
 
-`discogsToken` is optional; without it genres come from MusicBrainz, from its links to Discogs and from the tags; get one at https://www.discogs.com/settings/developers.
+`discogsToken` is optional; without it genres come from MusicBrainz, from its
+links to Discogs and from the tags; get one at https://www.discogs.com/settings/developers.
+
+`normalize` (true when absent) toggles loudness normalization; changes take effect
+immediately in Ajustes without restarting.
 
 `ignore` adds folders to skip: a name matches anywhere, a path with `/` matches
 from the root. Other apps' folders (Ableton, djay, Audio Music Apps,
 Soulseek's `downloading`, Apple Music libraries) are always skipped.
 `ffprobe`, when on the `PATH`, reads the formats the built-in readers don't
 (APE, WavPack, raw AAC…).
+
+### Ajustes (Settings)
+
+The settings page lets you manage the music roots, ignore patterns, Discogs token,
+loudness normalization, and local network access. Each setting shows what it does
+when changed: scanning the library (roots or ignore patterns changed), updating
+genres (new Discogs token), or taking effect immediately (normalization).
+
+The **Discogs token** field verifies the token with Discogs's `/oauth/identity`
+endpoint once you click "Verificar"; the server accepts it anyway if verification
+fails (no network). Changing the token triggers an identification update.
+
+**Loudness normalization** can be toggled live without restarting Tordo; the
+player and Explorar filters update immediately.
+
+Settings can only be changed from the computer running Tordo. From other devices
+on the local network, a message shows "Los ajustes solo se cambian en la computadora
+que corre Tordo", and you can only close your session.
 
 ### Browsing and listening
 
@@ -164,10 +195,10 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 
 | Method and path | What it returns |
 |---|---|
-| `GET /api/status` | scan progress, catalog counts, normalization status |
+| `GET /api/status` | scan progress, catalog counts, normalization status, `setupPending` flag |
 | `POST /api/scan` | starts a scan (`Content-Type: application/json`) |
 | `GET /api/albums?folder=` | albums, all or inside a folder |
-| `GET /api/albums/{id}` | an album with its tracks and technical data |
+| `GET /api/albums/{id}` | an album with its tracks (with `sizeBytes` per track), versions (other albums sharing duplicate groups), and technical data |
 | `GET /api/folders?path=` | a folder: subfolders (with size), albums, loose tracks and the files directly in it (no `path`: the roots) |
 | `GET /api/folders/tree?path=` | one level of the Carpetas tree: subfolders, pass-through chains merged |
 | `GET /api/folders/tree/search?q=` | folders by name, with the tree rows leading to them |
@@ -181,6 +212,8 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `PUT /api/genres/aliases`, `DELETE /api/genres/aliases?raw=` | map a raw genre (or ignore it), or forget the mapping |
 | `GET /api/review/unidentified` | albums awaiting identification review |
 | `PUT /api/albums/{id}/identification` | choose the identification for an album (`DELETE` goes back to automatic) |
+| `GET /api/review/duplicates?tipo=` | duplicate groups; `tipo` is exacta, formatos, or sospecha |
+| `GET /api/review/formats` | tracks needing conversion by format |
 | `GET /api/marks` | likes and ratings for tracks and albums (by id), and liked artists and collections |
 | `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
 | `PUT /api/ratings` | set or clear a rating for a track or album (`{kind, id, stars}`; `stars` 0–5, 0 clears) |
@@ -206,6 +239,17 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `GET /stream/{trackId}` | a track's audio (`Range` for seeking; `?transcode=1` converts it) |
 | `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
 | `GET /api/covers/track/{id}?size=` | the picture embedded in a track's file |
+| `GET /api/config` | current configuration (settings only readable from the local computer) |
+| `PUT /api/config` | save configuration: roots, ignore patterns, Discogs token, normalization, LAN settings (local computer only) |
+| `POST /api/config/root` | check whether a folder can be a root: returns its canonical path or an error |
+| `POST /api/config/token` | check whether Discogs accepts a token: returns `{valid: true/false/null}` (null when offline) |
+| `GET /api/lan` | LAN info: enabled, port, listening, and URLs for other devices to reach Tordo |
+| `GET /api/lan/qr?url=` | SVG QR code of a URL |
+| `GET /api/auth` | authentication status; returns session info when authenticated, 401 when PIN needed |
+| `POST /api/auth/login` | authenticate with PIN from a LAN device: `{pin, device}` |
+| `POST /api/auth/logout` | end this session |
+| `GET /api/sessions` | list active sessions (local computer only) |
+| `DELETE /api/sessions/{id}` | end a session by id |
 
 ## Identification
 
@@ -223,6 +267,33 @@ fingerprint: they survive moving, renaming and re-tagging the files, and the
 automatic identification never overrides them. Without network, everything
 else works and the identification retries on its own.
 
+### Revisar (Review)
+
+#### Duplicados (Duplicates)
+
+Tordo detects three kinds of duplicate groups; it never deletes files, only lists them.
+
+1. **Exacta (exact copies):** two or more files with identical audio (same audio fingerprint). Recoverable bytes of a group: all its files minus the largest one.
+   Groups are sorted by recoverable bytes, largest first.
+
+2. **Formatos (same recording in several formats):** tracks of the same album with the same MusicBrainz recording ID, or with the same normalized artist and title and duration within 2 seconds (chained by duration). Files are sorted by quality (lossless > lossy; lossless by bit depth then sample rate; lossy by bitrate), then by path. The best file gets a MEJOR badge when it is strictly better than every other file of its group.
+
+3. **Sospecha (suspect, same artist and title across albums):** the same artist, title and duration (within 2 seconds) across different albums, holding at least two distinct audio fingerprints. Sorted by artist, then title. Informational only. The best file of each group gets a MEJOR badge when strictly better than all others.
+
+An album is marked "con duplicados" (Estado filter in Explorar) when one or more of its tracks belong to an exact or formats duplicate group.
+
+#### Formatos a convertir (Formats to convert)
+
+Detects which tracks use formats that need conversion to play: WMA, WAV, AIFF, APE, WavPack, and ALAC.
+Shows totals (files, bytes) and one item per album × format (or folder × format for loose tracks),
+sorted by size. **Detection only:** nothing is converted automatically.
+
+#### Album versions
+
+The album page lists other albums that share one or more exact or formats duplicate groups with it:
+their title, artist, year, formats of the shared tracks, how many of this album's tracks they share,
+and the group kind (exacta when every shared track is an exact copy, else formatos).
+
 ## Loudness normalization
 
 Tordo normalizes the volume across your collection to −18 LUFS (EBU R128).
@@ -230,8 +301,68 @@ It checks ReplayGain tags first; if they're missing, `ffmpeg` measures the
 loudness in the background (newest tracks first), and the audio that's about
 to play jumps the queue. Tracks not measured yet play at −6 dB. The
 normalization only lowers volume, never raises it. Album gain is applied when
-an album plays in order (shuffle off). To turn it off, set `"normalize": false`
-in `config.json` and restart Tordo.
+an album plays in order (shuffle off). Turn it on or off in Ajustes; the change
+takes effect immediately without restarting.
+
+## Uso desde la red (Network access)
+
+By default, Tordo only listens on `127.0.0.1` (the computer running it). In Ajustes
+you can turn on **Red local** to allow other devices on your home network to access it.
+
+### Enabling LAN access
+
+When you turn on "Usar Tordo desde otros dispositivos de la red", Tordo asks you to
+set a 6–12 digit PIN. The PIN is chosen when you turn LAN on; a PIN typed while LAN
+is off is not saved. Tordo then listens on `0.0.0.0` at port 4747 (default; change in
+Ajustes if needed).
+
+The connection is plain HTTP without encryption: this is safe on a home network. Use only
+at home, not over the internet.
+
+### PIN authentication
+
+The PIN protects access from other devices on the LAN. After 5 wrong attempts, each
+additional wrong attempt locks logins for 30 seconds (doubling each time, up to 1 hour);
+a correct PIN resets the lock. While locked, the server answers 429 with `Retry-After`.
+
+Changing the PIN closes every device's session (they must log in again).
+
+### Sessions
+
+When you log in from a device, the server creates a 90-day session (a cookie `tordo_sesion`,
+`HttpOnly`, `SameSite=Lax`, not encrypted). If you don't use a device for a day, the
+session is automatically extended another 90 days on your next request. Sessions older
+than 90 days are deleted at the next login.
+
+In Ajustes, you can see the list of active sessions (one row per device with its name
+and last-used date) and close any one from that device.
+
+### LAN addresses and QR
+
+Ajustes shows the addresses where you can reach Tordo on your home network: `http://<ip>:<port>/`
+for each local IPv4 address, then `http://<hostname>.local:<port>/`. Each address has a QR
+code you can scan with your phone to open it.
+
+The PIN screen appears when you load the page on a non-local device (phone, tablet, another
+computer on the LAN). Once logged in, everything you can do from the main computer works:
+play, browse, rate, like, make playlists, stations, and listen to your statistics. The only
+things you cannot do from another device are change settings; those are only possible from
+the computer running Tordo.
+
+### Config: lan block
+
+```json
+"lan": {
+  "enabled": false,
+  "port": 4747,
+  "pinHash": ""
+}
+```
+
+- `enabled`: whether the LAN listener is running.
+- `port`: the port to listen on (1024–65535); 0 or absent means the default port 4747.
+- `pinHash`: the hashed PIN (PBKDF2-SHA256, 100,000 iterations). Empty when LAN is on but
+  no PIN was set, or when LAN is off.
 
 ## Development
 
