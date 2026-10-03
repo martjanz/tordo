@@ -9,6 +9,7 @@
   import { app } from '../lib/app.svelte.js'
   import { count, country, folderName, length, quality } from '../lib/format.js'
   import { play } from '../lib/player.svelte.js'
+  import { albumStation } from '../lib/stations.js'
   import { genreLinks, identification } from '../lib/review.js'
   import { artistHref, exploreHref, folderHref } from '../lib/router.js'
 
@@ -81,7 +82,7 @@
         <MeGusta kind="album" ref={album.id} size={20} />
         <Puntaje kind="album" id={album.id} />
       </div>
-      <Acciones what={{ album: album.id }} />
+      <Acciones what={{ album: album.id }} station={albumStation(album)} />
     </div>
   </div>
   <ListaPistas tracks={album.tracks} albumArtist={album.artist} onplay={(t) => play({ album: album.id }, { startId: t.id })} />

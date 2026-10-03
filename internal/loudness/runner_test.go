@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -360,6 +361,56 @@ func TestRunnerNoMeasureOnExistingFileSavesError(t *testing.T) {
 	waitIdle(t, r)
 	if len(cat.saved) != 1 || cat.saved[0].LUFS != nil || cat.saved[0].Err != ErrNoMeasure.Error() {
 		t.Fatalf("saved = %+v", cat.saved)
+	}
+	r.Close()
+}
+
+func TestRunnerIOErrorSavesNothing(t *testing.T) {
+	for _, text := range []string{"x: Input/output error", "x: Permission denied"} {
+		cat := &fakeCatalog{jobs: jobsOf(3)}
+		app := t.TempDir()
+		touchJobs(t, app, cat.jobs)
+		calls := 0
+		r := &Runner{Catalog: cat, AppDir: app, Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+			calls++
+			return 0, fmt.Errorf("%w: %s", ErrNoMeasure, text)
+		}}
+		r.Trigger()
+		waitIdle(t, r)
+		if got := cat.refs(); len(got) != 0 {
+			t.Fatalf("%q: saved = %v, want nothing", text, got)
+		}
+		if calls != 1 {
+			t.Fatalf("%q: analyzed %d files, want 1", text, calls)
+		}
+		r.Close()
+	}
+}
+
+func TestRunnerUnreadableFileSavesNothing(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("file permissions are not enforced here")
+	}
+	cat := &fakeCatalog{jobs: jobsOf(2)}
+	app := t.TempDir()
+	touchJobs(t, app, cat.jobs)
+	for _, j := range cat.jobs {
+		if err := os.Chmod(filepath.Join(app, filepath.FromSlash(j.Path)), 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := 0
+	r := &Runner{Catalog: cat, AppDir: app, Analyze: func(ctx context.Context, ff, file string) (float64, error) {
+		calls++
+		return 0, ErrNoMeasure
+	}}
+	r.Trigger()
+	waitIdle(t, r)
+	if got := cat.refs(); len(got) != 0 {
+		t.Fatalf("saved = %v, want nothing", got)
+	}
+	if calls != 1 {
+		t.Fatalf("analyzed %d files, want 1", calls)
 	}
 	r.Close()
 }

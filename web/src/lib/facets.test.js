@@ -71,3 +71,16 @@ describe('my data facets', () => {
     expect(valueLabel('megusta', 'si')).toBe('Me gusta')
   })
 })
+
+describe('escucha', () => {
+  it('is a facet with its labels', async () => {
+    const F = await import('./facets.js')
+    const i = F.FACETS.findIndex((f) => f.name === 'puntaje')
+    expect(F.FACETS[i + 1]).toEqual({ name: 'escucha', label: 'Escucha' })
+    expect(F.valueLabel('escucha', 'nunca')).toBe('Nunca escuchado')
+    expect(F.valueLabel('escucha', 'hace-un-anio')).toBe('Sin escuchar hace un año')
+    const q = F.parse('?escucha=nunca')
+    expect(q.facets).toEqual({ escucha: 'nunca' })
+    expect(F.toSearch(q)).toBe('?escucha=nunca')
+  })
+})

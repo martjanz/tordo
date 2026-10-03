@@ -48,9 +48,15 @@ var MaxPlaylist = 5000
 const maxPlaylistName = 200
 
 func playlistName(name string) (string, error) {
+	return cleanName(name, ErrPlaylistName)
+}
+
+// cleanName trims a user-given name and cuts it to maxPlaylistName runes;
+// empty names fail with errEmpty.
+func cleanName(name string, errEmpty error) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "", ErrPlaylistName
+		return "", errEmpty
 	}
 	if r := []rune(name); len(r) > maxPlaylistName {
 		name = strings.TrimSpace(string(r[:maxPlaylistName]))

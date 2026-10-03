@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { albumHref, appLink, artistHref, exploreHref, folderHref, listHref, resolve, searchHref } from './router.js'
+import { albumHref, appLink, artistHref, exploreHref, folderHref, listHref, resolve, searchHref, statsHref } from './router.js'
 
 describe('resolve', () => {
   it.each([
-    ['/', '', { page: 'explorar' }],
+    ['/', '', { page: 'inicio' }],
+    ['/', '?pais=AR', { page: 'explorar' }],
+    ['/', '?orden=titulo', { page: 'explorar' }],
+    ['/', '?ver=pistas', { page: 'explorar' }],
+    ['/', '?dir=asc', { page: 'explorar' }],
+    ['/', '?foo=1', { page: 'inicio' }],
+    ['/estadisticas', '', { page: 'estadisticas', period: 'mes' }],
+    ['/estadisticas', '?periodo=anio', { page: 'estadisticas', period: 'anio' }],
+    ['/estadisticas', '?periodo=semana', { page: 'estadisticas', period: 'semana' }],
+    ['/estadisticas', '?periodo=siempre', { page: 'estadisticas', period: 'siempre' }],
+    ['/estadisticas', '?periodo=x', { page: 'estadisticas', period: 'mes' }],
     ['/explorar', '?decada=1980', { page: 'explorar' }],
     ['/carpetas', '', { page: 'carpetas', path: '' }],
     ['/carpetas', '?ruta=..%2Fmusica%2FLatinoam%C3%A9rica%20600', { page: 'carpetas', path: '../musica/Latinoamérica 600' }],
@@ -74,5 +84,13 @@ describe('appLink', () => {
 describe('listHref', () => {
   it('links a playlist', () => {
     expect(listHref(12)).toBe('/listas/12')
+  })
+})
+
+describe('statsHref', () => {
+  it('leaves the default period out', () => {
+    expect(statsHref('mes')).toBe('/estadisticas')
+    expect(statsHref()).toBe('/estadisticas')
+    expect(statsHref('anio')).toBe('/estadisticas?periodo=anio')
   })
 })

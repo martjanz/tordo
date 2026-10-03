@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { albumCoverURL, api, itemCoverURL, playQuery, releaseURL, streamURL } from './api.js'
+import { albumCoverURL, api, itemCoverURL, playQuery, releaseURL, stationQuery, streamURL } from './api.js'
 
 describe('playQuery', () => {
   it('writes what to play', () => {
@@ -60,5 +60,44 @@ describe('calls', () => {
       ['GET', '/api/folders/tree/search?q=zitar', null],
     ])
     expect(releaseURL('abc')).toBe('https://musicbrainz.org/release/abc')
+  })
+})
+
+describe('stations', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const st = { name: 'Rock', source: { view: 'pistas', facets: { genero: 'Rock' } }, mode: 'pistas', artistGap: 3, avoidDays: 7 }
+
+  it('writes the station query without the id', () => {
+    const q = new URLSearchParams(stationQuery({ ...st, id: 4, createdAt: 'x' }, [1, 2, 3]))
+    expect(JSON.parse(q.get('def'))).toEqual(st)
+    expect(q.get('recientes')).toBe('1,2,3')
+    expect(new URLSearchParams(stationQuery(st, [])).has('recientes')).toBe(false)
+    expect(new URLSearchParams(stationQuery(st)).has('recientes')).toBe(false)
+  })
+
+  it('asks the server', async () => {
+    const calls = []
+    vi.stubGlobal('fetch', async (url, init) => {
+      calls.push([init.method, url, init.body ?? null])
+      return { ok: true, status: init.method === 'DELETE' ? 204 : 200, json: async () => ({}) }
+    })
+    await api.stations()
+    await api.createStation({ ...st, id: 9 })
+    await api.updateStation(9, { ...st, id: 9 })
+    await api.deleteStation(9)
+    await api.home(42)
+    await api.stats('anio', 10)
+    await api.stationNext(st, [4, 5])
+    expect(calls.map((c) => c.slice(0, 2))).toEqual([
+      ['GET', '/api/stations'],
+      ['POST', '/api/stations'],
+      ['PUT', '/api/stations/9'],
+      ['DELETE', '/api/stations/9'],
+      ['GET', '/api/home?semilla=42'],
+      ['GET', '/api/stats?periodo=anio&limite=10'],
+      ['GET', '/api/station/next?' + stationQuery(st, [4, 5])],
+    ])
+    expect(JSON.parse(calls[1][2])).toEqual(st)
+    expect(JSON.parse(calls[2][2])).toEqual(st)
   })
 })

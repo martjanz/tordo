@@ -9,7 +9,7 @@ export const MAX = 5000 // as the server's MaxPlay: what fits in localStorage
 export const REPEAT = ['off', 'all', 'one']
 
 export function empty() {
-  return { list: [], order: [], pos: -1, shuffle: false, repeat: 'off', nextKey: 1 }
+  return { list: [], order: [], pos: -1, shuffle: false, repeat: 'off', nextKey: 1, station: null }
 }
 
 function entries(q, items) {
@@ -138,6 +138,15 @@ export function clearUpcoming(q) {
   return { ...q, order: q.order.slice(0, q.pos + 1), list: q.list.filter((e) => keep.has(e.key)) }
 }
 
+// trimPlayed drops the entries played before the last keep ones (in play
+// order), so a station's queue does not grow forever.
+export function trimPlayed(q, keep) {
+  const drop = q.pos - keep
+  if (drop <= 0) return q
+  const gone = new Set(q.order.slice(0, drop))
+  return { ...q, order: q.order.slice(drop), list: q.list.filter((e) => !gone.has(e.key)), pos: q.pos - drop }
+}
+
 // setShuffle turns shuffle on (what is still to play comes in random
 // order) or off (back to the list's order, from the current entry).
 export function setShuffle(q, on, rand = Math.random) {
@@ -172,6 +181,7 @@ export function restore(json) {
     if (q.order.some((k) => !keys.has(k))) return empty()
     if (!REPEAT.includes(q.repeat)) q.repeat = 'off'
     q.shuffle = !!q.shuffle
+    q.station = q.station && typeof q.station === 'object' && !Array.isArray(q.station) ? q.station : null
     q.pos = Number.isInteger(q.pos) && q.pos < q.order.length ? q.pos : q.order.length ? 0 : -1
     q.nextKey = Math.max(q.nextKey ?? 1, ...q.list.map((e) => e.key + 1))
     return q

@@ -18,6 +18,7 @@ export const FACETS = [
   { name: 'coleccion', label: 'Colección' },
   { name: 'megusta', label: 'Me gusta' },
   { name: 'puntaje', label: 'Puntaje' },
+  { name: 'escucha', label: 'Escucha' },
   { name: 'carpeta', label: 'Carpeta', more: true },
   { name: 'calidad', label: 'Calidad', more: true },
   { name: 'formato', label: 'Formato', more: true },
@@ -25,7 +26,7 @@ export const FACETS = [
 ]
 
 // NAMES are the facets in URL order, the year and style included.
-const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado', 'megusta', 'puntaje']
+export const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado', 'megusta', 'puntaje', 'escucha']
 
 // ORDERS lists each tab's orders, its default first (as the server).
 export const ORDERS = {
@@ -55,6 +56,7 @@ export const LABELS = {
   calidad: { 'sin-perdida': 'Sin pérdida', 'con-perdida': 'Con pérdida' },
   estado: { 'sin-identificar': 'Sin identificar', 'no-reproducible': 'No reproducible' },
   megusta: { si: 'Me gusta' },
+  escucha: { nunca: 'Nunca escuchado', 'hace-un-anio': 'Sin escuchar hace un año' },
   puntaje: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
 }
 
@@ -143,6 +145,7 @@ export function valueLabel(name, value, counted) {
     case 'estado':
     case 'megusta':
     case 'puntaje':
+    case 'escucha':
       return LABELS[name][value] ?? value
   }
   return counted?.label || value

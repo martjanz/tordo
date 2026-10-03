@@ -1,11 +1,13 @@
 <script>
-  // Play, shuffle and queue buttons for an album, folder or collection.
+  // Play, shuffle and queue buttons for an album, folder or collection; with
+  // a station prop (null when none fits) also its "Estación" button.
   import { app } from '../lib/app.svelte.js'
   import { enqueue, play } from '../lib/player.svelte.js'
+  import BotonEstacion from './BotonEstacion.svelte'
   import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'
 
-  let { what } = $props()
+  let { what, station = undefined } = $props()
 
   let adding = $state(false)
 </script>
@@ -13,6 +15,7 @@
 <div class="actions">
   <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> Reproducir</button>
   <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
+  {#if station}<BotonEstacion {station} />{/if}
   <button onclick={() => enqueue(what, { next: true })}><Icono name="next_up" size={14} /> A continuación</button>
   <button onclick={() => enqueue(what)}><Icono name="plus" size={14} /> A la cola</button>
   {#if !app.status?.readOnly}

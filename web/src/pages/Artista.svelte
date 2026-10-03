@@ -11,6 +11,7 @@
   import { count, country, years } from '../lib/format.js'
   import { play } from '../lib/player.svelte.js'
   import { albumHref, exploreHref } from '../lib/router.js'
+  import { artistStation } from '../lib/stations.js'
 
   let { key } = $props()
 
@@ -58,11 +59,21 @@
         {#if artist.mbid}· <a href={artistMBURL(artist.mbid)} target="_blank" rel="noreferrer">MusicBrainz ↗</a>{/if}
       </p>
       <div class="acts">
-        <Acciones what={{ artist: artist.key }} />
+        <Acciones what={{ artist: artist.key }} station={artistStation(artist)} />
         <MeGusta kind="artist" ref={artist.key} size={20} />
       </div>
     </div>
   </div>
+
+  {#if artist.top?.length}
+    <h2>Más escuchadas</h2>
+    <ListaPistas
+      tracks={artist.top}
+      numbered={false}
+      showAlbum
+      albumArtist={artist.name}
+      onplay={(t) => play({ tracks: artist.top.map((x) => x.id) }, { startId: t.id })} />
+  {/if}
 
   {#if artist.albums.length}
     <h2>Álbumes</h2>

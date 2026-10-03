@@ -138,3 +138,41 @@ describe('peekPos', () => {
     expect(Q.peekPos(Q.empty())).toBe(-1)
   })
 })
+
+describe('station', () => {
+  const st = { name: 'Rock', source: {} }
+  it('starts without one and restore keeps an object', () => {
+    expect(Q.empty().station).toBe(null)
+    const q = { ...Q.replace(Q.empty(), items(1, 2)), station: st }
+    expect(Q.restore(JSON.stringify(q)).station).toEqual(st)
+    expect(Q.restore(JSON.stringify({ ...q, station: 'x' })).station).toBe(null)
+    expect(Q.restore(JSON.stringify({ ...q, station: undefined })).station).toBe(null)
+  })
+})
+
+describe('trimPlayed', () => {
+  const many = (n) => items(...Array.from({ length: n }, (_, i) => i + 1))
+  it('drops what was played before the last keep entries', () => {
+    const q = Q.jump(Q.replace(Q.empty(), many(200)), 150)
+    const t = Q.trimPlayed(q, 100)
+    expect(t.pos).toBe(100)
+    expect(t.order.length).toBe(150)
+    expect(t.list.length).toBe(150)
+    expect(ids(t)[0]).toBe(51)
+    expect(cur(t)).toBe(151)
+  })
+  it('works with shuffle on', () => {
+    const q = Q.jump(Q.replace({ ...Q.empty(), shuffle: true }, many(200), 0, () => 0.3), 150)
+    const gone = q.order.slice(0, 50)
+    const t = Q.trimPlayed(q, 100)
+    expect(t.pos).toBe(100)
+    expect(t.order).toEqual(q.order.slice(50))
+    expect(t.list.length).toBe(150)
+    expect(t.list.some((e) => gone.includes(e.key))).toBe(false)
+    expect(cur(t)).toBe(cur(q))
+  })
+  it('leaves a short history alone', () => {
+    const q = Q.jump(Q.replace(Q.empty(), many(20)), 10)
+    expect(Q.trimPlayed(q, 100)).toBe(q)
+  })
+})

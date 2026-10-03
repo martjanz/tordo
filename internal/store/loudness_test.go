@@ -202,3 +202,23 @@ func playIDOf(t *testing.T, s *Store, title string) int64 {
 	t.Fatalf("no track %q", title)
 	return 0
 }
+
+func TestLoudnessFactsFailed(t *testing.T) {
+	s := loudnessLibrary(t)
+	items, _ := s.PlayAlbum(albumNamed(t, s, "Signos"))
+	signos1, signos2 := items[0], items[1]
+	v := -10.0
+	if err := s.SaveLoudness("fp"+signos+"01.mp3", &v, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveLoudness("fp"+signos+"02.mp3", nil, "roto"); err != nil {
+		t.Fatal(err)
+	}
+	facts, err := s.LoudnessFacts([]int64{signos1.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if facts[signos1.ID].Failed || !facts[signos2.ID].Failed {
+		t.Fatalf("failed: %v %v", facts[signos1.ID].Failed, facts[signos2.ID].Failed)
+	}
+}

@@ -9,6 +9,7 @@ import { count } from './format.js'
 import { factor, gainDb, missing, withGains } from './gain.js'
 import * as P from './plays.js'
 import * as Q from './queue.js'
+import * as S from './stations.js'
 
 const QUEUE_KEY = 'tordo.cola'
 const TIME_KEY = 'tordo.tiempo'
@@ -173,6 +174,17 @@ function onEnded() {
   if (!q) {
     player.playing = false
     player.time = 0
+    if (player.queue.station) {
+      // A station ran dry before its top-up arrived: ask again and go on.
+      topUp().then(() => {
+        if (player.playing) return
+        const more = Q.next(player.queue, true)
+        if (!more) return
+        player.queue = more
+        persist()
+        start(Q.current(more), 0, true)
+      })
+    }
     return
   }
   player.queue = q
@@ -184,6 +196,7 @@ function onEnded() {
     release(standby)
     show(entry, active.dataset.seekable === '1')
     refreshGains()
+    topUp()
     // media errors arrive through the element's error event (mine); autoplay
     // refusal is ignored here and will pause the element if the user retries.
     active.play().catch(() => {})
@@ -238,6 +251,83 @@ function start(entry, at, play) {
   applyVolume()
   if (play) active.play().catch(() => (player.loading = false))
   refreshGains()
+  topUp()
+}
+
+let topUpBusy = false // a request for more of the station is in flight
+let topUpFailed = null // the station whose failure was already announced
+
+// topUp asks the server for more of the station when the queue runs low.
+// The answer is dropped when the station changed or ended meanwhile.
+async function topUp() {
+  const st = player.queue.station
+  if (!st || topUpBusy || !S.needsMore(player.queue)) return
+  topUpBusy = true
+  let res
+  try {
+    res = await api.stationNext(st, S.recentIds(player.queue))
+  } catch (e) {
+    if (e.status === 404) {
+      // The station's source is gone (a deleted playlist): it ends here.
+      if (player.queue.station === st) {
+        notify(e.message)
+        player.queue = { ...player.queue, station: null }
+        persist()
+      }
+      return
+    }
+    if (topUpFailed !== st) {
+      topUpFailed = st
+      notify(e.message)
+    }
+    return // the next call tries again
+  } finally {
+    topUpBusy = false
+  }
+  if (player.queue.station !== st) return
+  topUpFailed = null
+  player.ffmpeg = res.ffmpeg
+  if (res.items.length === 0) {
+    notify('La estación se quedó sin pistas.')
+    player.queue = { ...player.queue, station: null }
+    persist()
+    return
+  }
+  player.queue = Q.trimPlayed(Q.append(player.queue, res.items), S.KEEP_PLAYED)
+  persist()
+  refreshGains()
+}
+
+// playStation starts a station: the queue is replaced with its first batch.
+export async function playStation(st) {
+  let res
+  try {
+    res = await api.stationNext(st, [])
+  } catch (e) {
+    notify(e.message)
+    return
+  }
+  player.ffmpeg = res.ffmpeg
+  if (res.items.length === 0) {
+    notify('Esta estación no tiene nada para sonar.')
+    return
+  }
+  // The server's cleaned station has no id: keep the saved station's.
+  const station = res.station ? { ...res.station, id: st.id } : st
+  setQueue(Q.replace({ ...player.queue, shuffle: false, station }, res.items))
+}
+
+// stopStation ends the station; the queue stays and plays out.
+export function stopStation() {
+  player.queue = { ...player.queue, station: null }
+  persist()
+}
+
+// setStation replaces the playing station (its rules or name changed, or it
+// was saved and has an id); the next top-up uses it.
+export function setStation(st) {
+  player.queue = { ...player.queue, station: st }
+  persist()
 }
 
 // refreshGains asks for the gains of the next tracks that lack one. Errors
@@ -300,7 +390,7 @@ export async function play(what, { shuffle = false, startId = null } = {}) {
   }
   if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
   const at = startId == null ? 0 : Math.max(0, res.items.findIndex((it) => it.id === startId))
-  setQueue(Q.replace({ ...player.queue, shuffle }, res.items, shuffle ? Math.floor(Math.random() * res.items.length) : at))
+  setQueue(Q.replace({ ...player.queue, shuffle, station: null }, res.items, shuffle ? Math.floor(Math.random() * res.items.length) : at))
 }
 
 // enqueue adds what to the end of the queue, or right after the current
@@ -328,6 +418,7 @@ export async function enqueue(what, { next = false } = {}) {
 }
 
 if (player.queue.list.length > 0) refreshGains()
+topUp() // a restored station may be running low
 
 export function toggle() {
   const entry = Q.current(player.queue)
@@ -364,7 +455,7 @@ export function removeAt(pos) {
   const wasCurrent = pos === player.queue.pos
   player.queue = Q.remove(player.queue, pos)
   persist()
-  if (!wasCurrent) return
+  if (!wasCurrent) return topUp()
   const entry = Q.current(player.queue)
   if (entry) start(entry, 0, player.playing)
   else stop()
@@ -374,6 +465,7 @@ export function clearUpcoming() {
   player.queue = Q.clearUpcoming(player.queue)
   persist()
   if (standby) release(standby)
+  topUp()
 }
 
 function stop() {

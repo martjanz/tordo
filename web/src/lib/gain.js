@@ -23,13 +23,14 @@ export function factor(db) {
 
 // missing lists the ids of up to count entries from position from of the
 // play order whose track gain is not known yet, or that belong to an album
-// whose gain is not (each id once).
+// whose gain is not (each id once). Entries the server could not measure
+// (unmeasurable) are not asked for again.
 export function missing(q, from, count) {
   const byKey = new Map(q.list.map((e) => [e.key, e]))
   const ids = new Set()
   for (let p = Math.max(0, from); p < q.order.length && ids.size < count; p++) {
     const e = byKey.get(q.order[p])
-    if (e && (e.trackGain == null || (e.albumId && e.albumGain == null))) ids.add(e.id)
+    if (e && !e.unmeasurable && (e.trackGain == null || (e.albumId && e.albumGain == null))) ids.add(e.id)
   }
   return [...ids]
 }

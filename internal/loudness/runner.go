@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"tordo/internal/appdir"
@@ -219,10 +220,16 @@ func (r *Runner) measure(ctx context.Context, analyze func(context.Context, stri
 			log.Printf("volumen: %v", err)
 			return false, true
 		}
-		if _, serr := os.Stat(file); serr != nil {
-			log.Printf("volumen: no se puede leer %s: %v", job.Path, serr)
+		if temporaryRead(err) {
+			log.Printf("volumen: error de lectura en %s: %v", job.Path, err)
 			return false, true
 		}
+		f, oerr := os.Open(file)
+		if oerr != nil {
+			log.Printf("volumen: no se puede leer %s: %v", job.Path, oerr)
+			return false, true
+		}
+		f.Close()
 		err = r.Catalog.SaveLoudness(job.Ref, nil, err.Error())
 	}
 	if err != nil {
@@ -238,6 +245,13 @@ func (r *Runner) measure(ctx context.Context, analyze func(context.Context, stri
 	}
 	r.mu.Unlock()
 	return true, false
+}
+
+// temporaryRead tells whether an Analyze error comes from reading the file
+// (a flaky drive, a permission) rather than from its content.
+func temporaryRead(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "Input/output error") || strings.Contains(msg, "Permission denied")
 }
 
 // Close stops the passes for good: it cancels the one in progress and waits

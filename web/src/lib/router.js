@@ -1,9 +1,21 @@
 // Routes of the app. Pure: nav.svelte.js keeps the current route.
+import { NAMES as FACET_NAMES } from './facets.js'
+
+// Old links of the form "/?pais=AR" still open Explorar: "/" with any of
+// these parameters is Explorar, without them it is Inicio.
+const EXPLORAR_PARAMS = ['ver', 'orden', 'dir', ...FACET_NAMES]
+
+const PERIODS = ['semana', 'mes', 'anio', 'siempre']
 
 // resolve maps a pathname and query to the page to show and its parameters.
 export function resolve(pathname, search = '') {
   const params = new URLSearchParams(search)
-  if (pathname === '/' || pathname === '/explorar') return { page: 'explorar' }
+  if (pathname === '/') return EXPLORAR_PARAMS.some((p) => params.has(p)) ? { page: 'explorar' } : { page: 'inicio' }
+  if (pathname === '/explorar') return { page: 'explorar' }
+  if (pathname === '/estadisticas') {
+    const period = params.get('periodo')
+    return { page: 'estadisticas', period: PERIODS.includes(period) ? period : 'mes' }
+  }
   if (pathname === '/carpetas') return { page: 'carpetas', path: params.get('ruta') ?? '' }
   if (pathname === '/listas') return { page: 'listas' }
   if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
@@ -64,4 +76,9 @@ export function exploreHref(facets = {}, view = '') {
 
 export function searchHref(q) {
   return `/buscar?q=${encodeURIComponent(q.trim())}`
+}
+
+// statsHref links the statistics page; "mes" is the default period.
+export function statsHref(period) {
+  return period && period !== 'mes' ? `/estadisticas?periodo=${encodeURIComponent(period)}` : '/estadisticas'
 }

@@ -3,6 +3,7 @@
   // facets that live in the URL, loaded a page at a time as the list scrolls.
   import { tick, untrack } from 'svelte'
   import BarraFacetas from '../components/BarraFacetas.svelte'
+  import BotonEstacion from '../components/BotonEstacion.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
@@ -11,6 +12,7 @@
   import { parse, toSearch } from '../lib/facets.js'
   import { navigate, patchState, route, savedScroll } from '../lib/nav.svelte.js'
   import { play } from '../lib/player.svelte.js'
+  import { exploreStation } from '../lib/stations.js'
 
   const PAGE = 120
 
@@ -105,6 +107,7 @@
 
 {#if data}
   <BarraFacetas query={data.query} facets={data.facets} total={data.total} onchange={change} />
+  <div class="estacion"><BotonEstacion station={exploreStation(data.query, data.facets)} /></div>
   {#if items.length}
     {#if data.query.view === 'pistas'}
       <div class="list">
@@ -136,6 +139,9 @@
 {/if}
 
 <style>
+  .estacion {
+    margin-top: 12px;
+  }
   .list {
     margin-top: 16px;
   }

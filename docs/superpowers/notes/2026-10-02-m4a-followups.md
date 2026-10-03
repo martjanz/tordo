@@ -4,11 +4,11 @@ Deferred by the task reviews and the final review (Opus) of branch `m4-escucha` 
 
 ## Worth doing in M4b
 
-- **Album marks spill over shared fingerprints.** An album counts as liked/rated if any present track carries an album mark, so a compilation holding a bit-identical copy of one track of a liked album shows as liked (plan decision 1). Consider requiring most of the album's tracks.
-- **Failed loudness refs are re-prioritized on every play** (and `missing()` keeps asking for albums that never get an album gain): each costs a runner pass with three full-table queries. Let `LoudnessFacts` say "failed", or skip refs that already have a `loudness` row.
-- **`PlayTracks` runs one query per id**: `?liked=1` and `PlayPlaylist` on 5000 entries means 5000 queries. Batch with `IN (…)`.
-- **`id:N` refs**: a like, play or playlist add made while a re-tagged file has no fingerprint yet is keyed by `id:N` and orphaned once the fingerprint is read.
-- **Loudness errors**: a file that exists but cannot be opened, or an ffmpeg I/O failure that still prints output, is saved as a permanent error (only missing files and ffmpeg not starting are skipped).
+- **Album marks spill over shared fingerprints.** DONE: An album counts as liked/rated only when more than half its present tracks carry the album mark (a compilation holding one shared copy shows as not liked).
+- **Failed loudness refs are re-prioritized on every play.** DONE: Tracks marked `unmeasurable` (no ReplayGain tag and measurement failed for good) are not re-analyzed or re-prioritized.
+- **`PlayTracks` runs one query per id.** DONE: Batched with `IN (…)`.
+- **`id:N` refs.** DONE: Re-keyed to the fingerprint when it is read.
+- **Loudness errors.** DONE: Files that cannot be opened and ffmpeg I/O or permission errors are temporary (not saved as failures, retried later); only `unmeasurable` tracks (no ReplayGain tag and measurement failed permanently) are not re-analyzed.
 - **`escuchado` sort** copies the plays map and does map lookups per comparison: measure at full scale in Task 15.
 
 ## Web polish

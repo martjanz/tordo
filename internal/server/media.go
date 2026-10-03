@@ -143,6 +143,19 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 	if q.Get("shuffle") == "1" {
 		rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] })
 	}
+	out, err := s.deliver(items)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, out)
+}
+
+// deliver turns the tracks to play, in order, into the answer the player
+// gets: the playable ones (up to MaxPlay) with their mime and gains, the
+// count of those left out, and whether ffmpeg is available. It also has the
+// unmeasured ones measured first.
+func (s *Server) deliver(items []store.PlayItem) (map[string]any, error) {
 	out := []playItem{}
 	skipped, truncated := 0, 0
 	for _, it := range items {
@@ -163,14 +176,13 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 	}
 	gains, err := s.gainsFor(ids)
 	if err != nil {
-		fail(w, err)
-		return
+		return nil, err
 	}
 	for i := range out {
 		out[i].TrackGain = gains[out[i].ID]
 	}
 	s.prioritizeUnmeasured(ids, gains)
-	writeJSON(w, map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""})
+	return map[string]any{"items": out, "skipped": skipped, "truncated": truncated, "ffmpeg": s.Streamer.FFmpeg != ""}, nil
 }
 
 // playArtist lists an artist's tracks: their albums oldest first, then their
@@ -266,14 +278,14 @@ func (s *Server) gainsFor(ids []int64) (map[int64]loudness.TrackGain, error) {
 }
 
 // prioritizeUnmeasured asks the runner to measure first the first tracks of
-// ids (in order) that have no track gain.
+// ids (in order) that have no track gain and may still get one.
 func (s *Server) prioritizeUnmeasured(ids []int64, gains map[int64]loudness.TrackGain) {
 	if s.Loudness == nil {
 		return
 	}
 	var want []int64
 	for _, id := range ids {
-		if g, ok := gains[id]; ok && g.Track == nil {
+		if g, ok := gains[id]; ok && g.Track == nil && !g.Unmeasurable {
 			if want = append(want, id); len(want) == prioritizeCount {
 				break
 			}

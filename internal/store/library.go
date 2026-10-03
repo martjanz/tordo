@@ -97,13 +97,21 @@ func (s *Store) PlayAlbum(id int64) ([]PlayItem, error) {
 
 // PlayTracks returns the given tracks in the given order, skipping unknown ids.
 func (s *Store) PlayTracks(ids []int64) ([]PlayItem, error) {
-	out := []PlayItem{}
-	for _, id := range ids {
-		items, err := s.playItems(`WHERE t.file_id = ?`, id)
+	byID := map[int64]PlayItem{}
+	for _, chunk := range chunks(ids) {
+		items, err := s.playItems(`WHERE t.file_id IN (`+placeholders(len(chunk))+`)`, int64Args(chunk)...)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, items...)
+		for _, it := range items {
+			byID[it.ID] = it
+		}
+	}
+	out := []PlayItem{}
+	for _, id := range ids {
+		if it, ok := byID[id]; ok {
+			out = append(out, it)
+		}
 	}
 	return out, nil
 }

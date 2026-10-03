@@ -1,7 +1,9 @@
 package store
 
 import (
+	"database/sql"
 	"encoding/json"
+	"strconv"
 
 	"tordo/internal/audiofile"
 	"tordo/internal/grouping"
@@ -95,11 +97,41 @@ func (s *Store) SaveReads(rs []ReadResult) error {
 			i.Format, i.Codec, i.Lossless, i.DurationMs, i.Bitrate, i.SampleRate, i.BitDepth, i.Channels, string(tags)); err != nil {
 			return err
 		}
+		// "id:N" refs only exist for a file that had no fingerprint, so a
+		// file re-read with one already needs no rekey.
+		var before string
+		if err := tx.QueryRow(`SELECT fingerprint FROM files WHERE id = ?`, r.Target.FileID).Scan(&before); err != nil && err != sql.ErrNoRows {
+			return err
+		}
 		if _, err := fp.Exec(r.Fingerprint, r.Target.FileID); err != nil {
 			return err
 		}
+		if r.Fingerprint != "" && before == "" {
+			if err := rekey(tx, r.Target.FileID, r.Fingerprint); err != nil {
+				return err
+			}
+		}
 	}
 	return tx.Commit()
+}
+
+// rekey moves the user's data of a file keyed by its id ("id:N", from before
+// it had a fingerprint) to its fingerprint. A mark already on the fingerprint
+// wins; a loudness measure is dropped (it is taken again on the fingerprint).
+func rekey(tx *sql.Tx, fileID int64, fingerprint string) error {
+	old := "id:" + strconv.FormatInt(fileID, 10)
+	for _, q := range []string{
+		`UPDATE OR IGNORE marks SET ref = ?1 WHERE ref = ?2`,
+		`DELETE FROM marks WHERE ref = ?2`,
+		`UPDATE plays SET ref = ?1 WHERE ref = ?2`,
+		`UPDATE playlist_items SET ref = ?1 WHERE ref = ?2`,
+		`DELETE FROM loudness WHERE ref = ?2`,
+	} {
+		if _, err := tx.Exec(q, fingerprint, old); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GroupingInput returns the present, readable audio files with their tags,

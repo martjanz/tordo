@@ -7,6 +7,7 @@
   import { count, duration, length, size } from '../lib/format.js'
   import { enqueue, play } from '../lib/player.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
+  import { folderStation } from '../lib/stations.js'
   import Acciones from './Acciones.svelte'
   import Icono from './Icono.svelte'
   import MeGusta from './MeGusta.svelte'
@@ -81,7 +82,7 @@
     </div>
     <div class="tools">
       {#if folder.trackCount > 0}
-        <Acciones what={{ folder: folder.path }} />
+        <Acciones what={{ folder: folder.path }} station={folderStation(folder)} />
       {/if}
       {#if folder.detected && !app.status?.readOnly}
         <button class="small" onclick={() => setCollection(!folder.collection)}>

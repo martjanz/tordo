@@ -259,24 +259,41 @@ func (s *Store) Personal() (Personal, error) {
 		return p, err
 	}
 
-	rows, err = tx.Query(`SELECT t.album_id, MAX(m.liked), MAX(m.liked_at), MAX(m.rating)
+	// An album is liked or rated only when most of its present tracks carry
+	// the mark: a track shared with another album (same audio) must not mark it.
+	rows, err = tx.Query(`SELECT t.album_id, COUNT(*),
+			SUM(CASE WHEN m.liked = 1 THEN 1 ELSE 0 END), MAX(CASE WHEN m.liked = 1 THEN m.liked_at ELSE 0 END),
+			SUM(CASE WHEN m.rating > 0 THEN 1 ELSE 0 END), MAX(COALESCE(m.rating, 0))
 		FROM tracks t JOIN files f ON f.id = t.file_id
-		JOIN marks m ON m.kind = 'album' AND m.ref = (` + trackRef + `)
-		WHERE t.album_id IS NOT NULL AND f.missing = 0
-		GROUP BY t.album_id`)
+		LEFT JOIN marks m ON m.kind = 'album' AND m.ref = (` + trackRef + `)
+		WHERE t.album_id IN (SELECT t2.album_id FROM tracks t2 JOIN files f2 ON f2.id = t2.file_id
+				JOIN marks m2 ON m2.kind = 'album' AND m2.ref = (` + strings.ReplaceAll(trackRef, "f.", "f2.") + `)
+				WHERE f2.missing = 0 AND t2.album_id IS NOT NULL)
+			AND f.missing = 0
+		GROUP BY t.album_id
+		HAVING SUM(CASE WHEN m.ref IS NOT NULL THEN 1 ELSE 0 END) > 0`)
 	if err != nil {
 		return p, err
 	}
 	for rows.Next() {
 		var id, at int64
+		var total, likedN, ratedN int
 		var m Mark
-		var liked int
-		if err := rows.Scan(&id, &liked, &at, &m.Rating); err != nil {
+		if err := rows.Scan(&id, &total, &likedN, &at, &ratedN, &m.Rating); err != nil {
 			rows.Close()
 			return p, err
 		}
-		m.Liked, m.LikedAt = liked != 0, at
-		p.Albums[id] = m
+		m.Liked = 2*likedN > total
+		if !m.Liked {
+			at = 0
+		}
+		m.LikedAt = at
+		if 2*ratedN <= total {
+			m.Rating = 0
+		}
+		if m.Liked || m.Rating > 0 {
+			p.Albums[id] = m
+		}
 	}
 	if err := closeRows(rows); err != nil {
 		return p, err

@@ -31,7 +31,7 @@ const (
 
 // FacetNames lists the facets in the order of Explorar's bar.
 var FacetNames = []string{FacetDecade, FacetYear, FacetArtist, FacetCountry, FacetGenre, FacetStyle, FacetCollection,
-	FacetFolder, FacetQuality, FacetFormat, FacetState, FacetLiked, FacetRating}
+	FacetFolder, FacetQuality, FacetFormat, FacetState, FacetLiked, FacetRating, FacetListened}
 
 // Values of FacetQuality and FacetState.
 const (
@@ -94,6 +94,8 @@ func valid(facet, value string) bool {
 		return value == LikedYes
 	case FacetRating:
 		return len(value) == 1 && value[0] >= '1' && value[0] <= '5'
+	case FacetListened:
+		return value == ListenedNever || value == ListenedStale
 	}
 	return strings.TrimSpace(value) != "" && len(value) <= 1024
 }
@@ -247,12 +249,14 @@ func (c *Catalog) Explore(q Query, offset, limit int) Result {
 func (c *Catalog) ExploreFor(q Query, p *store.Personal, offset, limit int) Result {
 	r := Result{Query: q, Offset: offset}
 	k := newCounter()
+	l := c.listening(p)
 	switch q.View {
 	case ViewTracks:
 		var found []Track
 		for i := range c.Tracks {
 			t := &c.Tracks[i]
-			extra := personalValues(trackMark(p, t.ID))
+			m, ok := trackMark(p, t.ID)
+			extra := personalValues(m, ok, l.trackValues(t.ID))
 			k.add(t.values, extra, t.labels, q.Facets)
 			if matches(t.values, extra, q.Facets, "") {
 				found = append(found, *t)
@@ -264,7 +268,8 @@ func (c *Catalog) ExploreFor(q Query, p *store.Personal, offset, limit int) Resu
 		var found []Album
 		for i := range c.Albums {
 			a := &c.Albums[i]
-			extra := personalValues(albumMark(p, a.ID))
+			m, ok := albumMark(p, a.ID)
+			extra := personalValues(m, ok, l.albumValues(a.ID))
 			k.add(a.values, extra, a.labels, q.Facets)
 			if matches(a.values, extra, q.Facets, "") {
 				found = append(found, *a)

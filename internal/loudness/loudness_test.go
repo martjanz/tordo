@@ -98,6 +98,23 @@ func TestGains(t *testing.T) {
 	check(7, f(-4), f(-4))
 }
 
+func TestGainsUnmeasurable(t *testing.T) {
+	g := Gains(map[int64]Track{
+		1: {AlbumID: 7, DurationMs: 1000, Failed: true},
+		2: {AlbumID: 7, DurationMs: 1000, Failed: true, TagTrack: f(-6)}, // a tag still gives a gain
+		3: {AlbumID: 7, DurationMs: 1000},                                // pending, not failed
+	})
+	if !g[1].Unmeasurable || g[1].Track != nil {
+		t.Errorf("failed without tag: %+v", g[1])
+	}
+	if g[2].Unmeasurable || g[2].Track == nil {
+		t.Errorf("failed with tag: %+v", g[2])
+	}
+	if g[3].Unmeasurable {
+		t.Errorf("pending: %+v", g[3])
+	}
+}
+
 // TestAnalyze runs the real ffmpeg on a generated tone, when there is one.
 func TestAnalyze(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")

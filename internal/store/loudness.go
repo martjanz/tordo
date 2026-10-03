@@ -101,7 +101,7 @@ func (s *Store) LoudnessFacts(ids []int64) (map[int64]loudness.Track, error) {
 		ph := placeholders(len(chunk))
 		args := int64Args(chunk)
 		rows, err := s.db.Query(`SELECT t.file_id, COALESCE(t.album_id, 0), t.duration_ms,
-			json_extract(a.tags, '$.trackGain'), json_extract(a.tags, '$.albumGain'), l.lufs
+			json_extract(a.tags, '$.trackGain'), json_extract(a.tags, '$.albumGain'), l.lufs, l.ref IS NOT NULL
 			FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id
 			LEFT JOIN loudness l ON l.ref = `+trackRef+`
 			WHERE f.missing = 0 AND (t.file_id IN (`+ph+`)
@@ -114,11 +114,13 @@ func (s *Store) LoudnessFacts(ids []int64) (map[int64]loudness.Track, error) {
 			var id int64
 			var t loudness.Track
 			var tt, ta, lu sql.NullFloat64
-			if err := rows.Scan(&id, &t.AlbumID, &t.DurationMs, &tt, &ta, &lu); err != nil {
+			var hasRow bool
+			if err := rows.Scan(&id, &t.AlbumID, &t.DurationMs, &tt, &ta, &lu, &hasRow); err != nil {
 				rows.Close()
 				return nil, err
 			}
 			t.TagTrack, t.TagAlbum, t.LUFS = nullPtr(tt), nullPtr(ta), nullPtr(lu)
+			t.Failed = hasRow && t.LUFS == nil
 			out[id] = t
 		}
 		err = rows.Err()
@@ -138,8 +140,8 @@ func nullPtr(n sql.NullFloat64) *float64 {
 	return &v
 }
 
-func chunks(ids []int64) [][]int64 {
-	var out [][]int64
+func chunks[T any](ids []T) [][]T {
+	var out [][]T
 	for len(ids) > 0 {
 		n := min(len(ids), loudnessChunk)
 		out = append(out, ids[:n])

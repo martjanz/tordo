@@ -211,3 +211,13 @@ CREATE TABLE IF NOT EXISTS loudness (
 	error       TEXT NOT NULL DEFAULT '',
 	measured_at INTEGER NOT NULL
 );
+
+-- Saved stations. def is the station as JSON (source and rules, see
+-- catalog.Station) without its name; the store does not read it.
+CREATE TABLE IF NOT EXISTS stations (
+	id         INTEGER PRIMARY KEY,
+	name       TEXT NOT NULL,
+	def        TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);

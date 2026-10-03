@@ -46,6 +46,18 @@ export function playQuery({ album, folder, artist, tracks, playlist, liked, shuf
   return params.toString()
 }
 
+// stationDef is a station as the server takes it: without its saved id and
+// dates.
+const stationDef = ({ id, createdAt, updatedAt, ...def }) => def // eslint-disable-line no-unused-vars
+
+// stationQuery writes /api/station/next's query: the station's definition
+// and the ids of the tracks to leave out.
+export function stationQuery(station, recent = []) {
+  const params = new URLSearchParams({ def: JSON.stringify(stationDef(station)) })
+  if (recent.length) params.set('recientes', recent.join(','))
+  return params.toString()
+}
+
 export const api = {
   status: () => get('/api/status'),
   scan: () => post('/api/scan'),
@@ -86,6 +98,13 @@ export const api = {
     for (const id of ids) params.append('track', id)
     return get(`/api/gains?${params}`)
   },
+  stationNext: (station, recent) => get(`/api/station/next?${stationQuery(station, recent)}`),
+  stations: () => get('/api/stations'),
+  createStation: (station) => post('/api/stations', stationDef(station)),
+  updateStation: (id, station) => put(`/api/stations/${id}`, stationDef(station)),
+  deleteStation: (id) => del(`/api/stations/${id}`),
+  home: (seed) => get(`/api/home?${new URLSearchParams({ semilla: seed })}`),
+  stats: (period, limit) => get(`/api/stats?${new URLSearchParams({ periodo: period, limite: limit })}`),
   playlists: () => get('/api/playlists'),
   playlist: (id) => get(`/api/playlists/${id}`),
   createPlaylist: (name, add) => post('/api/playlists', add ? { name, add } : { name }),
