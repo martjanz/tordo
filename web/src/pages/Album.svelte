@@ -7,11 +7,11 @@
   import Tapa from '../components/Tapa.svelte'
   import { albumCoverURL, api, releaseURL } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count, country, folderName, length, quality } from '../lib/format.js'
+  import { count, country, folderName, formatName, length, quality } from '../lib/format.js'
   import { play } from '../lib/player.svelte.js'
   import { albumStation } from '../lib/stations.js'
   import { genreLinks, identification } from '../lib/review.js'
-  import { artistHref, exploreHref, folderHref } from '../lib/router.js'
+  import { albumHref, artistHref, duplicatesHref, exploreHref, folderHref } from '../lib/router.js'
 
   let { id } = $props()
 
@@ -87,6 +87,25 @@
   </div>
   <ListaPistas tracks={album.tracks} albumArtist={album.artist} onplay={(t) => play({ album: album.id }, { startId: t.id })} />
 
+  {#if album.versions?.length}
+    <section class="versions">
+      <h2>Versiones</h2>
+      <ul>
+        {#each album.versions as v (v.albumId)}
+          <li>
+            <a class="vtitle" href={albumHref(v.albumId)}>{v.title}</a>
+            <span>{v.artist}</span>
+            {#if v.year}<span>{v.year}</span>{/if}
+            <span>{v.formats.map(formatName).join(' · ')}</span>
+            <span>{count(v.shared, 'tema', 'temas')} en común</span>
+            {#if v.kind === 'exacta'}<span class="exact">copia idéntica</span>{/if}
+          </li>
+        {/each}
+      </ul>
+      <a class="sub" href={duplicatesHref(album.versions.some((v) => v.kind === 'exacta') ? 'exactas' : 'formatos')}>Ver duplicados →</a>
+    </section>
+  {/if}
+
   <section class="ident">
     <p class="sub">
       {identification(album)}
@@ -157,6 +176,33 @@
     align-items: center;
     gap: 8px;
     margin: 6px 0 4px;
+  }
+  .versions {
+    margin-top: 32px;
+  }
+  .versions ul {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+  }
+  .versions li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .vtitle {
+    color: var(--strong);
+    font-weight: 500;
+  }
+  .vtitle:hover {
+    text-decoration: underline;
+  }
+  .exact {
+    color: var(--accent);
   }
   .ident {
     margin-top: 32px;

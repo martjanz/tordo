@@ -67,7 +67,7 @@
       <Lista id={current.id} />
     {/key}
   {:else if current.page === 'revisar'}
-    <Revisar tab={current.tab} />
+    <Revisar tab={current.tab} kind={current.kind} />
   {:else}
     <p class="empty">No existe esta página. <a href="/">Ir al Inicio</a></p>
   {/if}
