@@ -1,7 +1,7 @@
 <script>
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
-  import { app, watchStatus } from './lib/app.svelte.js'
+  import { app, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
@@ -37,6 +37,9 @@
     if (ready && !watching) {
       watching = true
       watchStatus()
+    } else if (!ready && watching) {
+      watching = false
+      stopStatus()
     }
   })
 

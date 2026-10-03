@@ -40,7 +40,8 @@
   const lanInvalid = $derived(
     !!d &&
       !!config &&
-      ((d.lan.enabled && portProblem(d.lan.port) !== '') || pinProblem(d.lan.pin, config.lan.hasPin, d.lan.enabled) !== ''),
+      d.lan.enabled &&
+      (portProblem(d.lan.port) !== '' || pinProblem(d.lan.pin, config.lan.hasPin, true) !== ''),
   )
 
   // Another device ends its own session and gets the PIN screen.

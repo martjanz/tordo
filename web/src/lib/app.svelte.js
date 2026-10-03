@@ -47,6 +47,7 @@ async function poll() {
   } catch {
     // The next poll tries again.
   }
+  if (id !== polls) return
   timer = setTimeout(poll, wasBusy ? 3000 : 30000)
 }
 
@@ -54,6 +55,13 @@ async function poll() {
 // every 30 s otherwise.
 export function watchStatus() {
   poll()
+}
+
+// stopStatus stops polling (the PIN screen is up): no request is made
+// until watchStatus() starts it again, and an in-flight one is ignored.
+export function stopStatus() {
+  polls++
+  clearTimeout(timer)
 }
 
 let seq = 0
