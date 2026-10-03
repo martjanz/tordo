@@ -21,7 +21,7 @@ Agreed with the user before writing the plan: an own QR encoder (no new dependen
 5. **Estado "con duplicados"** (`estado=con-duplicados`): a track in an exact or formats group, and the albums holding such a track. Suspects don't count.
 6. **Album versions:** the album page lists the other albums that share at least one exact or formats group with it: title, artist, year, their formats, how many of this album's tracks they share, and the kind (`exacta` when every shared track is an exact copy, else `formatos`).
 7. **Formats to convert:** present tracks whose `FormatKey` is `wma`, `wav`, `aiff`, `ape`, `wavpack` or `alac` (labels WMA, WAV, AIFF, APE, WavPack, ALAC). Totals (files, bytes), per format, and one item per album × format (loose tracks: per folder × format), largest first. Detection only: nothing is converted.
-8. **First run:** no `config.json` → *setup pending*: nothing is written or scanned; the local browser is sent to `/bienvenida`, whose sibling folders of `tordo/` come checked. Saving the assistant writes `config.json` and scans everything. An existing `config.json` never shows the assistant. In browse-only mode there is no assistant (nothing can be saved).
+8. **First run:** no `config.json` → *setup pending*: nothing is written or scanned; the local browser is sent to `/bienvenida`, whose sibling folders of `tordo/` come checked. Saving the assistant writes `config.json` and scans everything. An existing `config.json` never shows the assistant. In browse-only mode there is no assistant (nothing can be saved). The assistant asks for folders, the optional Discogs token and normalization; it does **not** offer LAN (choosing a PIN before the music is even scanned is noise): it says LAN is turned on later in Ajustes, which has every setting of the spec's list.
 9. **What a settings change does** (engine): only `normalize` or `lan` changed → the running parts stay; roots or ignore patterns changed → the scanner is rebuilt and the whole library is scanned again (incremental: unchanged files are not read); the Discogs token changed → the identification runner is rebuilt with the new client and triggered, no scan. Normalization reaches the player through `/api/status` (the page polls it, and Ajustes refreshes it after saving).
 10. **LAN:** `config.json` holds `"lan": {"enabled": false, "port": 4747, "pinHash": ""}`. The local listener (`127.0.0.1`, `-port`) never changes. LAN on opens a second listener on `0.0.0.0:<port>`; off closes it; a new port reopens it. Opening fails (port taken) → the settings are not saved and the error is shown. Browse-only mode never opens it. Port: 1024–65535.
 11. **Who is local:** every request on the local listener; on the LAN listener, a request from a loopback address whose `Host` is `localhost`, `127.0.0.1` or `[::1]`. The LAN listener accepts only `Host`s that are IP literals, `localhost`, the machine's host name or `<hostname>.local` (anything else is 403: DNS rebinding), and keeps the cross-site checks of `localOnly`.
@@ -791,3 +791,176 @@ The server keeps (unexported) the listener (`*http.Server` with `ReadHeaderTimeo
 - [ ] **Step 5: Commit** `feat: tordo runs on the engine: first-use assistant, settings without restart, LAN`
 
 ---
+
+### Task 13: Web libraries
+
+**Files:**
+- Create: `web/src/lib/settings.js` + `settings.test.js` (adapted from Cinexplorer's), `web/src/lib/dupes.js` + `dupes.test.js`, `web/src/lib/auth.svelte.js`
+- Modify: `web/src/lib/api.js` (+ tests), `web/src/lib/router.js` (+ tests), `web/src/lib/facets.js` (+ tests), `web/src/lib/app.svelte.js`
+
+**Interfaces (produces):**
+
+`api.js`, new methods on `api` (same style as the existing ones):
+
+```js
+config: () => get('/api/config'),
+saveConfig: (body) => put('/api/config', body),
+checkRoot: (path) => post('/api/config/root', { path }),
+checkToken: (token) => post('/api/config/token', { token }),
+lan: () => get('/api/lan'),
+sessions: () => get('/api/sessions'),
+closeSession: (id) => del(`/api/sessions/${id}`),
+auth: () => get('/api/auth'),
+login: (pin, device) => post('/api/auth/login', { pin, device }),
+logout: () => post('/api/auth/logout'),
+duplicates: (tipo) => get(`/api/review/duplicates?tipo=${encodeURIComponent(tipo)}`),
+toConvert: () => get('/api/review/formats'),
+```
+
+plus `export function lanQrURL(url)` → `/api/lan/qr?url=<encoded>`, and `export function onUnauthorized(fn)`: `call` invokes the registered function on any 401 except from `/api/auth/login` (whose 401 means "PIN incorrecto"), then throws as usual. `ApiError` also carries `retryAfter` (seconds, from the `Retry-After` header, or 0).
+
+`router.js`: `/ajustes` → `{ page: 'ajustes' }`; `/bienvenida` → `{ page: 'bienvenida' }`; `/revisar/duplicados` → `{ page: 'revisar', tab: 'duplicados', kind }` with `kind` from `?tipo=` (`exactas` default; `formatos`, `sospechas`); `/revisar/formatos` → `{ page: 'revisar', tab: 'formatos' }`; `export function duplicatesHref(kind)`.
+
+`facets.js`: the `estado` label `'con-duplicados': 'Con duplicados'`.
+
+`settings.js` (Cinexplorer's `draft`, `addRoot`, `body`, `changed`, `savedNotice`, minus language, image prefetch and tile size; plus):
+
+```js
+// draft(config) → { roots: [{path, available, checked}], ignore: 'one\nper\nline', token: null,
+//                   normalize, lan: { enabled, port, pin: '' } }   ('' keeps the saved PIN)
+// body(d) → { roots, ignore: [...trimmed non-empty lines], token, normalize,
+//             lan: { enabled, port: Number(port), pin: pin === '' ? null : pin } }
+// changed(config, d) → bool (roots, ignore, token, normalize, lan.enabled, lan.port, a new pin)
+// savedNotice(config, d) → 'Ajustes guardados. Se escanean las carpetas.' on first use or when roots or
+//   ignore changed; '… Se actualizan los géneros con el token nuevo.' for a token change;
+//   'Ajustes guardados.' otherwise
+export function pinProblem(pin, hasPin, enabled) // '' when fine, else the Spanish message:
+//   enabled && !hasPin && pin === '' → 'Elegí un PIN para usar Tordo desde la red.'
+//   pin !== '' && !/^[0-9]{6,12}$/.test(pin) → 'El PIN tiene que tener entre 6 y 12 dígitos, solo números.'
+export function portProblem(port) // '' or 'El puerto tiene que estar entre 1024 y 65535.'
+```
+
+`dupes.js`:
+
+```js
+export const KINDS = [
+  { kind: 'exactas', label: 'Copias idénticas', count: 'exact' },
+  { kind: 'formatos', label: 'Mismo tema en varios formatos', count: 'formats' },
+  { kind: 'sospechas', label: 'Sospechas', count: 'suspect' },
+]
+// fileQuality(f): 'FLAC 24 bits / 96 kHz', 'FLAC 16 bits / 44,1 kHz', 'MP3 320 kbps', 'WMA 128 kbps'
+//   (formatName(f.format); lossless: bit depth and sample rate when known; lossy: bitrate when known)
+export function fileQuality(f)
+// groupLine(g): 'N archivos · <size(g.sizeBytes)>' and, for exact copies, ' · <size(g.recoverable)> recuperables'
+export function groupLine(g)
+```
+
+`auth.svelte.js`: `export const auth = $state({ checked: false, local: true, session: false, pinRequired: false, device: '' })`; `export async function checkAuth()` (reads `api.auth()`; on a network error leaves `checked` false and retries in 5 s); registers `onUnauthorized(() => { auth.pinRequired = true })`.
+
+`app.svelte.js`: `export function settingsSaved()` polls the status right away and bumps `generation` (as Cinexplorer's does), so normalization and the scan show at once.
+
+- [ ] **Step 1: Write the failing tests:** `settings.test.js` (port Cinexplorer's for the kept functions; add ignore lines, normalize, the LAN fields, `pinProblem`, `portProblem`, `savedNotice` cases); `dupes.test.js` (`fileQuality` for FLAC 24/96, FLAC without bit depth, MP3 320, MP3 without bitrate, ALAC; `groupLine` for an exact and a formats group); `api.test.js` (`lanQrURL` encodes; a 401 calls the handler, a 401 from login does not; `retryAfter` read); `router.test.js` (the new routes, `tipo` default and unknown values, `duplicatesHref`); `facets.test.js` (the label).
+- [ ] **Step 2: Run** `cd web && npx vitest run`: fails.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 5: Commit** `feat(web): settings, duplicates, auth and Revisar helpers`
+
+---
+
+### Task 14: Web: Duplicados, Formatos a convertir, album versions
+
+**Files:**
+- Create: `web/src/components/Duplicados.svelte`, `web/src/components/FormatosAConvertir.svelte`
+- Modify: `web/src/pages/Revisar.svelte`, `web/src/pages/Album.svelte`, `web/src/App.svelte` (pass `kind` to Revisar)
+
+**Consumes:** `api.duplicates`, `api.toConvert`, `KINDS`, `fileQuality`, `groupLine`, `duplicatesHref` (Task 13); `size`, `formatName`, `folderName` from `format.js`; `albumHref`, `folderHref`.
+
+**Revisar** gains two tabs after the existing ones: *Duplicados* (`/revisar/duplicados`) and *Formatos a convertir* (`/revisar/formatos`), each with its count in the tab like the others (`counts.exact + counts.formats` for Duplicados; `files` for Formatos). Remove the "come with M5" comment.
+
+**Duplicados:**
+- A line on top: "Tordo nunca borra archivos: esto es solo para que decidas." Sub-tabs from `KINDS` (links with `duplicatesHref`, counts from the answer), and for exact copies "<size(recoverable)> recuperables en total".
+- A short explanation per kind (one line): exact — "El mismo audio en varios archivos, aunque los tags difieran."; formats — "La misma grabación del mismo álbum en archivos distintos. MEJOR marca la de más calidad."; suspects — "Mismo artista, título y duración en álbumes distintos. Suele ser legítimo (un tema en su disco y en un compilado)."
+- One card per group: title — artist, `groupLine(g)`; then one row per file: a **MEJOR** badge when `best`, `fileQuality(f)`, `size(f.sizeBytes)`, the album (link `albumHref`) or "Suelto", the folder (link `folderHref(f.dir)`, shown with `folderName`), a ▶ button that plays that one file (as other single-track plays do: `player.play` / the existing helper used by `ListaPistas`), and the file's name (ellipsized, full path in `title`).
+- Empty: "No hay copias idénticas." / "No hay temas repetidos en varios formatos." / "No hay sospechas de duplicado." Reload on `app.generation`. Long lists: render the first 100 groups and a "Mostrar más" button (100 more each time).
+
+**Formatos a convertir:** a line "Formatos que conviene convertir (WMA, WAV, AIFF, APE, WavPack, ALAC). Tordo solo los detecta: no convierte nada."; totals "N archivos · <size>"; one chip per format with its files and size; a list of items: title (album link, or the folder for loose tracks), artist, format label, "N archivos · size · duration". Empty: "No hay archivos en esos formatos."
+
+**Album page:** when `versions` is not empty, a section *Versiones* under the tracks: one row per version — title (link), artist, year, its formats (`formatName`), "N temas en común", and "copia idéntica" when `kind === 'exacta'`; plus a link "Ver duplicados →" to `duplicatesHref(kind === 'exacta' ? 'exactas' : 'formatos')`.
+
+- [ ] **Step 1:** Implement.
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser** (`go run ./cmd/tordo -dir .run` on a copy, or `.run` itself if it already has a catalog): the two tabs with counts, sub-tabs, MEJOR badges, ▶ plays a file, links; Formatos a convertir with the WMA albums; an album with versions; Explorar `estado` offers "Con duplicados"; 375 px: cards stack, rows wrap without horizontal scroll.
+- [ ] **Step 4: Commit** `feat(web): Duplicados and Formatos a convertir in Revisar; album versions`
+
+---
+
+### Task 15: Web: Ajustes, Bienvenida, ⚙
+
+**Files:**
+- Create: `web/src/pages/Ajustes.svelte`, `web/src/pages/Bienvenida.svelte`, `web/src/components/Raices.svelte`, `web/src/components/TokenDiscogs.svelte` (adapted from Cinexplorer's `Ajustes.svelte`, `Bienvenida.svelte`, `Raices.svelte`, `Token.svelte`)
+- Modify: `web/src/App.svelte` (routes, first-use redirect), `web/src/components/Nav.svelte` (⚙), `web/src/components/Icono.svelte` (a `settings` icon if missing)
+
+**Consumes:** `settings.js`, `api.config`, `api.saveConfig`, `api.checkRoot`, `api.checkToken`, `settingsSaved` (Task 13).
+
+- **Nav:** a ⚙ link to `/ajustes` (with `aria-label="Ajustes"`) after the status indicator, on wide screens and in the phone's top bar (not a sixth bottom tab). Active on `ajustes`.
+- **First use:** in `App.svelte`, when `app.status?.setupPending` and the page is not `bienvenida`, `navigate('/bienvenida', { replace: true })` (as Cinexplorer). Bienvenida shows no nav sections but the brand.
+- **Bienvenida:** steps *Carpetas* (the roots: suggested siblings checked, add one by typing a path → `checkRoot`; the ignore list folded under "Carpetas a ignorar"), *Discogs* (optional token with "Verificar"; one line on what it adds: géneros y estilos más precisos; a link to `https://www.discogs.com/settings/developers` to create one), *Listo* (normalization on by default, with one line: "Empareja el volumen entre temas, solo bajando los más fuertes."; LAN is not offered here: "El acceso desde el teléfono se activa después, en Ajustes."). "Empezar" → `saveConfig(body(d))`, `settingsSaved()`, go to `/`. Needs at least one checked root.
+- **Ajustes** (`/ajustes`), sections: *Carpetas* (`Raices` + ignore textarea), *Discogs* (`TokenDiscogs`: shows `tokenHint` when there is one, "Cambiar", "Quitar", "Verificar"), *Reproducción* (normalization checkbox), *Red local* (a placeholder `<section id="red">` that Task 16 fills). One "Guardar" button enabled when `changed(config, d)`, then `notify(savedNotice(config, d))`, reload the config into a new draft and `settingsSaved()`. Errors from the server shown inline above the button. Browse-only mode: everything disabled with "Modo consulta: la configuración no se puede cambiar." A 403 from `api.config()` (another device) shows "Los ajustes solo se cambian en la computadora que corre Tordo." and nothing else (Task 16 adds the logout button there).
+
+- [ ] **Step 1:** Implement.
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser:** with a scratch app dir without `config.json` (a sibling folder with a few audio files), the app opens `/bienvenida`, the folder is checked, "Empezar" scans and lands in Inicio with the music; Ajustes: add a root by path (a wrong path shows the error), change ignore patterns (rescan), verify a fake token (`valid: false`, shown as rejected; offline shows "no se pudo verificar"), turn normalization off (the status follows without a restart); ⚙ in the nav; 375 px.
+- [ ] **Step 4: Commit** `feat(web): first-use assistant and Ajustes`
+
+---
+
+### Task 16: Web: Red local, PIN screen, devices
+
+**Files:**
+- Create: `web/src/components/RedLocal.svelte`, `web/src/components/Dispositivos.svelte`, `web/src/pages/Entrar.svelte`
+- Modify: `web/src/pages/Ajustes.svelte` (the *Red local* section; the remote view), `web/src/App.svelte` (PIN screen)
+
+**Consumes:** `auth`, `checkAuth` (Task 13); `api.lan`, `lanQrURL`, `api.sessions`, `api.closeSession`, `api.login`, `api.logout`; `pinProblem`, `portProblem`; `deviceName` from `device.js`.
+
+- **App:** call `checkAuth()` at start. Until `auth.checked`, render nothing but the brand (no API calls: `watchStatus` and `loadMine` start once `auth.checked && !auth.pinRequired`). When `auth.pinRequired`, render only `Entrar` (no nav, no player). After a successful login, `checkAuth()` again and start the app (reload the page with `location.reload()` if starting the pollers twice is awkward).
+- **Entrar:** the brand, "Ingresá el PIN de Tordo" with one `<input type="password" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*">`, "Entrar" (Enter submits). Sends `login(pin, deviceName(navigator.userAgent))`. 401 → "PIN incorrecto."; 429 → "Demasiados intentos. Probá de nuevo en N s." with a countdown from `retryAfter` (button disabled until then); 403 → "El acceso desde la red está apagado."; network error → the usual message. Large touch targets (the phone is the user).
+- **Red local** (in Ajustes, inside the same draft and "Guardar" as the rest): a switch "Usar Tordo desde otros dispositivos de la red"; when on: port (number input, `portProblem` inline), PIN ("Elegí un PIN" when `!hasPin`, else "Cambiar PIN", with a field shown on demand; `pinProblem` inline; a note "Cambiar el PIN cierra la sesión de todos los dispositivos."); a note "La conexión es HTTP sin cifrar: usalo solo en tu red de casa." After saving, when `GET /api/lan` says `listening`: the URLs, each with its QR (`<img src={lanQrURL(url)} width="160" height="160" alt="Código QR de …">` on a white background) and a copy button. When enabled but not listening: "No está escuchando." (the save error already said why).
+- **Dispositivos** (under Red local, only when LAN is enabled): the sessions (device, "conectado desde <date>", "último uso <relative date>") each with "Cerrar sesión" (confirm, then `closeSession`, reload the list). Empty: "Ningún dispositivo entró todavía."
+- **Ajustes from another device** (the 403): the message plus "Cerrar sesión en este dispositivo" → `api.logout()`, then show `Entrar`.
+
+- [ ] **Step 1:** Implement.
+- [ ] **Step 2: Run** `cd web && npx vitest run && npm run build`: pass.
+- [ ] **Step 3: Check in the browser:** enable LAN with a PIN in Ajustes; open `http://<LAN URL>` in a second browser tab (another origin: it is the phone's view, `Host` is the IP) → Entrar; a wrong PIN, then the right one → the app works, plays, and Ajustes shows the remote message and logout; back on `127.0.0.1`, Dispositivos lists the session; closing it sends the other tab back to Entrar on its next request; the QR images render; turning LAN off makes the LAN URL refuse connections. 375 px for Entrar and Red local.
+- [ ] **Step 4: Commit** `feat(web): LAN in Ajustes with QR and devices; PIN screen`
+
+---
+
+### Task 17: Documentation
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/notes/2026-10-02-m4a-followups.md`
+
+- [ ] **Step 1:** Update `README.md` (Spanish, like the rest of it): the first-use assistant and Ajustes (what each setting does and what a change triggers: rescan, identification again, nothing); Revisar → Duplicados (the three kinds, how each is detected, MEJOR, that Tordo never deletes) and Formatos a convertir (detection only); "Con duplicados" in Explorar's Estado; album versions; **Uso desde la red** (turning it on, port 4747, the PIN and its rules, the lockout, 90-day sessions and the device list, the QR, that settings only change from the computer itself, that it is plain HTTP for a home network and so there is no installable app); `config.json`'s `lan` block; the new endpoints (`/api/review/duplicates`, `/api/review/formats`, `/api/config…`, `/api/auth…`, `/api/sessions…`, `/api/lan…`, `versions` in `/api/albums/{id}`, `setupPending` in `/api/status`, `sizeBytes` in tracks).
+- [ ] **Step 2:** In the follow-ups note, mark "Changing `normalize` needs a restart" as done (M5: Ajustes applies it live).
+- [ ] **Step 3: Commit** `docs: Revisar, Ajustes and LAN access in the README`
+
+---
+
+### Task 18: Check against the collection and from the phone (manual, with the user)
+
+Not for a subagent: it needs the user's judgment, their collection and their phone.
+
+- [ ] Copy `.run`'s catalog, `config.json` and `cache/` to a separate folder at the same depth as the repo, e.g. `/Users/martin/x-projects/tordo-m5-check/run`, so the relative roots still point at `~/Music`; never touch `~/Music` or `.run`. `cd web && npm run build`, then `go run ./cmd/tordo -dir <copy>`.
+- [ ] The catalog opens and migrates to v6 (through v5) without a rescan; counts as before. `config.json` without `lan` loads; Ajustes shows it.
+- [ ] **Duplicados:** time `/api/review/duplicates` for each kind and the first catalog build; read the exact copies (recoverable size plausible?), the formats groups (the 54 WMA albums: which have a FLAC/MP3 twin, and does MEJOR pick right?), and a sample of suspects (*História da MPB* vs. originals, compilations): false groups? missed obvious ones? Tune the rules (with tests first) if needed.
+- [ ] **Formatos a convertir:** the WMA count matches (54 files in the sample), ALAC (33), total sizes plausible.
+- [ ] **Ajustes:** change normalization and the ignore list and watch what happens; a Discogs token check (the user's real token only if they want; never paste it into chat).
+- [ ] **LAN from the phone** (the user's iPhone on the home Wi-Fi): enable LAN with a PIN; scan the QR; the PIN screen; a wrong PIN; enter; then, on the phone:
+  - the player: play an album, pause/seek, next track; the lock screen and headphone controls (Media Session: M3a's pending item); play continues with the screen locked;
+  - drag to reorder a playlist with the finger (M4a's pending item; `Lista.svelte` uses pointer events: check that the page does not scroll instead, that the row follows the finger, and that the order is saved);
+  - the iPod-style Carpetas: drill down, back, ▶ at each level, scroll restored;
+  - ♥, ★, add to a playlist, a station; the Duplicados tab readable at phone width;
+  - Ajustes on the phone says it is only from the computer; "Cerrar sesión" works; from the computer, Dispositivos lists the phone and closing it sends the phone to the PIN screen.
+- [ ] **M4b's pending check** (its Task 16, never done): time `/api/station/next` (whole library and a country), `/api/home`, `/api/stats?periodo=siempre`; play a few stations by ear (variety, likes weigh more, a long session keeps refilling); Inicio's rotating rows make sense; statistics after the plays of this check.
+- [ ] Write the findings to `docs/superpowers/notes/2026-10-xx-m5-collection-check.md`, fix what comes out (tests first) and then merge into `main`.
