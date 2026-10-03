@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,18 +11,15 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 
 	"tordo/internal/appdir"
 	"tordo/internal/config"
 	"tordo/internal/covers"
-	"tordo/internal/discogs"
-	"tordo/internal/identify"
+	"tordo/internal/engine"
 	"tordo/internal/loudness"
 	"tordo/internal/musicbrainz"
 	"tordo/internal/platform"
-	"tordo/internal/scan"
 	"tordo/internal/server"
 	"tordo/internal/store"
 	"tordo/internal/stream"
@@ -42,11 +38,10 @@ func main() {
 }
 
 type app struct {
-	server  *server.Server
-	scanner *scan.Scanner    // nil in browse-only mode
-	runner  *identify.Runner // nil in browse-only mode
-	loud    *loudness.Runner // nil in browse-only mode or without ffmpeg
-	close   func() error
+	server *server.Server
+	engine *engine.Engine
+	loud   *loudness.Runner // nil in browse-only mode or without ffmpeg
+	close  func() error
 }
 
 func run(dirOverride string, port int, browser bool) error {
@@ -55,19 +50,15 @@ func run(dirOverride string, port int, browser bool) error {
 		return err
 	}
 	defer a.close()
-	if a.scanner != nil {
-		go func() {
-			if err := a.scanner.Run(context.Background()); err != nil {
-				log.Printf("escaneo: %v", err)
-			}
-		}()
-	}
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return err
 	}
 	url := "http://" + ln.Addr().String() + "/"
 	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
+	if urls := a.server.LANURLs(); len(urls) > 0 {
+		log.Printf("Desde la red: %s", urls[0])
+	}
 	if browser {
 		if err := platform.Open(url); err != nil {
 			log.Printf("no se pudo abrir el navegador: %v", err)
@@ -76,8 +67,11 @@ func run(dirOverride string, port int, browser bool) error {
 	return http.Serve(ln, a.server.Handler())
 }
 
-// setup resolves the app folder, loads (or creates) config.json and opens the
-// catalog. A folder that is not writable gives browse-only mode: no scanner.
+// setup resolves the app folder, loads config.json and opens the catalog,
+// then starts the engine, which builds the scanner and the identification
+// runner from the settings. Without a config.json nothing is scanned until
+// the assistant saves one. A folder that is not writable gives browse-only
+// mode: no scanner, no settings changes.
 func setup(dirOverride string) (*app, error) {
 	appDir, err := appdir.Resolve(dirOverride)
 	if err != nil {
@@ -88,63 +82,47 @@ func setup(dirOverride string) (*app, error) {
 	if err != nil {
 		return nil, err
 	}
-	if created && !readOnly {
-		if err := config.Save(appDir, cfg); err != nil {
-			return nil, err
-		}
-		log.Printf("se creó %s con las carpetas %q; editalo para cambiarlas", config.FileName, cfg.Roots)
-	}
 	st, err := openStore(appDir, readOnly)
 	if err != nil {
 		return nil, err
 	}
-	a := &app{close: st.Close}
+	a := &app{}
 	ffmpeg := stream.LookFFmpeg()
+	a.server = &server.Server{Store: st, ReadOnly: readOnly, AppDir: appDir}
+	eng := &engine.Engine{AppDir: appDir, Store: st, ReadOnly: readOnly, MB: musicbrainz.New()}
 	if readOnly {
 		log.Print("la carpeta de la app no es escribible: modo consulta")
 	} else {
-		roots := make([]string, len(cfg.Roots))
-		for i, r := range cfg.Roots {
-			roots[i] = path.Clean(r)
-		}
-		if cfg.DiscogsToken == "" {
-			log.Print("sin token de Discogs: los géneros salen de MusicBrainz, de sus enlaces a Discogs y de los tags")
-		}
-		runner := &identify.Runner{AppDir: appDir, Store: st, MB: musicbrainz.New(), Discogs: discogs.New(cfg.DiscogsToken)}
-		a.runner = runner
-		onDone := runner.Trigger
 		if ffmpeg != "" {
 			a.loud = &loudness.Runner{Catalog: st, AppDir: appDir, FFmpeg: ffmpeg}
-			onDone = func() {
-				runner.Trigger()
-				a.loud.Trigger()
-			}
+			a.server.Loudness = a.loud // never a nil *Runner in the interfaces
+			eng.Loudness = a.loud
 		}
-		a.scanner = &scan.Scanner{AppDir: appDir, Roots: roots, Ignore: cfg.Ignore, Store: st, OnDone: onDone}
-		a.close = func() error {
-			runner.Close()
-			if a.loud != nil {
-				a.loud.Close()
-			}
-			return st.Close()
-		}
+		eng.LAN = a.server.ApplyLAN
 	}
-	a.server = &server.Server{Store: st, Scanner: a.scanner, ReadOnly: readOnly, AppDir: appDir, Normalize: cfg.Normalizing()}
-	if a.runner != nil { // only when set: a nil *Runner in the interface would not read as "none"
-		a.server.Identifier = a.runner
+	a.engine = eng
+	a.server.Engine = eng
+	a.close = func() error {
+		eng.Close()
+		if a.loud != nil {
+			a.loud.Close()
+		}
+		return st.Close()
+	}
+	pending := created && !readOnly
+	if pending {
+		log.Print("Primera vez: elegí las carpetas en el navegador (asistente).")
 	}
 	thumbs := "" // browse-only mode writes nothing, thumbnails included
 	if !readOnly {
 		thumbs = filepath.Join(appDir, "cache", "thumbs")
-	}
-	if a.loud != nil { // same rule as Identifier: never a nil *Runner in the interface
-		a.server.Loudness = a.loud
 	}
 	if ffmpeg == "" {
 		log.Print("sin ffmpeg: WMA, APE, WavPack, AIFF y ALAC no se pueden reproducir")
 	}
 	a.server.Streamer = stream.Streamer{FFmpeg: ffmpeg}
 	a.server.Covers = covers.New(st, appDir, thumbs)
+	eng.Start(cfg, pending)
 	return a, nil
 }
 

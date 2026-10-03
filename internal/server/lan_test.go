@@ -359,6 +359,20 @@ func TestApplyLAN(t *testing.T) {
 	}
 }
 
+func TestApplyLANReopenAtOnce(t *testing.T) {
+	s := lanServer(t)
+	t.Cleanup(func() { s.ApplyLAN(config.LAN{}) })
+	port := freePort(t)
+	for i := 0; i < 50; i++ {
+		if err := s.ApplyLAN(config.LAN{Enabled: true, Port: port}); err != nil {
+			t.Fatalf("enable %d: %v", i, err)
+		}
+		if err := s.ApplyLAN(config.LAN{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestLANURLs(t *testing.T) {
 	ips := []net.IP{net.ParseIP("192.168.1.5"), net.ParseIP("10.0.0.2"), net.ParseIP("8.8.8.8"), net.ParseIP("127.0.0.1"), net.ParseIP("fe80::1")}
 	got := lanURLs(ips, "mimac", 4747)

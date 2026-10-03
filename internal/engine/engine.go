@@ -75,7 +75,7 @@ func (e *Engine) Start(cfg config.Config, setupPending bool) {
 	e.pending.Store(setupPending)
 	if cfg.LAN.Enabled && !e.ReadOnly && e.LAN != nil {
 		if err := e.LAN(cfg.LAN); err != nil {
-			log.Printf("no se pudo abrir el puerto %d: %v", cfg.LAN.PortOrDefault(), err)
+			log.Print(err)
 		}
 	}
 	if !setupPending {

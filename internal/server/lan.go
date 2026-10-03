@@ -29,7 +29,8 @@ const (
 type lanListener struct {
 	mu   sync.Mutex
 	srv  *http.Server
-	port int // 0: closed
+	ln   net.Listener // closed explicitly: srv.Close only knows listeners Serve registered
+	port int          // 0: closed
 }
 
 // LANState is what Ajustes shows about the LAN.
@@ -71,6 +72,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 	}
 	l.closeLocked()
 	l.srv = &http.Server{Handler: s.LANHandler(), ReadHeaderTimeout: 10 * time.Second}
+	l.ln = ln
 	l.port = ln.Addr().(*net.TCPAddr).Port
 	go func(srv *http.Server) {
 		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -83,7 +85,8 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 func (l *lanListener) closeLocked() {
 	if l.srv != nil {
 		l.srv.Close()
-		l.srv, l.port = nil, 0
+		l.ln.Close() // a second close is harmless
+		l.srv, l.ln, l.port = nil, nil, 0
 	}
 }
 
@@ -147,6 +150,10 @@ func lanURLs(ips []net.IP, hostname string, port int) []string {
 	}
 	return urls
 }
+
+// LANURLs lists the addresses the LAN listener can be reached at; empty when
+// it is not listening.
+func (s *Server) LANURLs() []string { return s.lanState().URLs }
 
 func (s *Server) lanState() LANState {
 	cfg := s.parts().lan
