@@ -63,3 +63,57 @@ func TestSnapshot(t *testing.T) {
 		t.Fatal("a write did not move the counter")
 	}
 }
+
+func TestSizeAndReleaseGroups(t *testing.T) {
+	s := sample(t)
+	snap, err := s.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check that tracks have their file sizes from SyncFiles
+	// sample() creates files with audioRow(p, 10, 1) where 10 is the size
+	for _, tr := range snap.Tracks {
+		if tr.SizeBytes != 10 {
+			t.Fatalf("track %q: sizeBytes = %d, want 10", tr.Path, tr.SizeBytes)
+		}
+	}
+	// Check that Album() tracks also have the size
+	id := albumID(t, s, "Signos")
+	detail, ok, err := s.Album(id)
+	if err != nil || !ok {
+		t.Fatalf("Album = %v, %v", ok, err)
+	}
+	for _, tr := range detail.Tracks {
+		if tr.SizeBytes != 10 {
+			t.Fatalf("album track %q: sizeBytes = %d, want 10", tr.Path, tr.SizeBytes)
+		}
+	}
+	// Check that ReleaseGroups starts as empty but non-nil
+	if snap.ReleaseGroups == nil {
+		t.Fatal("ReleaseGroups is nil, want empty map")
+	}
+	if len(snap.ReleaseGroups) != 0 {
+		t.Fatalf("ReleaseGroups = %+v, want empty map", snap.ReleaseGroups)
+	}
+	// Save releases with and without group IDs
+	if err := s.SaveRelease(Release{ID: "r1", GroupID: "g1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveRelease(Release{ID: "r2"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveRelease(Release{ID: "r3", GroupID: ""}); err != nil {
+		t.Fatal(err)
+	}
+	// Snapshot should map r1 to g1, but skip r2 and r3
+	snap, err = s.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.ReleaseGroups == nil {
+		t.Fatal("ReleaseGroups is nil after SaveRelease, want map")
+	}
+	if len(snap.ReleaseGroups) != 1 || snap.ReleaseGroups["r1"] != "g1" {
+		t.Fatalf("ReleaseGroups = %+v, want {\"r1\": \"g1\"}", snap.ReleaseGroups)
+	}
+}

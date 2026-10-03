@@ -21,6 +21,9 @@ type Snapshot struct {
 	Tracks  []SnapTrack       // by file id
 	Folders []SnapFolder      // by path
 	Artists map[string]Artist // MusicBrainz artists by id
+	// ReleaseGroups maps the MusicBrainz releases the catalog holds to
+	// their release groups (only releases whose group is known); never nil.
+	ReleaseGroups map[string]string
 	// Changes counts the rows the catalog's connection has written since it
 	// was opened, net of side writes (marks, plays, playlists): it differs between two snapshots when the catalog
 	// changed in between (it restarts if the connection does).
@@ -54,6 +57,25 @@ func (s *Store) Snapshot() (Snapshot, error) {
 		return snap, err
 	}
 	if snap.Artists, err = loadDocs[Artist](tx, "artists"); err != nil {
+		return snap, err
+	}
+	snap.ReleaseGroups = make(map[string]string)
+	rows, err := tx.Query(`SELECT id, json_extract(data, '$.groupId') FROM releases`)
+	if err != nil {
+		return snap, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var groupID *string
+		if err := rows.Scan(&id, &groupID); err != nil {
+			return snap, err
+		}
+		if groupID != nil && *groupID != "" {
+			snap.ReleaseGroups[id] = *groupID
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return snap, err
 	}
 	return snap, nil

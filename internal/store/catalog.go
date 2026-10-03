@@ -164,6 +164,7 @@ type TrackView struct {
 	SampleRate  int    `json:"sampleRate"`
 	BitDepth    int    `json:"bitDepth"`
 	Fingerprint string `json:"fingerprint"`
+	SizeBytes   int64  `json:"sizeBytes"`
 }
 
 type AlbumDetail struct {
@@ -277,7 +278,7 @@ func fillGenres(q querier, as []AlbumView) error {
 
 const trackQuery = `SELECT t.file_id, f.path, CASE WHEN t.mb_title != '' THEN t.mb_title ELSE t.title END, t.title,
 	t.recording_id, t.artist, t.disc, t.track, t.year, t.duration_ms,
-	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint,
+	a.format, a.codec, a.lossless, a.bitrate, a.sample_rate, a.bit_depth, f.fingerprint, f.size,
 	COALESCE(t.album_id, 0), t.dir, f.first_seen
 	FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id `
 
@@ -304,7 +305,7 @@ func (s *Store) queryTracks(where string, args ...any) ([]TrackView, error) {
 // id, folder and first-seen time.
 func trackDest(t *TrackView, albumID *int64, dir *string, added *int64) []any {
 	return []any{&t.ID, &t.Path, &t.Title, &t.TagTitle, &t.RecordingID, &t.Artist, &t.Disc, &t.Track, &t.Year,
-		&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint,
+		&t.DurationMs, &t.Format, &t.Codec, &t.Lossless, &t.Bitrate, &t.SampleRate, &t.BitDepth, &t.Fingerprint, &t.SizeBytes,
 		albumID, dir, added}
 }
 
