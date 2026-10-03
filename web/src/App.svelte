@@ -2,6 +2,7 @@
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
   import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
+  import { isHelpKey } from './lib/ayuda.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
@@ -9,6 +10,7 @@
   import { pageBlocked } from './lib/status.js'
   import Ajustes from './pages/Ajustes.svelte'
   import Album from './pages/Album.svelte'
+  import Ayuda from './pages/Ayuda.svelte'
   import Artista from './pages/Artista.svelte'
   import Bienvenida from './pages/Bienvenida.svelte'
   import Buscar from './pages/Buscar.svelte'
@@ -65,9 +67,16 @@
       navigate(to)
     }
   }
+
+  // "?" opens the help from anywhere (not while typing).
+  function onkeydown(event) {
+    if (!ready || !isHelpKey(event)) return
+    event.preventDefault()
+    navigate('/ayuda')
+  }
 </script>
 
-<svelte:window {onclick} />
+<svelte:window {onclick} {onkeydown} />
 
 {#if !ready}
   <Nav page="" bare />
@@ -106,6 +115,8 @@
     <Revisar tab={current.tab} kind={current.kind} />
   {:else if current.page === 'ajustes'}
     <Ajustes />
+  {:else if current.page === 'ayuda'}
+    <Ayuda />
   {:else if current.page === 'bienvenida'}
     <Bienvenida />
   {:else}

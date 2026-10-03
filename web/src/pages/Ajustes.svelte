@@ -93,6 +93,7 @@
 
 <div class="ajustes">
   <h1>Ajustes</h1>
+  <p class="ayuda"><a href="/ayuda">Ayuda: atajos, secciones y conceptos</a></p>
   {#if forbidden}
     <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
     {#if !auth.local}
@@ -192,6 +193,10 @@
   .help {
     color: var(--muted);
     margin-top: 0;
+  }
+  .ayuda {
+    margin-top: 0;
+    color: var(--muted);
   }
   .warn {
     color: var(--warn);

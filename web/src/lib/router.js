@@ -23,6 +23,7 @@ export function resolve(pathname, search = '') {
   if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
   if (pathname === '/revisar') return { page: 'revisar', tab: 'sin-identificar' }
   if (pathname === '/ajustes') return { page: 'ajustes' }
+  if (pathname === '/ayuda') return { page: 'ayuda' }
   if (pathname === '/bienvenida') return { page: 'bienvenida' }
   if (pathname === '/revisar/duplicados') {
     const kind = params.get('tipo')

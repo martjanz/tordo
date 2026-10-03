@@ -43,6 +43,7 @@
       {#if listenMode()}<a class="modo" href="/ajustes" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
       <Busqueda />
       <Estado />
+      <a class="gear help" href="/ayuda" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
       <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
         <Icono name="settings" size={18} />
       </a>
@@ -126,6 +127,12 @@
     display: inline-flex;
     color: var(--muted);
   }
+  .help {
+    font-size: 16px;
+    font-weight: 700;
+    width: 18px;
+    justify-content: center;
+  }
   .gear.active {
     color: var(--strong);
   }
@@ -138,6 +145,9 @@
     }
     .brand {
       border-right: none;
+    }
+    .help {
+      display: none; /* phones reach the help from Ajustes */
     }
     .tabs {
       display: flex;

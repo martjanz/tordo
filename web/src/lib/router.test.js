@@ -10,6 +10,7 @@ describe('resolve', () => {
     ['/', '?dir=asc', { page: 'explorar' }],
     ['/', '?foo=1', { page: 'inicio' }],
     ['/ajustes', '', { page: 'ajustes' }],
+    ['/ayuda', '', { page: 'ayuda' }],
     ['/bienvenida', '', { page: 'bienvenida' }],
     ['/revisar/duplicados', '', { page: 'revisar', tab: 'duplicados', kind: 'exactas' }],
     ['/revisar/duplicados', '?tipo=formatos', { page: 'revisar', tab: 'duplicados', kind: 'formatos' }],
