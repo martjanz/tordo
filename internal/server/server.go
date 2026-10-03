@@ -13,7 +13,9 @@ import (
 	"net/http"
 	"strings"
 
+	"tordo/internal/config"
 	"tordo/internal/covers"
+	"tordo/internal/engine"
 	"tordo/internal/loudness"
 	"tordo/internal/scan"
 	"tordo/internal/store"
@@ -28,23 +30,71 @@ type Loudness interface {
 
 type Server struct {
 	Store      *store.Store
-	Scanner    *scan.Scanner   // nil in browse-only mode
-	Identifier Identifier      // nil in browse-only mode
+	Scanner    *scan.Scanner   // nil in browse-only mode; ignored with an Engine
+	Identifier Identifier      // nil in browse-only mode; ignored with an Engine
 	Loudness   Loudness        // nil: no loudness analysis
-	Normalize  bool            // the player evens out volume (config.json)
+	Normalize  bool            // the player evens out volume (config.json); ignored with an Engine
 	AppDir     string          // where catalog and cache paths are relative to
 	Streamer   stream.Streamer // FFmpeg "" when there is none
 	Covers     *covers.Covers  // nil: no pictures
 	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
 
+	// Engine holds what config.json decides; nil (tests): the fixed fields
+	// Scanner, Identifier and Normalize, and no settings.
+	Engine *engine.Engine
+	// VerifyToken asks Discogs whether it takes a token; nil: asking for a
+	// well-known release once.
+	VerifyToken func(ctx context.Context, token string) error
+
 	cat  catalogState
 	pers personalState
 }
 
+// parts are the pieces config.json decides, read once per request.
+type parts struct {
+	scanner    *scan.Scanner // nil: browse-only mode
+	identifier Identifier    // nil: browse-only mode
+	normalize  bool
+	lan        config.LAN
+	scan       func() // starts a scan in the background
+}
+
+func (s *Server) parts() parts {
+	if s.Engine == nil {
+		p := parts{scanner: s.Scanner, identifier: s.Identifier, normalize: s.Normalize}
+		if sc := s.Scanner; sc != nil {
+			p.scan = func() {
+				go func() {
+					if err := sc.Run(context.Background()); err != nil && !errors.Is(err, scan.ErrBusy) {
+						log.Printf("escaneo: %v", err)
+					}
+				}()
+			}
+		}
+		return p
+	}
+	rt := s.Engine.Current()
+	if rt == nil {
+		return parts{normalize: true}
+	}
+	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan}
+	if rt.Identifier != nil {
+		p.identifier = rt.Identifier
+	}
+	return p
+}
+
+// readOnly tells whether nothing can be written to the app folder.
+func (s *Server) readOnly() bool { return s.ReadOnly || (s.Engine != nil && s.Engine.ReadOnly) }
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/status", s.status)
+	mux.HandleFunc("GET /api/config", settings(s.withEngine(s.getConfig)))
+	mux.HandleFunc("PUT /api/config", settings(jsonOnly(s.withEngine(s.putConfig))))
+	mux.HandleFunc("POST /api/config/root", settings(jsonOnly(s.withEngine(s.checkRoot))))
+	mux.HandleFunc("POST /api/config/token", settings(jsonOnly(s.withEngine(s.checkToken))))
 	mux.HandleFunc("POST /api/scan", jsonOnly(s.scan))
 	mux.HandleFunc("GET /api/albums", s.albums)
 	mux.HandleFunc("GET /api/albums/{id}", s.album)
@@ -116,8 +166,45 @@ func localOnly(next http.Handler) http.Handler {
 			return
 		}
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, withLocal(r))
 	})
+}
+
+type localKey struct{}
+
+// withLocal marks the request as coming from the computer that runs Tordo.
+func withLocal(r *http.Request) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), localKey{}, true))
+}
+
+// localRequest tells whether the request comes from the computer that runs
+// Tordo (see decision 11); set by localOnly (always) and by the LAN gate.
+func localRequest(r *http.Request) bool {
+	v, _ := r.Context().Value(localKey{}).(bool)
+	return v
+}
+
+// settings wraps the handlers that change or reveal the configuration: 403
+// when the request is not local.
+func settings(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !localRequest(r) {
+			http.Error(w, "Los ajustes solo se cambian en la computadora que corre Tordo.", http.StatusForbidden)
+			return
+		}
+		h(w, r)
+	}
+}
+
+// withEngine answers 404 when there is no engine (no settings).
+func (s *Server) withEngine(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.Engine == nil {
+			http.NotFound(w, r)
+			return
+		}
+		h(w, r)
+	}
 }
 
 // jsonOnly requires a JSON content type, which forces a CORS preflight on
@@ -149,9 +236,10 @@ func fail(w http.ResponseWriter, err error) {
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
+	p := s.parts()
 	var st scan.Status
-	if s.Scanner != nil {
-		st = s.Scanner.Status()
+	if p.scanner != nil {
+		st = p.scanner.Status()
 	}
 	counts, err := s.Store.Counts()
 	if err != nil {
@@ -159,31 +247,28 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var ident any = map[string]string{"state": "off"}
-	if s.Identifier != nil {
-		ident = s.Identifier.Status()
+	if p.identifier != nil {
+		ident = p.identifier.Status()
 	}
 	var loud any = map[string]string{"state": "off"}
 	if s.Loudness != nil {
 		loud = s.Loudness.Status()
 	}
-	writeJSON(w, map[string]any{"readOnly": s.ReadOnly, "scan": st, "identify": ident, "loudness": loud,
-		"normalize": s.Normalize, "counts": counts})
+	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "counts": counts})
 }
 
 func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
-	if s.Scanner == nil {
+	p := s.parts()
+	if p.scanner == nil {
 		http.Error(w, "modo consulta: no se puede escanear", http.StatusConflict)
 		return
 	}
-	if s.Scanner.Status().Running {
+	if p.scanner.Status().Running {
 		http.Error(w, scan.ErrBusy.Error(), http.StatusConflict)
 		return
 	}
-	go func() {
-		if err := s.Scanner.Run(context.Background()); err != nil && !errors.Is(err, scan.ErrBusy) {
-			log.Printf("escaneo: %v", err)
-		}
-	}()
+	p.scan()
 	writeJSONStatus(w, http.StatusAccepted, map[string]bool{"started": true})
 }
 

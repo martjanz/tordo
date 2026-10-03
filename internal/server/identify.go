@@ -28,8 +28,8 @@ type Identifier interface {
 
 const maxBody = 1 << 16
 
-func (s *Server) noIdentifier(w http.ResponseWriter) bool {
-	if s.Identifier == nil {
+func noIdentifier(w http.ResponseWriter, p parts) bool {
+	if p.identifier == nil {
 		http.Error(w, "modo consulta: no se puede identificar ni corregir", http.StatusConflict)
 		return true
 	}
@@ -46,10 +46,11 @@ func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 }
 
 func (s *Server) identify(w http.ResponseWriter, r *http.Request) {
-	if s.noIdentifier(w) {
+	p := s.parts()
+	if noIdentifier(w, p) {
 		return
 	}
-	s.Identifier.Trigger()
+	p.identifier.Trigger()
 	writeJSONStatus(w, http.StatusAccepted, map[string]bool{"started": true})
 }
 
@@ -76,7 +77,8 @@ func releaseIDFrom(s string) string {
 
 func (s *Server) setIdentification(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
-	if !ok || s.noIdentifier(w) {
+	p := s.parts()
+	if !ok || noIdentifier(w, p) {
 		return
 	}
 	var body struct {
@@ -90,27 +92,28 @@ func (s *Server) setIdentification(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch {
 	case body.Ignore:
-		err = s.Identifier.Ignore(id)
+		err = p.identifier.Ignore(id)
 	case strings.TrimSpace(body.ReleaseID) != "":
-		err = s.Identifier.SetRelease(r.Context(), id, releaseIDFrom(body.ReleaseID))
+		err = p.identifier.SetRelease(r.Context(), id, releaseIDFrom(body.ReleaseID))
 	default:
 		http.Error(w, "falta releaseId o ignore", http.StatusBadRequest)
 		return
 	}
-	s.afterCorrection(w, id, err)
+	s.afterCorrection(w, p, id, err)
 }
 
 func (s *Server) resetIdentification(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
-	if !ok || s.noIdentifier(w) {
+	p := s.parts()
+	if !ok || noIdentifier(w, p) {
 		return
 	}
-	s.afterCorrection(w, id, s.Identifier.Reset(id))
+	s.afterCorrection(w, p, id, p.identifier.Reset(id))
 }
 
 // afterCorrection answers a correction with the updated album and starts a
 // run, so the artist, genres and cover of a chosen release follow.
-func (s *Server) afterCorrection(w http.ResponseWriter, id int64, err error) {
+func (s *Server) afterCorrection(w http.ResponseWriter, p parts, id int64, err error) {
 	switch {
 	case errors.Is(err, musicbrainz.ErrInvalidID):
 		http.Error(w, "id de MusicBrainz inválido", http.StatusBadRequest)
@@ -128,7 +131,7 @@ func (s *Server) afterCorrection(w http.ResponseWriter, id int64, err error) {
 		fail(w, err)
 		return
 	}
-	s.Identifier.Trigger()
+	p.identifier.Trigger()
 	s.writeAlbum(w, id)
 }
 
@@ -153,7 +156,8 @@ func (s *Server) genreAliases(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) setGenreAlias(w http.ResponseWriter, r *http.Request) {
-	if s.noIdentifier(w) {
+	p := s.parts()
+	if noIdentifier(w, p) {
 		return
 	}
 	var a store.GenreAlias
@@ -174,7 +178,7 @@ func (s *Server) setGenreAlias(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	if err := s.Identifier.Apply(); err != nil {
+	if err := p.identifier.Apply(); err != nil {
 		fail(w, err)
 		return
 	}
@@ -183,7 +187,8 @@ func (s *Server) setGenreAlias(w http.ResponseWriter, r *http.Request) {
 
 // deleteGenreAlias forgets the user's mapping of ?raw=.
 func (s *Server) deleteGenreAlias(w http.ResponseWriter, r *http.Request) {
-	if s.noIdentifier(w) {
+	p := s.parts()
+	if noIdentifier(w, p) {
 		return
 	}
 	raw := genres.Key(r.URL.Query().Get("raw"))
@@ -195,7 +200,7 @@ func (s *Server) deleteGenreAlias(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	if err := s.Identifier.Apply(); err != nil {
+	if err := p.identifier.Apply(); err != nil {
 		fail(w, err)
 		return
 	}
