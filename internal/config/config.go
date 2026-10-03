@@ -18,13 +18,34 @@ type Config struct {
 	Ignore       []string `json:"ignore"`              // extra folder patterns to skip (see mediafile.IgnoredDir)
 	DiscogsToken string   `json:"discogsToken"`        // optional: enables Discogs search
 	Normalize    *bool    `json:"normalize,omitempty"` // volume normalization; nil (absent): on
+	LAN          LAN      `json:"lan"`
+}
+
+// DefaultPort is the LAN port when config.json does not say.
+const DefaultPort = 4747
+
+// LAN is the access from other devices on the local network.
+type LAN struct {
+	Enabled bool   `json:"enabled"`
+	Port    int    `json:"port"`    // 0 (absent): DefaultPort
+	PinHash string `json:"pinHash"` // auth.HashPIN; "" when no PIN was chosen
+}
+
+// PortOrDefault is the LAN port to listen on.
+func (l LAN) PortOrDefault() int {
+	if l.Port == 0 {
+		return DefaultPort
+	}
+	return l.Port
 }
 
 // Normalizing reports whether the player evens out the volume of tracks.
 func (c Config) Normalizing() bool { return c.Normalize == nil || *c.Normalize }
 
 // Load reads config.json from appDir. When the file does not exist it returns
-// defaults (the sibling folders of appDir as roots) and created=true.
+// the defaults (the sibling folders of appDir as roots, no ignore patterns,
+// normalization on, LAN off) and created=true: setup is pending. Load never
+// writes; the caller saves.
 func Load(appDir string) (Config, bool, error) {
 	data, err := os.ReadFile(filepath.Join(appDir, FileName))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -33,7 +54,7 @@ func Load(appDir string) (Config, bool, error) {
 			return Config{}, false, err
 		}
 		on := true
-		return Config{Roots: roots, Ignore: []string{}, Normalize: &on}, true, nil
+		return Config{Roots: roots, Ignore: []string{}, Normalize: &on, LAN: LAN{Port: DefaultPort}}, true, nil
 	}
 	if err != nil {
 		return Config{}, false, err
