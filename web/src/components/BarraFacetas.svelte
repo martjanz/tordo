@@ -1,6 +1,7 @@
 <script>
   // Explorar's bar: tabs, facet menus, order, and the chips of what is
   // applied.
+  import { listenMode } from '../lib/app.svelte.js'
   import { count } from '../lib/format.js'
   import { chips, FACETS, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
 
@@ -13,7 +14,8 @@
   let bar = $state()
 
   const main = FACETS.filter((f) => !f.more)
-  const more = FACETS.filter((f) => f.more)
+  // "Estado" only holds maintenance states (unidentified, duplicates).
+  const more = $derived(FACETS.filter((f) => f.more && !(listenMode() && f.name === 'estado')))
   const applied = $derived(chips(query, facets))
   const NESTED = { decada: { name: 'anio', label: 'Años' }, genero: { name: 'estilo', label: 'Estilos' } }
 
