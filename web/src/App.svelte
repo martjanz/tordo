@@ -1,11 +1,12 @@
 <script>
   import Nav from './components/Nav.svelte'
   import Reproductor from './components/Reproductor.svelte'
-  import { app, stopStatus, watchStatus } from './lib/app.svelte.js'
+  import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
+  import { pageBlocked } from './lib/status.js'
   import Ajustes from './pages/Ajustes.svelte'
   import Album from './pages/Album.svelte'
   import Artista from './pages/Artista.svelte'
@@ -25,6 +26,11 @@
   // Until the first-use settings are saved, every page is the assistant.
   $effect(() => {
     if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/bienvenida', { replace: true })
+  })
+
+  // Listen mode closes Revisar: a direct visit goes back to Inicio.
+  $effect(() => {
+    if (pageBlocked(current.page, app.status)) navigate('/', { replace: true })
   })
 
   // Who is asking: a device on the network without a session sees only the
@@ -96,7 +102,7 @@
     {#key current.id}
       <Lista id={current.id} />
     {/key}
-  {:else if current.page === 'revisar'}
+  {:else if current.page === 'revisar' && !listenMode()}
     <Revisar tab={current.tab} kind={current.kind} />
   {:else if current.page === 'ajustes'}
     <Ajustes />

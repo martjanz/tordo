@@ -35,3 +35,15 @@ export function summary(st, lost = false) {
   if (id?.state === 'offline') return { text: 'Sin conexión con MusicBrainz', tone: 'warn' }
   return { text: 'Al día', tone: 'ok' }
 }
+
+// listening reports whether listen mode is on: the server blocks curation
+// and the UI hides it.
+export function listening(st) {
+  return !!st?.listenMode
+}
+
+// pageBlocked tells whether a page is out of reach in the current status
+// (Revisar is curation, so listen mode closes it).
+export function pageBlocked(page, st) {
+  return page === 'revisar' && listening(st)
+}

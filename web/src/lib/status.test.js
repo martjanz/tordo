@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busy, progress, summary } from './status.js'
+import { busy, listening, pageBlocked, progress, summary } from './status.js'
 
 describe('summary', () => {
   it.each([
@@ -33,5 +33,19 @@ describe('busy and progress', () => {
     expect(busy({ scan: {}, identify: { state: 'running' } })).toBe(true)
     expect(busy({ scan: {}, identify: { state: 'idle' } })).toBe(false)
     expect(progress({ scan: { read: 3, albums: 1 } })).toBe('3|1|0|0')
+  })
+})
+
+describe('listening and curation', () => {
+  it('reads the listen mode flag', () => {
+    expect(listening(null)).toBe(false)
+    expect(listening({})).toBe(false)
+    expect(listening({ listenMode: true })).toBe(true)
+  })
+  it('blocks the review page only while listening', () => {
+    expect(pageBlocked('revisar', { listenMode: true })).toBe(true)
+    expect(pageBlocked('revisar', { listenMode: false })).toBe(false)
+    expect(pageBlocked('explorar', { listenMode: true })).toBe(false)
+    expect(pageBlocked('revisar', null)).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 // State shared by the whole app: the server's status and the notices.
 import { api } from './api.js'
-import { busy, progress } from './status.js'
+import { busy, listening, progress } from './status.js'
 
 export const app = $state({
   status: null,
@@ -11,6 +11,9 @@ export const app = $state({
   generation: 0,
   notices: [],
 })
+
+// listenMode is true while listen mode hides curation (reactive).
+export const listenMode = () => listening(app.status)
 
 let timer
 let wasBusy = false
@@ -24,6 +27,11 @@ let polls = 0
 export function settingsSaved() {
   if (app.status) app.status = { ...app.status, setupPending: false }
   app.generation++
+  poll()
+}
+
+// refreshStatus asks for the status now (after a setting that changes the UI).
+export function refreshStatus() {
   poll()
 }
 

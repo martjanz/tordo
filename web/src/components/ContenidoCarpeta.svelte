@@ -2,7 +2,7 @@
   // The right panel of Carpetas: the header of a folder and its detail list.
   // Also shows the roots when there are several (no trail, no totals).
   import { albumCoverURL, api } from '../lib/api.js'
-  import { app, notify } from '../lib/app.svelte.js'
+  import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
   import { count, duration, length, size } from '../lib/format.js'
   import { enqueue, play } from '../lib/player.svelte.js'
@@ -84,7 +84,7 @@
       {#if folder.trackCount > 0}
         <Acciones what={{ folder: folder.path }} station={folderStation(folder)} />
       {/if}
-      {#if folder.detected && !app.status?.readOnly}
+      {#if folder.detected && !app.status?.readOnly && !listenMode()}
         <button class="small" onclick={() => setCollection(!folder.collection)}>
           {folder.collection ? 'No es una colección' : 'Es una colección'}
         </button>

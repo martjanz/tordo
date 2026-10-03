@@ -5,7 +5,7 @@
   import RedLocal from '../components/RedLocal.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
-  import { notify, settingsSaved } from '../lib/app.svelte.js'
+  import { notify, refreshStatus, settingsSaved } from '../lib/app.svelte.js'
   import { auth, checkAuth } from '../lib/auth.svelte.js'
   import { body, changed, draft, pinProblem, portProblem, savedNotice } from '../lib/settings.js'
 
@@ -53,6 +53,23 @@
     }
     auth.pinRequired = true
     checkAuth()
+  }
+
+  // Listen mode saves at once and on its own: the body omits the other
+  // fields, so the pending edits of the form are neither saved nor lost, and
+  // saving them later keeps the mode (the server keeps what the body omits).
+  let toggling = $state(false)
+  async function setListenMode(on) {
+    toggling = true
+    error = ''
+    try {
+      const saved = await api.saveConfig({ listenMode: on })
+      config = { ...config, listenMode: saved.listenMode }
+      refreshStatus()
+    } catch (e) {
+      error = e.message
+    }
+    toggling = false
   }
 
   async function save() {
@@ -121,6 +138,25 @@
         <span>
           Normalizar el volumen
           <small>Empareja el volumen entre temas, solo bajando los más fuertes.</small>
+        </span>
+      </label>
+    </section>
+
+    <section>
+      <h2>Modo escucha</h2>
+      <label class="check">
+        <input
+          type="checkbox"
+          checked={!!config.listenMode}
+          disabled={config.readOnly || toggling}
+          onchange={(e) => setListenMode(e.currentTarget.checked)}
+        />
+        <span>
+          Modo escucha
+          <small>
+            Oculta Revisar y la curaduría, y bloquea identificaciones, escaneos, colecciones y cambios de géneros. Los ♥,
+            las ★, las listas y las estaciones siguen funcionando.
+          </small>
         </span>
       </label>
     </section>

@@ -1,4 +1,5 @@
 <script>
+  import { listenMode } from '../lib/app.svelte.js'
   import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'
   import Icono from './Icono.svelte'
@@ -20,6 +21,7 @@
     { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
     { page: 'revisar', href: '/revisar', label: 'Revisar', icon: 'review' },
   ]
+  const sections = $derived(SECTIONS.filter((s) => !(s.page === 'revisar' && listenMode())))
 </script>
 
 <header>
@@ -33,11 +35,12 @@
     </a>
     {#if !bare}
       <span class="sections">
-        {#each SECTIONS as s (s.page)}
+        {#each sections as s (s.page)}
           <a href={s.href} class:active={isActive(s)}>{s.label}</a>
         {/each}
       </span>
       <span class="spacer"></span>
+      {#if listenMode()}<a class="modo" href="/ajustes" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
       <Busqueda />
       <Estado />
       <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
@@ -50,7 +53,7 @@
 <!-- On phones the sections go to tabs at the bottom, under the player. -->
 {#if !bare}
   <nav class="tabs" aria-label="Secciones">
-    {#each SECTIONS as s (s.page)}
+    {#each sections as s (s.page)}
       <a href={s.href} class:active={isActive(s)}>
         <Icono name={s.icon} size={20} />
         <span>{s.label}</span>
@@ -108,6 +111,16 @@
   }
   .spacer {
     flex: 1;
+  }
+  .modo {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
   }
   .gear {
     display: inline-flex;

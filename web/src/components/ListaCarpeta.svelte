@@ -2,7 +2,7 @@
   // One screen of the narrow Carpetas layout: a folder as an iPod-style list.
   import { untrack } from 'svelte'
   import { api } from '../lib/api.js'
-  import { app, notify } from '../lib/app.svelte.js'
+  import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { loadLevel, revealPath, tree } from '../lib/carpetas.svelte.js'
   import { entries, playableIds } from '../lib/folders.js'
   import { duration, folderName, size } from '../lib/format.js'
@@ -123,7 +123,7 @@
             <button role="menuitem" onclick={() => act(() => play({ folder: path }, { shuffle: true }))}>Aleatorio</button>
             <button role="menuitem" onclick={() => act(() => enqueue({ folder: path }))}>A la cola</button>
           {/if}
-          {#if folder.detected && !app.status?.readOnly}
+          {#if folder.detected && !app.status?.readOnly && !listenMode()}
             <button role="menuitem" onclick={() => setCollection(!folder.collection)}>
               {folder.collection ? 'No es una colección' : 'Es una colección'}
             </button>

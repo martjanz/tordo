@@ -6,7 +6,7 @@
   import ListaPistas from '../components/ListaPistas.svelte'
   import Tapa from '../components/Tapa.svelte'
   import { albumCoverURL, api, releaseURL } from '../lib/api.js'
-  import { app } from '../lib/app.svelte.js'
+  import { app, listenMode } from '../lib/app.svelte.js'
   import { count, country, folderName, formatName, length, quality } from '../lib/format.js'
   import { play } from '../lib/player.svelte.js'
   import { albumStation } from '../lib/stations.js'
@@ -87,7 +87,7 @@
   </div>
   <ListaPistas tracks={album.tracks} albumArtist={album.artist} onplay={(t) => play({ album: album.id }, { startId: t.id })} />
 
-  {#if album.versions?.length}
+  {#if album.versions?.length && !listenMode()}
     <section class="versions">
       <h2>Versiones</h2>
       <ul>
@@ -112,7 +112,7 @@
       {#if identified}· <a href={releaseURL(album.releaseId)} target="_blank" rel="noreferrer">ver en MusicBrainz ↗</a>{/if}
       {#if album.title !== album.tagTitle}· en los tags: «{album.tagTitle}»{/if}
     </p>
-    {#if !app.status?.readOnly}
+    {#if !app.status?.readOnly && !listenMode()}
       {#if correcting}
         <Identificar {album} onchange={corrected} />
         <button onclick={() => (correcting = false)}>Cerrar</button>
