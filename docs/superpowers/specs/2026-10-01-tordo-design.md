@@ -212,6 +212,7 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 - La barra tiene el interruptor **🎵 Rockola**, habilitado solo si hay parlante conectado. Encendido, la barra dice *Rockola · en la compu*.
 - En modo Rockola el teléfono pausa su propia reproducción; la barra muestra pista, progreso, volumen, aleatorio/repetir y cola **de la compu**, en vivo. Toda acción de reproducción (▶, ⤮, + cola, a continuación, ▶ estación, ⏯ ⏭ ⏮, seek, volumen, saltar/quitar/vaciar en la cola) va a la compu. La cola propia del teléfono queda intacta para cuando se apague el modo.
+- **En modo Rockola, ▶ agrega en vez de reemplazar**, para que nadie interrumpa ni borre la cola sin querer: ▶ agrega al final de la cola (*Agregado a la cola de la rockola*) y, si en la compu no suena nada, además empieza a sonar; ⤮ agrega las pistas mezcladas al final (`enqueue` con opción `shuffle`). Reemplazar la cola sigue siendo posible pero deliberado: **Reproducir ahora (reemplaza la cola)** en el menú ⋯ y **▶ Estación** piden confirmación (*Esto reemplaza la cola de la rockola*). Los controles de transporte (⏯ ⏭ ⏮, seek, volumen, quitar de la cola) funcionan sin cambios.
 - Los avisos de la acción (*Suena a continuación*, *2 pistas agregadas*, errores) aparecen en el teléfono que la mandó.
 - Varios teléfonos pueden estar en modo Rockola a la vez: todos ven lo mismo y cualquiera controla; las órdenes se aplican en orden de llegada, sin bloqueos.
 - Sin parlante: *La rockola no está disponible: activá el audio en la compu*. Si el parlante se desconecta: *Se perdió la conexión con la rockola* y el teléfono sale del modo, sin reproducir solo. Si la compu necesita el clic de autoplay: *La compu necesita un clic para sonar*.
@@ -236,7 +237,7 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 - `lib/jukebox.js` (puro, con tests): orden → llamada al reproductor con validación de `args`; estado publicado derivado de `player`.
 - `lib/speaker.svelte.js` (compu): abre el SSE, ejecuta órdenes, publica estado y dirige los avisos de cada orden a su remoto (`notify` con destino opcional durante la orden).
-- `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo.
+- `lib/rockola.svelte.js` (teléfono): el modo Rockola; un estado remoto que la barra lee en lugar de `player`, y un enrutador que manda las acciones de reproducción al reproductor local o a la compu según el modo (en modo Rockola, ▶ y ⤮ se traducen a `enqueue`, y la orden `enqueue` lleva `startIfIdle`).
 
 **Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
 
@@ -285,5 +286,5 @@ Cada etapa tiene su propio diseño detallado (si hace falta) y plan de implement
 
 - **Go:** tests unitarios por paquete con fixtures (archivos de audio mínimos con tags armados a mano en `testdata/`); **corpus de nombres** reales de la colección para `nameparse`; respuestas **grabadas** de MusicBrainz y Discogs para `identify` (sin red en CI); tests de corpus opcionales sobre una colección real (`TORDO_CORPUS=/ruta`).
 - **Interfaz:** Vitest para lógica de cola, estaciones y facetas.
-- **Rockola:** `internal/jukebox` con `httptest` y reloj inyectable (registro y reemplazo del parlante, reparto a N remotos, 409 sin parlante, 400 fuera de la lista blanca, límites, endpoints del parlante rechazados fuera de localhost, `speaker-off` al desconectar, heartbeat); Vitest para orden → llamada, validación de `args`, estado recortado, enrutado local/Rockola y avisos a su origen; prueba manual compu + teléfono en la LAN.
+- **Rockola:** `internal/jukebox` con `httptest` y reloj inyectable (registro y reemplazo del parlante, reparto a N remotos, 409 sin parlante, 400 fuera de la lista blanca, límites, endpoints del parlante rechazados fuera de localhost, `speaker-off` al desconectar, heartbeat); Vitest para orden → llamada, validación de `args`, estado recortado, enrutado local/Rockola (▶ y ⤮ → `enqueue`), `enqueue` con `shuffle` y `startIfIdle`, y avisos a su origen; prueba manual compu + teléfono en la LAN.
 - **CI:** GitHub Actions en Windows, macOS y Linux (`go vet`, `go test`), y job aparte para tests y build de la interfaz.
