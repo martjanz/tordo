@@ -19,6 +19,7 @@ type Config struct {
 	DiscogsToken string   `json:"discogsToken"`        // optional: enables Discogs search
 	Normalize    *bool    `json:"normalize,omitempty"` // volume normalization; nil (absent): on
 	LAN          LAN      `json:"lan"`
+	ListenMode   bool     `json:"listenMode"` // listen mode: the server refuses curation (scan, identify, collections, genre aliases)
 }
 
 // DefaultPort is the LAN port when config.json does not say.

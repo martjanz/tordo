@@ -44,6 +44,7 @@ type configView struct {
 	TokenHint    string     `json:"tokenHint"`
 	Normalize    bool       `json:"normalize"`
 	LAN          lanView    `json:"lan"`
+	ListenMode   bool       `json:"listenMode"`
 }
 
 func (s *Server) configView() configView {
@@ -52,7 +53,7 @@ func (s *Server) configView() configView {
 		cfg = rt.Config
 	}
 	v := configView{SetupPending: s.Engine.SetupPending(), ReadOnly: s.readOnly(), Roots: []rootView{}, Suggested: []string{},
-		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(),
+		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(), ListenMode: cfg.ListenMode,
 		LAN: lanView{Enabled: cfg.LAN.Enabled, Port: cfg.LAN.PortOrDefault(), HasPin: cfg.LAN.PinHash != ""}}
 	for _, r := range cfg.Roots {
 		v.Roots = append(v.Roots, rootView{r, config.Available(s.AppDir, r)})
@@ -159,11 +160,12 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Roots     []string `json:"roots"`
-		Ignore    []string `json:"ignore"`
-		Token     *string  `json:"token"`
-		Normalize bool     `json:"normalize"`
-		LAN       struct {
+		Roots      []string `json:"roots"`
+		Ignore     []string `json:"ignore"`
+		Token      *string  `json:"token"`
+		Normalize  bool     `json:"normalize"`
+		ListenMode *bool    `json:"listenMode"` // null (absent) keeps the saved value
+		LAN        struct {
 			Enabled bool    `json:"enabled"`
 			Port    int     `json:"port"`
 			Pin     *string `json:"pin"`
@@ -210,6 +212,9 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		cfg := cur
 		cfg.Roots, cfg.Ignore, cfg.LAN = roots, ignore, lan
 		cfg.Normalize = &req.Normalize
+		if req.ListenMode != nil {
+			cfg.ListenMode = *req.ListenMode
+		}
 		if req.Token != nil {
 			cfg.DiscogsToken = strings.TrimSpace(*req.Token)
 		}

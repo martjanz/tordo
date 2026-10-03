@@ -73,6 +73,7 @@ type parts struct {
 	normalize  bool
 	lan        config.LAN
 	scan       func() // starts a scan in the background
+	listenMode bool   // config.json: curation routes answer 403
 }
 
 func (s *Server) parts() parts {
@@ -93,7 +94,7 @@ func (s *Server) parts() parts {
 	if rt == nil {
 		return parts{normalize: true}
 	}
-	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan}
+	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan, listenMode: rt.Config.ListenMode}
 	if rt.Identifier != nil {
 		p.identifier = rt.Identifier
 	}
@@ -134,7 +135,7 @@ func (s *Server) routeTable() []route {
 		{"PUT /api/config", settings(jsonOnly(s.withEngine(s.putConfig)))},
 		{"POST /api/config/root", settings(jsonOnly(s.withEngine(s.checkRoot)))},
 		{"POST /api/config/token", settings(jsonOnly(s.withEngine(s.checkToken)))},
-		{"POST /api/scan", jsonOnly(s.scan)},
+		{"POST /api/scan", s.curation(jsonOnly(s.scan))},
 		{"GET /api/albums", s.albums},
 		{"GET /api/albums/{id}", s.album},
 		{"GET /api/folders", s.folder},
@@ -164,18 +165,18 @@ func (s *Server) routeTable() []route {
 		{"GET /api/stats", s.stats},
 		{"GET /api/artists/{key}", s.artist},
 		{"GET /api/search", s.find},
-		{"PUT /api/folders/collection", jsonOnly(s.setCollection)},
-		{"POST /api/identify", jsonOnly(s.identify)},
+		{"PUT /api/folders/collection", s.curation(jsonOnly(s.setCollection))},
+		{"POST /api/identify", s.curation(jsonOnly(s.identify))},
 		{"GET /api/review/unidentified", s.unidentified},
 		{"GET /api/review/duplicates", s.duplicates},
 		{"GET /api/review/formats", s.formatsToConvert},
-		{"PUT /api/albums/{id}/identification", jsonOnly(s.setIdentification)},
-		{"DELETE /api/albums/{id}/identification", s.resetIdentification},
+		{"PUT /api/albums/{id}/identification", s.curation(jsonOnly(s.setIdentification))},
+		{"DELETE /api/albums/{id}/identification", s.curation(s.resetIdentification)},
 		{"GET /api/genres", s.genreTaxonomy},
 		{"GET /api/genres/unmapped", s.unmappedGenres},
 		{"GET /api/genres/aliases", s.genreAliases},
-		{"PUT /api/genres/aliases", jsonOnly(s.setGenreAlias)},
-		{"DELETE /api/genres/aliases", s.deleteGenreAlias},
+		{"PUT /api/genres/aliases", s.curation(jsonOnly(s.setGenreAlias))},
+		{"DELETE /api/genres/aliases", s.curation(s.deleteGenreAlias)},
 		{"GET /api/play", s.play},
 		{"GET /api/gains", s.gains},
 		{"GET /api/covers/album/{id}", s.albumCover},
@@ -253,6 +254,18 @@ func settings(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// curation wraps the handlers that change the catalog's curation (scan,
+// identification, collections, genre aliases): 403 while listen mode is on.
+func (s *Server) curation(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.parts().listenMode {
+			http.Error(w, "Modo escucha activo: la curaduría está bloqueada.", http.StatusForbidden)
+			return
+		}
+		h(w, r)
+	}
+}
+
 // withEngine answers 404 when there is no engine (no settings).
 func (s *Server) withEngine(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -312,7 +325,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		loud = s.Loudness.Status()
 	}
 	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
-		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "counts": counts})
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts})
 }
 
 // setupPending answers 409 while the first-use assistant has not saved: nothing

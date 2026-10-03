@@ -28,6 +28,7 @@ binary without write access) shows a settings page instead.
   "ignore": ["Podcasts", "Soulseek/incomplete"],
   "discogsToken": "",
   "normalize": true,
+  "listenMode": false,
   "lan": {
     "enabled": false,
     "port": 4747,
@@ -35,6 +36,10 @@ binary without write access) shows a settings page instead.
   }
 }
 ```
+
+`listenMode` (default `false`) is listen mode: the server answers 403 on the
+curation routes (scan, identification, collections, genre aliases); it is turned
+on in Ajustes, from the computer that runs Tordo only.
 
 `discogsToken` is optional; without it genres come from MusicBrainz, from its
 links to Discogs and from the tags; get one at https://www.discogs.com/settings/developers.

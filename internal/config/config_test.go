@@ -177,3 +177,22 @@ func TestSaveIsAtomicAndLeavesNoTempFiles(t *testing.T) {
 		t.Fatal("saving into a missing folder succeeded")
 	}
 }
+
+func TestListenModeRoundTrip(t *testing.T) {
+	app := appUnder(t)
+	if err := Save(app, Config{Roots: []string{}, Ignore: []string{}, ListenMode: true}); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := Load(app)
+	if err != nil || !out.ListenMode {
+		t.Fatalf("got %+v (%v)", out, err)
+	}
+	data, _ := os.ReadFile(filepath.Join(app, FileName))
+	if !strings.Contains(string(data), `"listenMode": true`) {
+		t.Fatalf("config.json lacks listenMode: %s", data)
+	}
+	cfg, _, err := Load(appUnder(t))
+	if err != nil || cfg.ListenMode {
+		t.Fatalf("default = %+v (%v)", cfg, err)
+	}
+}
