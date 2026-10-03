@@ -212,7 +212,7 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `PUT /api/genres/aliases`, `DELETE /api/genres/aliases?raw=` | map a raw genre (or ignore it), or forget the mapping |
 | `GET /api/review/unidentified` | albums awaiting identification review |
 | `PUT /api/albums/{id}/identification` | choose the identification for an album (`DELETE` goes back to automatic) |
-| `GET /api/review/duplicates?tipo=` | duplicate groups; `tipo` is exacta, formatos, or sospecha |
+| `GET /api/review/duplicates?tipo=` | duplicate groups; `tipo` is exactas, formatos, or sospechas (default: exactas when missing or unknown); returns `{counts, recoverable, groups}` |
 | `GET /api/review/formats` | tracks needing conversion by format |
 | `GET /api/marks` | likes and ratings for tracks and albums (by id), and liked artists and collections |
 | `PUT /api/likes` | set or unset me gusta (♥) (`{kind, id|key, liked}`; `kind` is track/album/artist/collection) |
@@ -245,11 +245,11 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `POST /api/config/token` | check whether Discogs accepts a token: returns `{valid: true/false/null}` (null when offline) |
 | `GET /api/lan` | LAN info: enabled, port, listening, and URLs for other devices to reach Tordo |
 | `GET /api/lan/qr?url=` | SVG QR code of a URL |
-| `GET /api/auth` | authentication status; returns session info when authenticated, 401 when PIN needed |
+| `GET /api/auth` | always 200: `{local, session, device, pinRequired}` (page shows PIN screen when `pinRequired` is true; other `/api/` and `/stream/` paths answer 401 without a session) |
 | `POST /api/auth/login` | authenticate with PIN from a LAN device: `{pin, device}` |
 | `POST /api/auth/logout` | end this session |
 | `GET /api/sessions` | list active sessions (local computer only) |
-| `DELETE /api/sessions/{id}` | end a session by id |
+| `DELETE /api/sessions/{id}` | end a session by id (local computer only; LAN devices can only end their own session with `POST /api/auth/logout`) |
 
 ## Identification
 
@@ -276,7 +276,7 @@ Tordo detects three kinds of duplicate groups; it never deletes files, only list
 1. **Exacta (exact copies):** two or more files with identical audio (same audio fingerprint). Recoverable bytes of a group: all its files minus the largest one.
    Groups are sorted by recoverable bytes, largest first.
 
-2. **Formatos (same recording in several formats):** tracks of the same album with the same MusicBrainz recording ID, or with the same normalized artist and title and duration within 2 seconds (chained by duration). Files are sorted by quality (lossless > lossy; lossless by bit depth then sample rate; lossy by bitrate), then by path. The best file gets a MEJOR badge when it is strictly better than every other file of its group.
+2. **Formatos (same recording in several formats):** tracks of the same album with the same MusicBrainz recording ID, or with the same normalized artist and title and duration within 2 seconds (chained by duration); a group needs at least two distinct audio fingerprints (bit-identical files are exact copies only). Files are sorted by quality (lossless > lossy; lossless by bit depth then sample rate; lossy by bitrate), then by path. The best file gets a MEJOR badge when it is strictly better than every other file of its group.
 
 3. **Sospecha (suspect, same artist and title across albums):** the same artist, title and duration (within 2 seconds) across different albums, holding at least two distinct audio fingerprints. Sorted by artist, then title. Informational only. The best file of each group gets a MEJOR badge when strictly better than all others.
 
@@ -301,8 +301,8 @@ It checks ReplayGain tags first; if they're missing, `ffmpeg` measures the
 loudness in the background (newest tracks first), and the audio that's about
 to play jumps the queue. Tracks not measured yet play at −6 dB. The
 normalization only lowers volume, never raises it. Album gain is applied when
-an album plays in order (shuffle off). Turn it on or off in Ajustes; the change
-takes effect immediately without restarting.
+an album plays in order (shuffle off). Turn it on or off in Ajustes; the player
+picks it up from `/api/status` without restarting.
 
 ## Uso desde la red (Network access)
 
@@ -361,8 +361,7 @@ the computer running Tordo.
 
 - `enabled`: whether the LAN listener is running.
 - `port`: the port to listen on (1024–65535); 0 or absent means the default port 4747.
-- `pinHash`: the hashed PIN (PBKDF2-SHA256, 100,000 iterations). Empty when LAN is on but
-  no PIN was set, or when LAN is off.
+- `pinHash`: the hashed PIN (PBKDF2-SHA256, 100,000 iterations). Empty when LAN is off.
 
 ## Development
 
