@@ -24,7 +24,7 @@ const (
 	FacetFolder     = "carpeta"   // a root, or a first-level folder under it
 	FacetQuality    = "calidad"   // QualityLossless or QualityLossy
 	FacetFormat     = "formato"   // FormatKey
-	FacetState      = "estado"    // StateUnidentified or StateUnplayable
+	FacetState      = "estado"    // StateUnidentified, StateUnplayable or StateDuplicated
 	FacetLiked      = "megusta"   // LikedYes: the album or track itself is liked
 	FacetRating     = "puntaje"   // "1"–"5": rated that many stars or more
 )
@@ -39,6 +39,7 @@ const (
 	QualityLossy      = "con-perdida"
 	StateUnidentified = "sin-identificar"
 	StateUnplayable   = "no-reproducible"
+	StateDuplicated   = "con-duplicados"
 	LikedYes          = "si"
 )
 
@@ -89,7 +90,7 @@ func valid(facet, value string) bool {
 	case FacetQuality:
 		return value == QualityLossless || value == QualityLossy
 	case FacetState:
-		return value == StateUnidentified || value == StateUnplayable
+		return value == StateUnidentified || value == StateUnplayable || value == StateDuplicated
 	case FacetLiked:
 		return value == LikedYes
 	case FacetRating:

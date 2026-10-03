@@ -54,7 +54,7 @@ export const ORDERS = {
 
 export const LABELS = {
   calidad: { 'sin-perdida': 'Sin pérdida', 'con-perdida': 'Con pérdida' },
-  estado: { 'sin-identificar': 'Sin identificar', 'no-reproducible': 'No reproducible' },
+  estado: { 'sin-identificar': 'Sin identificar', 'no-reproducible': 'No reproducible', 'con-duplicados': 'Con duplicados' },
   megusta: { si: 'Me gusta' },
   escucha: { nunca: 'Nunca escuchado', 'hace-un-anio': 'Sin escuchar hace un año' },
   puntaje: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
