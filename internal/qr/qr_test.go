@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -72,20 +73,71 @@ func TestEncodeMatchesFixtures(t *testing.T) {
 	}
 }
 
-func TestEncodePicksFixtureMask(t *testing.T) {
+func TestEncodePicksLowestPenalty(t *testing.T) {
 	for _, fx := range loadFixtures(t) {
 		t.Run(fx.name, func(t *testing.T) {
 			c, err := Encode(fx.text)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if c.Version != fx.version || c.Mask != fx.mask {
-				scores := make([]int, 8)
-				for m := range scores {
-					cm, _ := encode(fx.text, m)
-					scores[m] = penalty(cm)
+			if c.Version != fx.version {
+				t.Fatalf("version %d, want %d", c.Version, fx.version)
+			}
+			best, bestScore := -1, 0
+			for m := 0; m < 8; m++ {
+				cm, _ := encode(fx.text, m)
+				if s := penalty(cm); best < 0 || s < bestScore {
+					best, bestScore = m, s
 				}
-				t.Errorf("version %d mask %d, want %d / %d (penalties %v)", c.Version, c.Mask, fx.version, fx.mask, scores)
+			}
+			if c.Mask != best {
+				t.Errorf("mask %d, want %d (lowest penalty %d)", c.Mask, best, bestScore)
+			}
+			want, _ := encode(fx.text, c.Mask)
+			if !slices.Equal(c.dark, want.dark) {
+				t.Error("modules differ from encode with the chosen mask")
+			}
+		})
+	}
+}
+
+// blankFormat returns a copy of c with every format-information module light
+// (the dark module stays), as python-qrcode has them when it scores the masks.
+func blankFormat(c *Code) *Code {
+	b := &Code{Size: c.Size, Version: c.Version, Mask: c.Mask, dark: slices.Clone(c.dark)}
+	n := c.Size
+	for i := 0; i < 9; i++ {
+		if i == 6 {
+			continue // timing pattern
+		}
+		b.dark[i*n+8] = false // column 8, rows 0-8
+		b.dark[8*n+i] = false // row 8, columns 0-8
+	}
+	for i := 0; i < 8; i++ {
+		b.dark[8*n+n-1-i] = false // row 8, right copy
+		if i > 0 {
+			b.dark[(n-1-i)*n+8] = false // column 8, bottom copy (not the dark module)
+		}
+	}
+	return b
+}
+
+// The reference library scores the masks with blank format modules; with
+// that, our penalty must choose the fixture's mask.
+func TestPenaltyReproducesReferenceMask(t *testing.T) {
+	for _, fx := range loadFixtures(t) {
+		t.Run(fx.name, func(t *testing.T) {
+			best, bestScore := -1, 0
+			scores := make([]int, 8)
+			for m := 0; m < 8; m++ {
+				cm, _ := encode(fx.text, m)
+				scores[m] = penalty(blankFormat(cm))
+				if best < 0 || scores[m] < bestScore {
+					best, bestScore = m, scores[m]
+				}
+			}
+			if best != fx.mask {
+				t.Errorf("argmin %d, fixture mask %d (penalties %v)", best, fx.mask, scores)
 			}
 		})
 	}
