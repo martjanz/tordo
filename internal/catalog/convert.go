@@ -11,6 +11,7 @@ import (
 var ConvertKeys = []string{"wma", "wav", "aiff", "ape", "wavpack", "alac"}
 var ConvertLabels = map[string]string{"wma": "WMA", "wav": "WAV", "aiff": "AIFF", "ape": "APE", "wavpack": "WavPack", "alac": "ALAC"}
 
+// ConvertFormat is one format's total statistics.
 type ConvertFormat struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
@@ -18,12 +19,14 @@ type ConvertFormat struct {
 	Bytes int64  `json:"bytes"`
 }
 
+// ConvertItem is one album's (or, for loose tracks, one folder's) files
+// in one of those formats.
 type ConvertItem struct {
-	AlbumID    int64  `json:"albumId"`
-	Title      string `json:"title"`
+	AlbumID    int64  `json:"albumId"` // 0: loose tracks of Dir
+	Title      string `json:"title"`   // the album's, or the folder's name
 	Artist     string `json:"artist"`
 	Dir        string `json:"dir"`
-	Format     string `json:"format"`
+	Format     string `json:"format"` // a key of ConvertKeys
 	Files      int    `json:"files"`
 	Bytes      int64  `json:"bytes"`
 	DurationMs int64  `json:"durationMs"`
@@ -32,10 +35,11 @@ type ConvertItem struct {
 type ToConvert struct {
 	Files   int             `json:"files"`
 	Bytes   int64           `json:"bytes"`
-	Formats []ConvertFormat `json:"formats"`
-	Items   []ConvertItem   `json:"items"`
+	Formats []ConvertFormat `json:"formats"` // only those with files, in ConvertKeys order
+	Items   []ConvertItem   `json:"items"`   // by bytes descending, then title
 }
 
+// ToConvert returns the formats to convert and their items.
 func (c *Catalog) ToConvert() ToConvert {
 	type itemKey struct {
 		albumID int64
