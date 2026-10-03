@@ -4,6 +4,7 @@ import { busy, progress } from './status.js'
 
 export const app = $state({
   status: null,
+  lost: false, // the last poll did not reach the server
   // generation grows each time a scan or an identification run ends, and
   // every 20 s while a long one makes progress: pages read it to load their
   // data again.
@@ -29,14 +30,15 @@ async function poll() {
     wasBusy = now
     lastProgress = progress(st)
     app.status = st
+    app.lost = false
   } catch {
-    // The next poll tries again.
+    app.lost = true
   }
-  timer = setTimeout(poll, wasBusy ? 3000 : 30000)
+  timer = setTimeout(poll, wasBusy || app.lost ? 3000 : 30000)
 }
 
-// watchStatus starts polling /api/status: every 3 s while something runs,
-// every 30 s otherwise.
+// watchStatus starts polling /api/status: every 3 s while something runs or
+// the server is out of reach, every 30 s otherwise.
 export function watchStatus() {
   poll()
 }

@@ -12,9 +12,11 @@ export function progress(st) {
   return [st.scan?.read ?? 0, st.scan?.albums ?? 0, st.identify?.identified ?? 0, st.identify?.enriched ?? 0].join('|')
 }
 
-// summary is the short text of the status indicator, and its tone:
-// "busy", "warn" or "" (all quiet).
-export function summary(st) {
+// summary is the short text of the status indicator, and its tone: "busy",
+// "warn", "ok" (all quiet) or "down" (the last poll did not reach the server,
+// which outweighs whatever status it had before).
+export function summary(st, lost = false) {
+  if (lost) return { text: 'Sin conexión con Tordo', tone: 'down' }
   if (!st) return { text: '', tone: '' }
   if (st.scan?.running) {
     const { files = 0, read = 0, toRead = 0 } = st.scan
@@ -31,5 +33,5 @@ export function summary(st) {
   if (st.readOnly) return { text: 'Modo consulta', tone: 'warn' }
   if (st.scan?.lastError) return { text: 'El último escaneo falló', tone: 'warn' }
   if (id?.state === 'offline') return { text: 'Sin conexión con MusicBrainz', tone: 'warn' }
-  return { text: 'Al día', tone: '' }
+  return { text: 'Al día', tone: 'ok' }
 }

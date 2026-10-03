@@ -2,11 +2,11 @@
   import { app } from '../lib/app.svelte.js'
   import { summary } from '../lib/status.js'
 
-  const s = $derived(summary(app.status))
+  const s = $derived(summary(app.status, app.lost))
 </script>
 
 {#if s.text}
-  <span class="estado {s.tone}" title={app.status?.scan?.lastError || s.text} role="status">
+  <span class="estado {s.tone}" title={(!app.lost && app.status?.scan?.lastError) || s.text} role="status">
     <span class="dot"></span>
     <span class="text">{s.text}</span>
   </span>
@@ -31,11 +31,23 @@
     background: var(--accent);
     animation: pulse 1.2s ease-in-out infinite;
   }
+  .ok {
+    color: var(--ok);
+  }
+  .ok .dot {
+    background: var(--ok);
+  }
   .warn {
     color: var(--warn);
   }
   .warn .dot {
     background: var(--warn);
+  }
+  .down {
+    color: var(--down);
+  }
+  .down .dot {
+    background: var(--down);
   }
   @keyframes pulse {
     50% {

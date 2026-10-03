@@ -14,9 +14,16 @@ describe('summary', () => {
     [{ readOnly: true, scan: {} }, { text: 'Modo consulta', tone: 'warn' }],
     [{ scan: { lastError: 'disco desconectado' } }, { text: 'El último escaneo falló', tone: 'warn' }],
     [{ scan: {}, identify: { state: 'offline' } }, { text: 'Sin conexión con MusicBrainz', tone: 'warn' }],
-    [{ scan: {} }, { text: 'Al día', tone: '' }],
+    [{ scan: {} }, { text: 'Al día', tone: 'ok' }],
   ])('%j', (st, want) => {
     expect(summary(st)).toEqual(want)
+  })
+
+  it('reports a lost server over any status it last had', () => {
+    const down = { text: 'Sin conexión con Tordo', tone: 'down' }
+    expect(summary(null, true)).toEqual(down)
+    expect(summary({ scan: {} }, true)).toEqual(down)
+    expect(summary({ scan: { running: true, files: 3 } }, true)).toEqual(down)
   })
 })
 

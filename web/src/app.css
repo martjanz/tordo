@@ -11,6 +11,8 @@
   --accent: #f0a830;
   --on-accent: #1a1204;
   --warn: #e0a040;
+  --ok: #5cb85c;
+  --down: #e05050;
   --radius: 4px;
   --gutter: 16px;
   --nav-h: 55px; /* the sticky bar at the top (Nav.svelte), without its margin */
