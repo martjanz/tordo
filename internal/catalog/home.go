@@ -41,10 +41,13 @@ type HomeRow struct {
 
 // Home is Inicio's rows (saved stations are the server's to add).
 type Home struct {
-	Recent   []Album   `json:"recent"`   // newest first
-	Continue []Album   `json:"continue"` // by their latest play
-	Liked    []Album   `json:"liked"`    // most recently liked first
-	Rotating []HomeRow `json:"rotating"`
+	Recent   []Album `json:"recent"`   // newest first
+	Continue []Album `json:"continue"` // by their latest play
+	Liked    []Album `json:"liked"`    // the albums marked Preferido, most recently first
+	// LikedTracks are the albums holding favourite (♥) tracks, by the most
+	// recently liked of them.
+	LikedTracks []Album   `json:"likedTracks"`
+	Rotating    []HomeRow `json:"rotating"`
 }
 
 // candidate is a possible rotating row: its kind, value and the albums that
@@ -60,7 +63,7 @@ type candidate struct {
 func (c *Catalog) Home(p *store.Personal, seed uint64) Home {
 	r := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	l := c.listening(p)
-	h := Home{Recent: []Album{}, Continue: []Album{}, Liked: []Album{}, Rotating: []HomeRow{}}
+	h := Home{Recent: []Album{}, Continue: []Album{}, Liked: []Album{}, LikedTracks: []Album{}, Rotating: []HomeRow{}}
 
 	recent := slices.Clone(c.Albums)
 	slices.SortFunc(recent, func(a, b Album) int { return cmp.Or(cmp.Compare(b.Added, a.Added), cmp.Compare(b.ID, a.ID)) })
@@ -78,8 +81,15 @@ func (c *Catalog) Home(p *store.Personal, seed uint64) Home {
 		})
 		h.Continue = append(h.Continue, played[:min(HomeRowSize, len(played))]...)
 	}
-	liked := c.Liked(p).Albums
-	h.Liked = append(h.Liked, liked[:min(HomeRowSize, len(liked))]...)
+	liked := c.Liked(p)
+	h.Liked = append(h.Liked, liked.Albums[:min(HomeRowSize, len(liked.Albums))]...)
+	seen := map[int64]bool{}
+	for _, t := range liked.Tracks {
+		if a, ok := c.Album(t.AlbumID); ok && !seen[a.ID] && len(h.LikedTracks) < HomeRowSize {
+			seen[a.ID] = true
+			h.LikedTracks = append(h.LikedTracks, *a)
+		}
+	}
 
 	kinds := []string{RowDecade, RowCountry, RowGenre, RowCollection, RowNever, RowStale, RowRandom}
 	r.Shuffle(len(kinds), func(i, j int) { kinds[i], kinds[j] = kinds[j], kinds[i] })

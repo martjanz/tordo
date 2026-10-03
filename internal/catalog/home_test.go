@@ -21,6 +21,7 @@ func TestHome(t *testing.T) {
 	c := build()
 	p := &store.Personal{
 		Albums: map[int64]store.Mark{1: {Liked: true, LikedAt: 5}},
+		Tracks: map[int64]store.Mark{301: {Liked: true, LikedAt: 7}, 101: {Liked: true, LikedAt: 9}, 102: {Liked: true, LikedAt: 8}},
 		Plays: map[int64]store.Plays{
 			301: {Count: 1, Last: at.Add(-time.Hour).UnixMilli()},
 			101: {Count: 2, Last: at.Add(-48 * time.Hour).UnixMilli()},
@@ -35,6 +36,10 @@ func TestHome(t *testing.T) {
 	}
 	if got, want := albumTitles(h.Liked), []string{"Signos"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("liked = %v want %v", got, want)
+	}
+	// The albums that hold favourite tracks, by their most recently liked track.
+	if got, want := albumTitles(h.LikedTracks), []string{"Signos", "Clics modernos"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("likedTracks = %v want %v", got, want)
 	}
 	// Too few albums for the threshold: only the random row.
 	for seed := uint64(1); seed <= 20; seed++ {
@@ -94,8 +99,8 @@ func TestHome(t *testing.T) {
 	}
 
 	h = c.Home(nil, 3)
-	if h.Continue == nil || len(h.Continue) != 0 || h.Liked == nil || len(h.Liked) != 0 {
-		t.Fatalf("nil p: %+v %+v", h.Continue, h.Liked)
+	if h.Continue == nil || len(h.Continue) != 0 || h.Liked == nil || len(h.Liked) != 0 || h.LikedTracks == nil || len(h.LikedTracks) != 0 {
+		t.Fatalf("nil p: %+v %+v %+v", h.Continue, h.Liked, h.LikedTracks)
 	}
 	for seed := uint64(1); seed <= 50; seed++ {
 		for _, r := range c.Home(nil, seed).Rotating {

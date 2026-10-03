@@ -9,10 +9,11 @@ import (
 )
 
 type homeBody struct {
-	Recent   []catalog.Album `json:"recent"`
-	Continue []catalog.Album `json:"continue"`
-	Liked    []catalog.Album `json:"liked"`
-	Stations []stationRow    `json:"stations"`
+	Recent      []catalog.Album `json:"recent"`
+	Continue    []catalog.Album `json:"continue"`
+	Liked       []catalog.Album `json:"liked"`
+	LikedTracks []catalog.Album `json:"likedTracks"`
+	Stations    []stationRow    `json:"stations"`
 }
 
 func TestHomeEndpoint(t *testing.T) {
@@ -28,7 +29,7 @@ func TestHomeEndpoint(t *testing.T) {
 	var home homeBody
 	decode(t, a, &home)
 	if len(home.Recent) != 1 || home.Recent[0].ID != al || home.Continue == nil || len(home.Continue) != 0 ||
-		home.Liked == nil || len(home.Liked) != 0 || home.Stations == nil || len(home.Stations) != 0 {
+		home.Liked == nil || len(home.Liked) != 0 || home.LikedTracks == nil || len(home.LikedTracks) != 0 || home.Stations == nil || len(home.Stations) != 0 {
 		t.Fatalf("empty home = %+v\n%s", home, a.Body)
 	}
 	if rec := do(t, h, "GET", "/api/home?semilla=nope", ""); rec.Code != http.StatusOK {
