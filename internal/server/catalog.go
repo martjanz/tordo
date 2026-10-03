@@ -150,6 +150,7 @@ type albumPage struct {
 	ArtistKey  string            `json:"artistKey"`
 	Tracks     []albumTrack      `json:"tracks"`
 	Candidates []store.Candidate `json:"candidates"`
+	Versions   []catalog.Version `json:"versions"` // other albums with the same recordings
 }
 
 // writeAlbum answers an album's page.
@@ -173,7 +174,7 @@ func (s *Server) writeAlbum(w http.ResponseWriter, id int64) {
 		fail(w, err)
 		return
 	}
-	p := albumPage{AlbumDetail: a, Tracks: make([]albumTrack, 0, len(a.Tracks)), Candidates: cands}
+	p := albumPage{AlbumDetail: a, Tracks: make([]albumTrack, 0, len(a.Tracks)), Candidates: cands, Versions: c.AlbumVersions(id)}
 	if al, ok := c.Album(id); ok {
 		p.ArtistKey = al.ArtistKey
 	}
