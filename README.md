@@ -1,11 +1,12 @@
 # Tordo
 
 A local, portable catalog and player for a music collection spread over a few
-folders of one drive. **Status: M5 (duplicate detection, settings, LAN access)** — scanning,
+folders of one drive. **Status: M6 (Rockola mode: use the computer as a speaker)** — scanning,
 native tag reading, audio fingerprints, albums, folders and collections, automatic
 MusicBrainz and Discogs identification, a localhost JSON API, and the web interface
 with the player, likes, ratings, playlists, play counts, stations, Inicio, listening
-statistics, loudness normalization, duplicate detection, and network access with PIN; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
+statistics, loudness normalization, duplicate detection, network access with PIN, and Rockola mode
+for sharing playback across devices; see `docs/superpowers/specs/2026-10-01-tordo-design.md`.
 
 - **Read-only** on your music: it never moves, renames, re-tags or deletes files.
 - **Portable:** one executable per OS; the catalog (`tordo.db`) and
@@ -93,6 +94,31 @@ WavPack need `ffmpeg` on the `PATH` and are converted on the fly (lossless to
 FLAC, lossy to MP3), without seeking. Covers come from the album folder's
 image, the files' embedded pictures or the Cover Art Archive; thumbnails are
 cached in `cache/thumbs/`.
+
+#### Rockola
+
+Use the computer running Tordo as a speaker from your phone or another browser: open
+Ajustes → Reproducción on the computer and turn on "Usar el audio de esta compu"
+(this option appears on the computer only). The top bar shows "🔊 Audio de esta compu"
+while that tab has audio. Keep this tab open; when you reload it, click "Reactivar audio"
+once (browsers block sound until the page is clicked). The audio setting is remembered
+per tab: when that tab reloads, it reconnects and asks for one click; if another tab
+takes over, the first shows "Otro navegador tomó el audio de esta compu".
+
+From a phone or another browser with LAN access, the top bar shows a "🎵 Rockola" button
+(visible only while the computer's audio is on). Tap it to switch the player to the
+computer: the bar shows "Rockola · en la compu" with the computer's track, queue and
+controls; your phone's playback pauses and its queue is kept for later. Not remembered
+across reloads.
+
+**Anfitriones (hosts) and invitados (guests):** The computer running Tordo is always
+an anfitrión. Other LAN devices are invitados by default, but can be marked as
+anfitriones in Ajustes → Red local → Dispositivos. Anfitriones have full control: ▶
+replaces the queue, skip, seek, volume, shuffle/repeat, reorder, clear, and stations.
+Invitados can only add: ▶ adds to the end of the queue and starts playback if nothing
+is playing; tapping a single song adds just that song; ⤮ adds the tracks shuffled;
++ cola and a continuación work as usual. Invitados can ⏯ and remove only the tracks
+they added. These limits are enforced by the server.
 
 #### Likes and ratings
 
