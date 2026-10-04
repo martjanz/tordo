@@ -41,8 +41,10 @@ function publish() {
   clearTimeout(pending)
   pending = null
   if (!speaker.on || !token) return
-  api.jukeboxState(token, snapshot(P.player)).catch((e) => {
-    if (e?.status === 409) disableSpeaker()
+  const sent = token
+  api.jukeboxState(sent, snapshot(P.player)).catch((e) => {
+    // only the current connection's token counts: a late answer for an old one is not news
+    if (e?.status === 409 && sent === token) disableSpeaker()
   })
 }
 
@@ -56,9 +58,9 @@ function schedulePublish() {
 $effect.root(() => {
   $effect(() => {
     if (!speaker.on) return
-    const s = snapshot(P.player)
-    delete s.time
-    JSON.stringify(s)
+    // time is read as a constant so the effect does not follow every tick
+    const p = P.player
+    JSON.stringify(snapshot({ queue: p.queue, time: 0, duration: p.duration, playing: p.playing, seekable: p.seekable, volume: p.volume, muted: p.muted, blocked: p.blocked }))
     schedulePublish()
   })
 })
@@ -84,6 +86,7 @@ function open(connect) {
   es.addEventListener('error', () => {
     if (source !== es) return
     speaker.connected = false
+    token = '' // the server forgot this speaker: nothing to publish until the next hello
     if (es.readyState !== 2 || !speaker.on) return // 0: the browser is reconnecting by itself
     es.close()
     retry = setTimeout(() => {

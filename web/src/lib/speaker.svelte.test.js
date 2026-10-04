@@ -181,3 +181,40 @@ describe('disableSpeaker', () => {
     P.player.playing = false
   })
 })
+
+describe('publishing and tokens', () => {
+  const rejection = (status) => Object.assign(new Error('x'), { status })
+
+  it('a 409 on the current token disables the speaker', async () => {
+    api.jukeboxState.mockRejectedValueOnce(rejection(409))
+    enableSpeaker(connect)
+    last().emit('hello', { token: 't1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(speaker.on).toBe(false)
+    expect(localStorage.getItem('tordo.audio-compu')).toBe('')
+  })
+
+  it('does not publish while disconnected', async () => {
+    enableSpeaker(connect)
+    last().emit('hello', { token: 't1' })
+    last().readyState = 0
+    last().emit('error', {})
+    P.player.playing = true
+    api.jukeboxState.mockClear()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(api.jukeboxState).not.toHaveBeenCalled()
+    expect(speaker.on).toBe(true)
+    P.player.playing = false
+  })
+
+  it('a 409 for a stale token after a new hello does not disable', async () => {
+    let fail
+    api.jukeboxState.mockImplementationOnce(() => new Promise((_, rej) => (fail = rej)))
+    enableSpeaker(connect)
+    last().emit('hello', { token: 't1' })
+    last().emit('hello', { token: 't2' })
+    fail(rejection(409))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(speaker.on).toBe(true)
+  })
+})
