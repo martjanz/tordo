@@ -288,21 +288,125 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `GET /api/sessions` | list active sessions (local computer only) |
 | `DELETE /api/sessions/{id}` | end a session by id (local computer only; LAN devices can only end their own session with `POST /api/auth/logout`) |
 
-## Identification
+## How scanning and identification work
 
-After every scan, tordo looks up each album on MusicBrainz (one request per
-second, as MusicBrainz asks; a first pass over ~10,000 albums takes a few
-hours and resumes where it stopped). Albums above the confidence threshold are
-identified automatically: they show MusicBrainz's titles, the original year,
-the artist's country, Discogs genres and styles, and a cover from the Cover Art
-Archive when the folder has none (saved in `cache/covers/`). The others go to
-Revisar → Sin identificar with their candidates: choose one, paste a
-musicbrainz.org release, or say the album is not in MusicBrainz (also from the
-album page, *Corregir identificación*). Raw tag genres no mapping knows go to
-Revisar → Géneros por mapear. Corrections are stored per track
-fingerprint: they survive moving, renaming and re-tagging the files, and the
-automatic identification never overrides them. Without network, everything
-else works and the identification retries on its own.
+The in-app help (Ayuda → *Cómo funciona*) has a plain-language version of this section.
+
+### When a scan runs
+
+At startup, whenever the music folders or ignore patterns change in Ajustes, and on
+`POST /api/scan`. Scans are **incremental**: only new files and files whose size or
+modification time changed are read again (also every file after an upgrade changes
+the reader, and failed files once `ffprobe` appears on the `PATH`). The top bar shows
+`Escaneando · n/m leídos`; albums appear in Explorar as they are saved. Scanning
+never uses the network.
+
+### 1. Walk (`internal/scan`)
+
+Each root is walked and every catalogued file is recorded with its size and mtime:
+audio (`.mp3 .flac .m4a .aac .opus .ogg .oga .wma .wav .aif(f/c) .ape .wv`),
+images (`.jpg .jpeg .png .webp`), lyrics (`.lrc`) and playlists (`.m3u .m3u8`).
+Ignored folders (`ignore` in `config.json`, plus other apps' folders) are skipped.
+
+Missing data is handled conservatively:
+- a root that is not available (drive unplugged) is skipped and its catalog kept;
+- a root that disappears mid-scan aborts the scan without marking anything missing;
+- a root walked with read errors is kept, but its unseen files are not marked missing;
+- files no longer seen under a cleanly walked root are marked **missing**, not deleted
+  from the catalog, so they come back as they were when the drive returns.
+
+### 2. Read (`internal/audiofile`, `internal/fingerprint`)
+
+For each pending audio file Tordo reads tags (title, artists, album, album artist,
+track/disc numbers, year, genres, compilation flag, MusicBrainz ids, embedded cover),
+technical data (format, codec, duration, bitrate, sample rate, bit depth, channels,
+ReplayGain) and computes an **audio fingerprint**: SHA-256 of the first and last
+64 KiB of the audio payload plus its length, with tags and embedded pictures left out
+(Ogg page headers too). Moving, renaming or re-tagging a file keeps its fingerprint;
+bit-identical rips share one. Native readers handle the common formats; `ffprobe`
+covers the rest. Results are committed in batches of 100, so an interrupted scan keeps
+its work. I/O errors are retried on the next scan; files read but not understood are
+stored with their error.
+
+### 3. Group (`internal/grouping`)
+
+After reading, albums, tracks, folders and collections are rebuilt from the whole
+catalog (a pure function of the stored data):
+
+- **Track fields** come from the tags, falling back to the file name
+  (`01 - Artista - Título.mp3`) and the folder name (`Artista - Álbum (1985)`).
+  Download-site names and file codes are dropped from tags.
+- **Albums** are keyed by folder + normalized album title. Disc folders (`CD1`,
+  `Disc 2`) join their parent's album. In a folder whose tags disagree, groups of one
+  or two stray tracks join the folder's main album when it holds two thirds of the
+  tracks; a folder made mostly of one- or two-track albums becomes a single
+  **selection** named after the folder. Tracks without an album tag in a folder with
+  at least two tracks take the folder's album name; the rest are loose tracks.
+- **Album artist:** the album-artist tag; *Varios artistas* for "Various"-like tags,
+  folders, or several track artists; else the folder's artist, the single track
+  artist, or the parent folder when it is named like a known artist.
+- **Cover:** an image named `cover`, `folder` or `front`, then one whose name
+  mentions them, then the largest image in the album's folders (also `Scans/`,
+  `Artwork/` below it); `back…` images never count. An embedded cover is kept too.
+- **Collections:** folders with at least 3 albums in child folders by at least 2
+  album artists, under a name that is not an artist's.
+
+When the scan ends (unless cancelled) it triggers identification and, with `ffmpeg`,
+loudness measurement.
+
+### 4. Identify (`internal/identify`)
+
+The identification runner works album by album against MusicBrainz, one request per
+second as MusicBrainz asks; a first pass over ~10,000 albums takes a few hours and
+resumes where it stopped. The top bar shows `Identificando · n/m`.
+
+1. **Tag ids first.** If most tracks carry the same MusicBrainz album id and
+   MusicBrainz has it, the album is identified with confidence 1.
+2. **Search.** Otherwise up to four query variants are searched in turn: the grouped
+   title and artist, the folder's title and artist, and both without disc markers or
+   bracketed notes (`(Remastered)`). Compilations search Various Artists.
+3. **Score.** Each candidate gets a confidence from 0 to 1:
+
+   | Signal | Weight | Rule |
+   |---|---|---|
+   | Title | 0.30 | similarity (1 − edit distance / length, after normalization) |
+   | Track durations | 0.25 | share of tracks within 3 s of a release track (by position when counts match) |
+   | Artist | 0.20 | similarity with the credit or any credited name |
+   | Track count | 0.15 | equal is best; fewer tracks than the release get a share; more get 0 |
+   | Year | 0.10 | exact (release or first release) 1, ±1 half; no year a neutral half |
+
+   Search hits have no durations, so only hits that could still reach the threshold
+   are looked up in full (at most 4 lookups per album).
+4. **Decide.** At **0.80** or above the album is identified automatically. Otherwise
+   it goes to Revisar → *Sin identificar* with its best five candidates.
+
+Matches are cached by their query (variants, year, tag id and rounded durations): an
+album is searched again only when what describes it changes, or when the matcher
+improves.
+
+### 5. Enrich and apply
+
+For each release in use Tordo fetches the main artist (for its **country**), Discogs
+**genres and styles** (through MusicBrainz's links to Discogs, the release's or its
+group's, falling back to the master; with a `discogsToken`, also a Discogs search),
+and a **cover** from the Cover Art Archive (release, else release group) for albums
+whose folder has none, saved in `cache/covers/`. The bar shows
+`Completando datos · n/m`, then `Al día`.
+
+*Apply* then recomputes every album's identity from stored data alone (no requests):
+MusicBrainz's album title, artist, original year and country; track titles aligned by
+position (or closest title) when durations agree within 3 s; genres from Discogs,
+else MusicBrainz, else the tags. Raw tag genres no mapping knows go to Revisar →
+*Géneros por mapear*. Nothing is written to the audio files.
+
+### Corrections and offline
+
+Choosing a candidate, pasting a musicbrainz.org release, or marking an album as not in
+MusicBrainz (in *Sin identificar* or *Corregir identificación* on the album page) is
+stored per **track fingerprint**: it survives moving, renaming and re-tagging, applies
+when at least half an album's tracks carry it, and automatic identification never
+overrides it. Without network the runner shows `Sin conexión con MusicBrainz` and
+retries on its own (after 5 minutes, doubling up to an hour); everything else keeps working.
 
 ### Revisar (Review)
 
