@@ -1055,7 +1055,7 @@ With the LAN on and two phones signed in (one marked anfitrión):
 2. Guest phone: 🎵 Rockola on → the bar shows the computer's state. ▶ on an album with nothing playing → it starts on the computer; ▶ on another album → it is only added. ✕ on one's own track works; on another's it is not shown. ⏭, volume and Vaciar are not shown.
 3. Host phone: ▶ replaces the queue; ⏭, seek and volume work; remove anything.
 4. Unmark the host phone in Ajustes → its controls shrink at once.
-5. Reload the computer's tab → phones see the state again; the chip asks for **Reactivar audio**; after the click, sound resumes with ⏯.
+5. Reload the computer's tab → the speaker disconnects, so the phones get `speaker-off` and leave Rockola mode with *Se perdió la conexión con la rockola*; the tab reconnects at once and asks for **Reactivar audio**; the phones can turn Rockola on again and see the state; after the click, sound resumes with ⏯.
 6. Close the computer's tab → both phones leave Rockola mode with *Se perdió la conexión con la rockola*.
 7. Open a second localhost tab and turn the audio on there → the first says *Otro navegador tomó el audio de esta compu*.
 

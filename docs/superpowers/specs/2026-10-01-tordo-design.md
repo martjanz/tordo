@@ -204,7 +204,7 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 
 **En la compu (localhost):**
 
-- Ajustes → Reproducción: interruptor **Usar el audio de esta compu para tordo**, visible solo desde localhost. Activarlo es el clic que habilita el audio del navegador. Se recuerda en `localStorage`; tras recargar, la pestaña ofrece **Reactivar audio** (un clic, por la regla de autoplay).
+- Ajustes → Reproducción: interruptor **Usar el audio de esta compu para tordo**, visible solo desde localhost. Activarlo es el clic que habilita el audio del navegador. Se recuerda en `sessionStorage` (por pestaña: sobrevive a recargar, y otra pestaña no lo toma sola); tras recargar, la pestaña ofrece **Reactivar audio** (un clic, por la regla de autoplay).
 - Mientras está activo, la barra muestra **🔊 Audio de esta compu**. La pestaña se sigue usando normalmente; las órdenes de los teléfonos actúan sobre la misma cola.
 - Un solo parlante a la vez: si otra pestaña de localhost lo activa, la anterior deja de serlo y avisa *Otro navegador tomó el audio de esta compu*.
 
