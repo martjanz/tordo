@@ -8,7 +8,7 @@
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { mine } from '../lib/mine.svelte.js'
-  import { playStation } from '../lib/playback.svelte.js'
+  import { can, playStation } from '../lib/playback.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
   import { FAVORITE_TRACKS, LIBRARY, LIKED, PREFERRED_ALBUMS, rowTitle, station } from '../lib/stations.js'
 
@@ -85,7 +85,7 @@
       <div class="strip">
         {#each stations as st (st.id ?? st.name)}
           <div class="cell">
-            <TarjetaEstacion station={st} onplay={playStation} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
+            <TarjetaEstacion station={st} onplay={can('playStation') ? playStation : null} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
           </div>
         {/each}
       </div>

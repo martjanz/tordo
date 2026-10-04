@@ -13,7 +13,7 @@ export const KEEP_PLAYED = 10 // entries already played that the phones see
 export const KEEP_NEXT = 100 // entries to come that the phones see
 
 export function allowed(role, command) {
-  const need = ROLES[command]
+  const need = Object.hasOwn(ROLES, command) ? ROLES[command] : null
   return !!need && (need === 'guest' || role === 'host')
 }
 
@@ -36,7 +36,7 @@ function cleanWhat(w) {
 }
 
 export function cleanArgs(command, args) {
-  if (!(command in ROLES)) return null
+  if (!Object.hasOwn(ROLES, command)) return null
   const a = isObj(args) ? args : {}
   switch (command) {
     case 'play': {

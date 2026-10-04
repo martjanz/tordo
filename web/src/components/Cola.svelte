@@ -23,8 +23,9 @@
   const rows = new RowDrag({ rows: () => [...list.children], onmove: (from, to) => moveTo(next[from].pos, next[to].pos) })
 
   // When the track changes the rows shift under a drag: drop it.
+  const nowKey = $derived(now?.key)
   $effect(() => {
-    now?.key
+    nowKey
     rows.cancel()
   })
 

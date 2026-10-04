@@ -583,6 +583,13 @@ function positionState() {
   }
 }
 
+// setMediaKeys turns the lock-screen and headphone keys on or off (off while
+// the Rockola is on: this player is paused and must not answer them).
+let mediaKeys = true
+export function setMediaKeys(on) {
+  mediaKeys = on
+}
+
 if ('mediaSession' in navigator) {
   const handlers = {
     play: () => player.playing || toggle(),
@@ -593,7 +600,7 @@ if ('mediaSession' in navigator) {
   }
   for (const [action, fn] of Object.entries(handlers)) {
     try {
-      navigator.mediaSession.setActionHandler(action, fn)
+      navigator.mediaSession.setActionHandler(action, (d) => mediaKeys && fn(d))
     } catch {
       // An action this browser does not support.
     }

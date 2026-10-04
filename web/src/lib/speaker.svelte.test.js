@@ -20,9 +20,12 @@ vi.mock('./player.svelte.js', () => ({
   next: vi.fn(),
 }))
 
+vi.mock('./rockola.svelte.js', () => ({ rockola: { on: false }, setRockola: vi.fn() }))
+
 import { api } from './api.js'
 import { notify } from './app.svelte.js'
 import * as P from './player.svelte.js'
+import { rockola, setRockola } from './rockola.svelte.js'
 import { disableSpeaker, enableSpeaker, resumeSpeaker, speaker } from './speaker.svelte.js'
 
 class FakeSource {
@@ -87,6 +90,19 @@ describe('enableSpeaker', () => {
     last().emit('hello', { token: 't1' })
     expect(speaker.connected).toBe(true)
     expect(api.jukeboxState).toHaveBeenCalledWith('t1', expect.objectContaining({ playing: false }))
+  })
+})
+
+describe('Rockola mode', () => {
+  it('turns the own Rockola off before this tab becomes the speaker', () => {
+    rockola.on = true
+    enableSpeaker(connect)
+    expect(setRockola).toHaveBeenCalledWith(false)
+    rockola.on = false
+    disableSpeaker()
+    vi.clearAllMocks()
+    enableSpeaker(connect)
+    expect(setRockola).not.toHaveBeenCalled()
   })
 })
 

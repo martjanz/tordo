@@ -34,10 +34,16 @@ export function setRockola(on, connect = (u) => new EventSource(u)) {
   if (!on) {
     close()
     Object.assign(rockola, initial())
+    P.setMediaKeys(true)
     return
   }
   if (rockola.on) return
   if (P.player.playing) P.toggle()
+  P.setMediaKeys(false)
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = null
+    navigator.mediaSession.playbackState = 'none'
+  }
   rockola.on = true
   const src = connect('/api/jukebox/events')
   source = src

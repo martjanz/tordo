@@ -99,6 +99,7 @@
   <div class="bar idle">
     <div class="text">
       <span class="rockola-tag">Rockola · en la compu</span>
+      {#if p.blocked}<span class="blocked">La compu necesita un clic para sonar</span>{/if}
       <span class="artist">La cola de la compu está vacía.</span>
     </div>
     <div class="right">
@@ -116,6 +117,7 @@
       </button>
       <span class="text">
         {#if remote()}<span class="rockola-tag">Rockola · en la compu</span>{/if}
+        {#if remote() && p.blocked}<span class="blocked">La compu necesita un clic para sonar</span>{/if}
         {#if entry.albumId}
           <a class="title" href={albumHref(entry.albumId)}>{entry.title}</a>
         {:else}
@@ -238,6 +240,13 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .blocked {
+    font-size: 11px;
+    color: var(--warn);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

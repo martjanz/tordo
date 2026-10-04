@@ -6,7 +6,7 @@ vi.mock('./api.js', async (orig) => {
 })
 vi.mock('./app.svelte.js', () => ({ notify: vi.fn(), app: { status: { jukebox: { speaker: true } } } }))
 vi.mock('./auth.svelte.js', () => ({ checkAuth: vi.fn() }))
-vi.mock('./player.svelte.js', () => ({ player: { playing: false }, toggle: vi.fn() }))
+vi.mock('./player.svelte.js', () => ({ player: { playing: false }, toggle: vi.fn(), setMediaKeys: vi.fn() }))
 
 import { ApiError, api } from './api.js'
 import { notify } from './app.svelte.js'
@@ -60,6 +60,13 @@ describe('rockola', () => {
     expect(P.toggle).toHaveBeenCalled()
     expect(rockola.on).toBe(true)
     expect(last().url).toBe('/api/jukebox/events')
+  })
+
+  it('turns the media keys off on enter and on again on leave', () => {
+    setRockola(true, connect)
+    expect(P.setMediaKeys).toHaveBeenLastCalledWith(false)
+    setRockola(false)
+    expect(P.setMediaKeys).toHaveBeenLastCalledWith(true)
   })
 
   it('does not toggle a paused player', () => {

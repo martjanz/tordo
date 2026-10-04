@@ -5,6 +5,7 @@ import { api } from './api.js'
 import { notify } from './app.svelte.js'
 import { run, snapshot } from './jukebox.js'
 import * as P from './player.svelte.js'
+import { rockola, setRockola } from './rockola.svelte.js'
 import { current } from './queue.js'
 
 // Remembered per tab (sessionStorage): it survives a reload of this tab, and a
@@ -122,6 +123,7 @@ function stop() {
 
 // enableSpeaker is the switch turned on (a click: the browser allows audio).
 export function enableSpeaker(connect = (u) => new EventSource(u)) {
+  if (rockola.on) setRockola(false)
   remember(true)
   start(connect)
 }
@@ -135,6 +137,7 @@ export function disableSpeaker() {
 // a gesture yet, so the player starts blocked until "Reactivar audio".
 export function resumeSpeaker(connect = (u) => new EventSource(u)) {
   if (!remembered()) return
+  if (rockola.on) setRockola(false)
   P.player.blocked = true
   start(connect)
 }

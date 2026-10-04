@@ -14,9 +14,13 @@
 </script>
 
 <div class="card">
-  <button class="pic" onclick={() => onplay(full)} aria-label="Reproducir la estación {station.name}">
-    <Icono name="radio" size={40} />
-  </button>
+  {#if onplay}
+    <button class="pic" onclick={() => onplay(full)} aria-label="Reproducir la estación {station.name}">
+      <Icono name="radio" size={40} />
+    </button>
+  {:else}
+    <span class="pic"><Icono name="radio" size={40} /></span>
+  {/if}
   <span class="title">{station.name}</span>
   <span class="sub">{summary(full)}</span>
   {#if ondelete}

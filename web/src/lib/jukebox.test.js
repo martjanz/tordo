@@ -11,6 +11,11 @@ const GO_COMMANDS = [
 const GUEST = ['enqueue', 'toggle', 'removeAt']
 
 describe('ROLES / allowed', () => {
+  it('ignores names inherited from the prototype', () => {
+    expect(allowed('host', 'toString')).toBe(false)
+    expect(cleanArgs('toString', {})).toBeNull()
+  })
+
   it('has the same keys as the Go table', () => {
     expect(Object.keys(ROLES).sort()).toEqual([...GO_COMMANDS].sort())
     for (const c of GUEST) expect(ROLES[c]).toBe('guest')
