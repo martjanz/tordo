@@ -41,7 +41,8 @@ func OpenMemory() (*Store, error) {
 // rebuilds them. Version 3 (M3b) only added not_collections. The other
 // tables are only ever added to. Version 4 (M4a) added the user's tables
 // (marks, plays, playlists) and loudness. Version 5 (M4b) added saved stations. Version 6 (M5) added the LAN sessions.
-const schemaVersion = 6
+// Version 7 (M6) added sessions.host (the Rockola's anfitriones).
+const schemaVersion = 7
 
 // derivedVersion is the last version that changed the derived tables.
 const derivedVersion = 2
@@ -76,6 +77,11 @@ func migrate(db *sql.DB) error {
 	if v < derivedVersion {
 		if _, err := db.Exec(`DROP TABLE IF EXISTS tracks; DROP TABLE IF EXISTS album_genres;
 			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders`); err != nil {
+			return err
+		}
+	}
+	if v == 6 {
+		if _, err := db.Exec(`ALTER TABLE sessions ADD COLUMN host INTEGER NOT NULL DEFAULT 0`); err != nil {
 			return err
 		}
 	}

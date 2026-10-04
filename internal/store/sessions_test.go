@@ -131,3 +131,71 @@ func TestSessionWritesAreSide(t *testing.T) {
 		t.Fatalf("changes %d -> %d, personal %d -> %d", changes, after, personal, s.PersonalVersion())
 	}
 }
+
+func TestSessionHost(t *testing.T) {
+	s := open(t)
+	id, err := s.CreateSession("hash-host", "Teléfono")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// New session has Host == false in SessionByToken
+	se, ok, err := s.SessionByToken("hash-host")
+	if err != nil || !ok || se.Host != false {
+		t.Fatalf("SessionByToken: %+v %v %v", se, ok, err)
+	}
+
+	// New session has Host == false in Sessions
+	list, err := s.Sessions()
+	if err != nil || len(list) != 1 || list[0].Host != false {
+		t.Fatalf("Sessions: %+v %v", list, err)
+	}
+
+	// SetSessionHost(id, true) returns (true, nil)
+	found, err := s.SetSessionHost(id, true)
+	if !found || err != nil {
+		t.Fatalf("SetSessionHost(true): %v %v", found, err)
+	}
+
+	// Both reads show Host == true
+	se, ok, err = s.SessionByToken("hash-host")
+	if err != nil || !ok || se.Host != true {
+		t.Fatalf("SessionByToken after set true: %+v %v %v", se, ok, err)
+	}
+	list, err = s.Sessions()
+	if err != nil || len(list) != 1 || list[0].Host != true {
+		t.Fatalf("Sessions after set true: %+v %v", list, err)
+	}
+
+	// SetSessionHost(id, false) turns it back
+	found, err = s.SetSessionHost(id, false)
+	if !found || err != nil {
+		t.Fatalf("SetSessionHost(false): %v %v", found, err)
+	}
+	se, ok, err = s.SessionByToken("hash-host")
+	if err != nil || !ok || se.Host != false {
+		t.Fatalf("SessionByToken after set false: %+v %v %v", se, ok, err)
+	}
+
+	// Unknown id returns (false, nil)
+	found, err = s.SetSessionHost(999, true)
+	if found || err != nil {
+		t.Fatalf("SetSessionHost unknown id: %v %v", found, err)
+	}
+
+	// Changes() and PersonalVersion() do not move
+	s2 := sample(t)
+	changes, _ := s2.Changes()
+	personal := s2.PersonalVersion()
+	id2, err := s2.CreateSession("h2", "Teléfono")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s2.SetSessionHost(id2, true); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := s2.Changes()
+	if after != changes || s2.PersonalVersion() != personal {
+		t.Fatalf("changes %d -> %d, personal %d -> %d", changes, after, personal, s2.PersonalVersion())
+	}
+}

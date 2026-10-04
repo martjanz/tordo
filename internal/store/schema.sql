@@ -229,5 +229,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 	token_hash TEXT NOT NULL UNIQUE,
 	device     TEXT NOT NULL,
 	created_at INTEGER NOT NULL,
-	last_seen  INTEGER NOT NULL
+	last_seen  INTEGER NOT NULL,
+	host       INTEGER NOT NULL DEFAULT 0 -- 1: anfitrión of the Rockola
 );

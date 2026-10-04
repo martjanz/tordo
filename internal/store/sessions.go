@@ -12,6 +12,7 @@ type Session struct {
 	Device    string `json:"device"`
 	CreatedAt int64  `json:"createdAt"` // unix ms
 	LastSeen  int64  `json:"lastSeen"`  // unix ms
+	Host      bool   `json:"host"`      // anfitrión of the Rockola
 }
 
 const (
@@ -47,8 +48,8 @@ func (s *Store) CreateSession(tokenHash, device string) (int64, error) {
 // SessionByToken finds the session of a cookie's token hash.
 func (s *Store) SessionByToken(tokenHash string) (Session, bool, error) {
 	var se Session
-	err := s.db.QueryRow(`SELECT id, device, created_at, last_seen FROM sessions WHERE token_hash = ?`, tokenHash).
-		Scan(&se.ID, &se.Device, &se.CreatedAt, &se.LastSeen)
+	err := s.db.QueryRow(`SELECT id, device, created_at, last_seen, host FROM sessions WHERE token_hash = ?`, tokenHash).
+		Scan(&se.ID, &se.Device, &se.CreatedAt, &se.LastSeen, &se.Host)
 	if err == sql.ErrNoRows {
 		return se, false, nil
 	}
@@ -68,14 +69,14 @@ func (s *Store) TouchSession(id int64) error {
 
 // Sessions lists the signed-in devices, most recently seen first.
 func (s *Store) Sessions() ([]Session, error) {
-	rows, err := s.db.Query(`SELECT id, device, created_at, last_seen FROM sessions ORDER BY last_seen DESC, id DESC`)
+	rows, err := s.db.Query(`SELECT id, device, created_at, last_seen, host FROM sessions ORDER BY last_seen DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
 	out := []Session{}
 	for rows.Next() {
 		var se Session
-		if err := rows.Scan(&se.ID, &se.Device, &se.CreatedAt, &se.LastSeen); err != nil {
+		if err := rows.Scan(&se.ID, &se.Device, &se.CreatedAt, &se.LastSeen, &se.Host); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -105,6 +106,22 @@ func (s *Store) DeleteSessions() error {
 		_, err := tx.Exec(`DELETE FROM sessions`)
 		return err
 	})
+}
+
+// SetSessionHost marks a session as anfitrión of the Rockola, or not; false
+// when it does not exist.
+func (s *Store) SetSessionHost(id int64, host bool) (bool, error) {
+	found := false
+	err := s.sideWrite(false, func(tx *sql.Tx) error {
+		res, err := tx.Exec(`UPDATE sessions SET host = ? WHERE id = ?`, host, id)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		found = n > 0
+		return err
+	})
+	return found && err == nil, err
 }
 
 // PruneSessions deletes the sessions last seen before the given time and

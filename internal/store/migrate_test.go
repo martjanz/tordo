@@ -91,7 +91,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 	var version, albums int
 	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
 	s.db.QueryRow(`SELECT COUNT(*) FROM albums WHERE key = 'k2'`).Scan(&albums)
-	if version != 6 || albums != 1 {
+	if version != 7 || albums != 1 {
 		t.Fatalf("version %d, kept albums %d", version, albums)
 	}
 	for _, name := range []string{"marks", "plays", "playlists", "playlist_items", "loudness", "stations", "sessions"} {
@@ -119,5 +119,55 @@ func TestSelectionIsStored(t *testing.T) {
 	var sel bool
 	if err := s.db.QueryRow(`SELECT selection FROM albums WHERE key = 'k'`).Scan(&sel); err != nil || !sel {
 		t.Fatalf("selection = %v, err %v", sel, err)
+	}
+}
+
+func TestOpenMigratesV6Sessions(t *testing.T) {
+	// Build a v6 catalog
+	file := filepath.Join(t.TempDir(), "tordo.db")
+	db, err := sql.Open("sqlite", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE sessions (
+		id         INTEGER PRIMARY KEY,
+		token_hash TEXT NOT NULL UNIQUE,
+		device     TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		last_seen  INTEGER NOT NULL
+	);
+	INSERT INTO sessions (id, token_hash, device, created_at, last_seen) VALUES (1, 'hash-old', 'Viejo', 1000, 2000);
+	PRAGMA user_version = 6`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	// Reopen -> user_version 7
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 7 {
+		t.Fatalf("version = %d, want 7, err %v", version, err)
+	}
+
+	// Old row reads with Host == false
+	se, ok, err := s.SessionByToken("hash-old")
+	if err != nil || !ok || se.Host != false || se.Device != "Viejo" {
+		t.Fatalf("SessionByToken: %+v %v %v", se, ok, err)
+	}
+
+	// SetSessionHost works on it
+	found, err := s.SetSessionHost(se.ID, true)
+	if !found || err != nil {
+		t.Fatalf("SetSessionHost: %v %v", found, err)
+	}
+	se, ok, err = s.SessionByToken("hash-old")
+	if err != nil || !ok || se.Host != true {
+		t.Fatalf("SessionByToken after set: %+v %v %v", se, ok, err)
 	}
 }
