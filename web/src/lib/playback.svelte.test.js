@@ -119,3 +119,13 @@ describe('playback, Rockola', () => {
     expect(B.can('removeAt', { addedBy: 4 })).toBe(true)
   })
 })
+
+describe('shown', () => {
+  it('is an empty view while Rockola is on and nothing was published', () => {
+    rockola.on = true
+    const v = B.shown()
+    expect(v.queue.pos).toBe(-1)
+    expect(v.queue.list).toEqual([])
+    expect(v.playing).toBe(false)
+  })
+})

@@ -2,12 +2,19 @@
 // commands to the computer. Components never import the player directly.
 import { allowed } from './jukebox.js'
 import * as P from './player.svelte.js'
+import * as Q from './queue.js'
 import { rockola, send } from './rockola.svelte.js'
 
 export { player } from './player.svelte.js'
 
+// Until the computer publishes its first state, Rockola shows an empty view.
+const EMPTY_VIEW = {
+  queue: { ...Q.empty(), upcoming: 0 },
+  time: 0, duration: 0, playing: false, seekable: false, volume: 1, muted: false, blocked: false,
+}
+
 // shown is what the bar displays: the computer's state in Rockola mode.
-export const shown = () => (rockola.on ? rockola.view : P.player)
+export const shown = () => (rockola.on ? (rockola.view ?? EMPTY_VIEW) : P.player)
 export const remote = () => rockola.on
 
 // can says whether the current role may run a command (an entry is only
