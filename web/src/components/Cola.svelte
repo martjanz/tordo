@@ -2,7 +2,7 @@
   import { itemCoverURL } from '../lib/api.js'
   import { count, duration } from '../lib/format.js'
   import { RowDrag } from '../lib/drag.svelte.js'
-  import { clearUpcoming, jumpTo, moveTo, player, removeAt, stopStation } from '../lib/playback.svelte.js'
+  import { can, clearUpcoming, jumpTo, moveTo, removeAt, shown, stopStation } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
   import { summary } from '../lib/stations.js'
   import EstacionAjustes from './EstacionAjustes.svelte'
@@ -12,10 +12,11 @@
   let { onclose } = $props()
 
   let adjusting = $state(false)
-  const station = $derived(player.queue.station)
+  const p = $derived(shown())
+  const station = $derived(p.queue.station)
   const SHOWN = 200 // rows drawn; the rest are summed up
-  const now = $derived(Q.current(player.queue))
-  const next = $derived(Q.upcoming(player.queue))
+  const now = $derived(Q.current(p.queue))
+  const next = $derived(Q.upcoming(p.queue))
 
   // Upcoming rows reorder by dragging their handle or with Alt+arrows.
   let list = $state()
@@ -39,7 +40,7 @@
 <aside class="cola" aria-label="Cola">
   <header>
     <h3>Cola</h3>
-    {#if next.length > 0}
+    {#if next.length > 0 && can('clearUpcoming')}
       <button onclick={clearUpcoming}>Vaciar</button>
     {/if}
     <button class="icon" onclick={onclose} title="Cerrar" aria-label="Cerrar"><Icono name="close" /></button>
@@ -50,10 +51,12 @@
         <p class="name"><Icono name="radio" size={16} /> <b>Estación · {station.name}</b></p>
         <p class="rules">{summary(station)}</p>
         <div class="stbuttons">
-          <button onclick={(e) => (e.stopPropagation(), (adjusting = !adjusting))} aria-expanded={adjusting}>Ajustar</button>
-          <button onclick={stopStation}>Detener</button>
+          {#if can('setStation')}
+            <button onclick={(e) => (e.stopPropagation(), (adjusting = !adjusting))} aria-expanded={adjusting}>Ajustar</button>
+          {/if}
+          {#if can('stopStation')}<button onclick={stopStation}>Detener</button>{/if}
         </div>
-        {#if adjusting}<EstacionAjustes {station} onclose={() => (adjusting = false)} />{/if}
+        {#if adjusting && can('setStation')}<EstacionAjustes {station} onclose={() => (adjusting = false)} />{/if}
       </section>
     {/if}
     {#if now}
@@ -70,22 +73,34 @@
       {#each next.slice(0, SHOWN) as u, i (u.entry.key)}
         <div class="row" class:dragging={rows.drag?.from === i} data-key={u.entry.key}
           style:transform={rows.transform(i)} style:transition={rows.transition(i)}>
-          <button class="icon grip" aria-label="Mover {u.entry.title} (Alt + flechas)" title="Arrastrar para reordenar"
-            onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
-            onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
-          <button class="play" onclick={() => jumpTo(u.pos)}>
-            <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
-            <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
-            <span class="time">{duration(u.entry.durationMs)}</span>
-          </button>
-          <button class="icon" onclick={() => removeAt(u.pos)} title="Quitar de la cola" aria-label="Quitar de la cola">
-            <Icono name="close" size={16} />
-          </button>
+          {#if can('moveTo')}
+            <button class="icon grip" aria-label="Mover {u.entry.title} (Alt + flechas)" title="Arrastrar para reordenar"
+              onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
+              onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
+          {/if}
+          {#if can('jumpTo')}
+            <button class="play" onclick={() => jumpTo(u.pos)}>
+              <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+              <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+              <span class="time">{duration(u.entry.durationMs)}</span>
+            </button>
+          {:else}
+            <div class="play">
+              <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+              <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+              <span class="time">{duration(u.entry.durationMs)}</span>
+            </div>
+          {/if}
+          {#if can('removeAt', u.entry)}
+            <button class="icon" onclick={() => removeAt(u.pos)} title="Quitar de la cola" aria-label="Quitar de la cola">
+              <Icono name="close" size={16} />
+            </button>
+          {/if}
         </div>
       {/each}
       </div>
-      {#if next.length > SHOWN}
-        <p class="more">y {count(next.length - SHOWN, 'pista más', 'pistas más')}</p>
+      {#if (p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN) > 0}
+        <p class="more">y {count((p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN), 'pista más', 'pistas más')}</p>
       {/if}
     {:else}
       <p class="empty">No hay nada más en la cola.</p>
@@ -195,7 +210,7 @@
     margin-left: var(--grip-w);
     padding-right: 48px;
   }
-  .row .play:hover {
+  .row button.play:hover {
     background: var(--surface-2);
   }
   .pic {

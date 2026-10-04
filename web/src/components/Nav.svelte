@@ -1,6 +1,7 @@
 <script>
   import { listenMode } from '../lib/app.svelte.js'
   import { player } from '../lib/playback.svelte.js'
+  import { rockola, rockolaAvailable, setRockola } from '../lib/rockola.svelte.js'
   import { reactivate, speaker } from '../lib/speaker.svelte.js'
   import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'
@@ -52,6 +53,10 @@
         {:else}
           <a class="chip" href="/ajustes">🔊 Audio de esta compu</a>
         {/if}
+      {/if}
+      {#if !speaker.on && (rockolaAvailable() || rockola.on)}
+        <button class="chip toggle" class:on={rockola.on} type="button" aria-pressed={rockola.on}
+          title="Elegí qué suena en la compu" onclick={() => setRockola(!rockola.on)}>🎵 Rockola</button>
       {/if}
       <Estado />
       <a class="gear help" href="/ayuda" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
@@ -146,6 +151,10 @@
     padding: 2px 8px;
     white-space: nowrap;
     cursor: pointer;
+  }
+  .chip.toggle.on {
+    background: var(--accent);
+    color: var(--bg);
   }
   .gear {
     display: inline-flex;

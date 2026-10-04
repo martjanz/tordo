@@ -4,10 +4,12 @@
   import { itemCoverURL } from '../lib/api.js'
   import { duration } from '../lib/format.js'
   import {
+    can,
     cycleRepeat,
     next,
-    player,
     prev,
+    remote,
+    shown,
     seek,
     setVolume,
     toggle,
@@ -23,8 +25,11 @@
   import MeGusta from './MeGusta.svelte'
   import Tapa from './Tapa.svelte'
 
-  const entry = $derived(Q.current(player.queue))
-  const pct = $derived(player.duration > 0 ? Math.min(100, (player.time / player.duration) * 100) : 0)
+  const p = $derived(shown())
+  const entry = $derived(Q.current(p.queue))
+  const pct = $derived(p.duration > 0 ? Math.min(100, (p.time / p.duration) * 100) : 0)
+  // In Rockola mode a slider sends once, when released, not on every move.
+  const live = (fn) => (e) => fn(Number(e.currentTarget.value))
   const repeatTitle = { off: 'Repetir: no', all: 'Repetir: toda la cola', one: 'Repetir: esta pista' }
 
   let sheet = $state(false) // the full player, on phones
@@ -45,19 +50,27 @@
 
 {#snippet controls(big)}
   <div class="controls" class:big>
-    <button class="icon" class:on={player.queue.shuffle} onclick={toggleShuffle} title="Aleatorio" aria-label="Aleatorio"
-      aria-pressed={player.queue.shuffle}><Icono name="shuffle" size={big ? 22 : 18} /></button>
-    <button class="icon" onclick={prev} title="Anterior" aria-label="Anterior"><Icono name="prev" size={big ? 28 : 20} /></button>
-    <button class="icon playpause" onclick={toggle} title={player.playing ? 'Pausa' : 'Reproducir'}
-      aria-label={player.playing ? 'Pausa' : 'Reproducir'} disabled={!entry}>
-      <Icono name={player.playing ? 'pause' : 'play'} size={big ? 30 : 20} />
+    {#if can('toggleShuffle')}
+      <button class="icon" class:on={p.queue.shuffle} onclick={toggleShuffle} title="Aleatorio" aria-label="Aleatorio"
+        aria-pressed={p.queue.shuffle}><Icono name="shuffle" size={big ? 22 : 18} /></button>
+    {/if}
+    {#if can('prev')}
+      <button class="icon" onclick={prev} title="Anterior" aria-label="Anterior"><Icono name="prev" size={big ? 28 : 20} /></button>
+    {/if}
+    <button class="icon playpause" onclick={toggle} title={p.playing ? 'Pausa' : 'Reproducir'}
+      aria-label={p.playing ? 'Pausa' : 'Reproducir'} disabled={!entry}>
+      <Icono name={p.playing ? 'pause' : 'play'} size={big ? 30 : 20} />
     </button>
-    <button class="icon" onclick={next} title="Siguiente" aria-label="Siguiente"><Icono name="next" size={big ? 28 : 20} /></button>
-    <button class="icon" class:on={player.queue.repeat !== 'off'} onclick={cycleRepeat} title={repeatTitle[player.queue.repeat]}
-      aria-label={repeatTitle[player.queue.repeat]}>
-      <Icono name="repeat" size={big ? 22 : 18} />
-      {#if player.queue.repeat === 'one'}<span class="one">1</span>{/if}
-    </button>
+    {#if can('next')}
+      <button class="icon" onclick={next} title="Siguiente" aria-label="Siguiente"><Icono name="next" size={big ? 28 : 20} /></button>
+    {/if}
+    {#if can('cycleRepeat')}
+      <button class="icon" class:on={p.queue.repeat !== 'off'} onclick={cycleRepeat} title={repeatTitle[p.queue.repeat]}
+        aria-label={repeatTitle[p.queue.repeat]}>
+        <Icono name="repeat" size={big ? 22 : 18} />
+        {#if p.queue.repeat === 'one'}<span class="one">1</span>{/if}
+      </button>
+    {/if}
   </div>
 {/snippet}
 
@@ -73,16 +86,28 @@
 
 {#snippet progress()}
   <div class="progress">
-    <span class="time">{duration(player.time * 1000)}</span>
-    <input type="range" min="0" max={player.duration || 0} step="1" value={player.time} disabled={!player.seekable || !entry}
-      oninput={(e) => seek(Number(e.currentTarget.value))} aria-label="Posición"
-      title={player.seekable ? '' : 'Este formato se convierte al vuelo: no se puede adelantar'}
+    <span class="time">{duration(p.time * 1000)}</span>
+    <input type="range" min="0" max={p.duration || 0} step="1" value={p.time} disabled={!p.seekable || !entry || !can('seek')}
+      oninput={remote() ? undefined : live(seek)} onchange={remote() ? live(seek) : undefined} aria-label="Posición"
+      title={p.seekable ? '' : 'Este formato se convierte al vuelo: no se puede adelantar'}
       style="--pct: {pct}%" />
-    <span class="time">{duration(player.duration * 1000)}</span>
+    <span class="time">{duration(p.duration * 1000)}</span>
   </div>
 {/snippet}
 
-{#if entry}
+{#if !entry && remote()}
+  <div class="bar idle">
+    <div class="text">
+      <span class="rockola-tag">Rockola · en la compu</span>
+      <span class="artist">La cola de la compu está vacía.</span>
+    </div>
+    <div class="right">
+      <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title="Cola" aria-label="Cola">
+        <Icono name="queue" />
+      </button>
+    </div>
+  </div>
+{:else if entry}
   <div class="bar">
     <div class="line" style="width: {pct}%"></div>
     <div class="now">
@@ -90,6 +115,7 @@
         <span class="pic"><Tapa srcs={[itemCoverURL(entry, 160)]} /></span>
       </button>
       <span class="text">
+        {#if remote()}<span class="rockola-tag">Rockola · en la compu</span>{/if}
         {#if entry.albumId}
           <a class="title" href={albumHref(entry.albumId)}>{entry.title}</a>
         {:else}
@@ -106,20 +132,24 @@
       {@render progress()}
     </div>
     <div class="right">
-      <button class="icon" onclick={toggleMute} title={player.muted ? 'Activar sonido' : 'Silenciar'}
-        aria-label={player.muted ? 'Activar sonido' : 'Silenciar'}><Icono name={player.muted ? 'mute' : 'volume'} /></button>
-      <input class="volume" type="range" min="0" max="1" step="0.01" value={player.muted ? 0 : player.volume}
-        oninput={(e) => setVolume(Number(e.currentTarget.value))} aria-label="Volumen"
-        style="--pct: {(player.muted ? 0 : player.volume) * 100}%" />
+      {#if can('setVolume')}
+        <button class="icon" onclick={toggleMute} title={p.muted ? 'Activar sonido' : 'Silenciar'}
+          aria-label={p.muted ? 'Activar sonido' : 'Silenciar'}><Icono name={p.muted ? 'mute' : 'volume'} /></button>
+        <input class="volume" type="range" min="0" max="1" step="0.01" value={p.muted ? 0 : p.volume}
+          oninput={remote() ? undefined : live(setVolume)} onchange={remote() ? live(setVolume) : undefined} aria-label="Volumen"
+          style="--pct: {(p.muted ? 0 : p.volume) * 100}%" />
+      {/if}
       <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title="Cola" aria-label="Cola">
         <Icono name="queue" />
       </button>
     </div>
     <div class="mini">
-      <button class="icon" onclick={toggle} aria-label={player.playing ? 'Pausa' : 'Reproducir'}>
-        <Icono name={player.playing ? 'pause' : 'play'} size={22} />
+      <button class="icon" onclick={toggle} aria-label={p.playing ? 'Pausa' : 'Reproducir'}>
+        <Icono name={p.playing ? 'pause' : 'play'} size={22} />
       </button>
-      <button class="icon" onclick={next} aria-label="Siguiente"><Icono name="next" size={22} /></button>
+      {#if can('next')}
+        <button class="icon" onclick={next} aria-label="Siguiente"><Icono name="next" size={22} /></button>
+      {/if}
     </div>
   </div>
 
@@ -127,7 +157,7 @@
     <div class="sheet" role="dialog" aria-label="Reproductor">
       <header>
         <button class="icon" onclick={() => (sheet = false)} aria-label="Cerrar"><Icono name="down" size={26} /></button>
-        <span class="label">Sonando</span>
+        <span class="label">{remote() ? 'Rockola · en la compu' : 'Sonando'}</span>
         <button class="icon" onclick={() => ((queueOpen = true), (sheet = false))} aria-label="Cola"><Icono name="queue" size={22} /></button>
       </header>
       <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
@@ -202,6 +232,15 @@
   .title {
     color: var(--strong);
     font-weight: 500;
+  }
+  .rockola-tag {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .idle {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
   .artist {
     font-size: 13px;
