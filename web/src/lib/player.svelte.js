@@ -51,6 +51,8 @@ export const player = $state({
   volume: Math.min(1, Math.max(0, Number(load(VOLUME_KEY, '1')) || 0)),
   muted: false,
   ffmpeg: true, // as the server last said
+  ended: false, // the queue ran out at the end of a track
+  blocked: false, // the browser refused to play without a user gesture
 })
 
 {
@@ -157,8 +159,14 @@ function release(a) {
   a.load()
 }
 
+// refused records that the browser blocked autoplay, for a failed play().
+function refused(e) {
+  if (e?.name === 'NotAllowedError') player.blocked = true
+}
+
 function onPlay() {
   player.playing = true
+  player.blocked = false
   setPlaybackState('playing')
 }
 
@@ -173,6 +181,7 @@ function onEnded() {
   const q = Q.next(player.queue, true)
   if (!q) {
     player.playing = false
+    player.ended = true
     player.time = 0
     if (player.queue.station) {
       // A station ran dry before its top-up arrived: ask again and go on.
@@ -197,9 +206,8 @@ function onEnded() {
     show(entry, active.dataset.seekable === '1')
     refreshGains()
     topUp()
-    // media errors arrive through the element's error event (mine); autoplay
-    // refusal is ignored here and will pause the element if the user retries.
-    active.play().catch(() => {})
+    // media errors arrive through the element's error event (mine).
+    active.play().catch(refused)
     return
   }
   start(entry, 0, true)
@@ -238,6 +246,7 @@ function show(entry, seekable) {
 // when play is true.
 function start(entry, at, play) {
   audios()
+  player.ended = false
   const src = source(entry)
   release(standby)
   active.src = src.url
@@ -249,7 +258,11 @@ function start(entry, at, play) {
   player.loading = play
   active.dataset.gain = String(factor(gainDb(player.queue, player.queue.pos)))
   applyVolume()
-  if (play) active.play().catch(() => (player.loading = false))
+  if (play)
+    active.play().catch((e) => {
+      player.loading = false
+      refused(e)
+    })
   refreshGains()
   topUp()
 }
@@ -299,17 +312,18 @@ async function topUp() {
 }
 
 // playStation starts a station: the queue is replaced with its first batch.
-export async function playStation(st) {
+// say shows the notices (a remote command routes them elsewhere).
+export async function playStation(st, { say = notify } = {}) {
   let res
   try {
     res = await api.stationNext(st, [])
   } catch (e) {
-    notify(e.message)
+    say(e.message)
     return
   }
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    notify('Esta estación no tiene nada para sonar.')
+    say('Esta estación no tiene nada para sonar.')
     return
   }
   // The server's cleaned station has no id: keep the saved station's.
@@ -374,47 +388,72 @@ function setQueue(q, play = true) {
 
 // play asks the server for what to play ({album}, {folder}, {tracks}) and
 // plays it: from the track with id startId, or shuffled.
-export async function play(what, { shuffle = false, startId = null } = {}) {
+export async function play(what, { shuffle = false, startId = null, say = notify } = {}) {
   let res
   try {
     res = await api.play(what) // the queue does the shuffling
   } catch (e) {
-    notify(e.message)
+    say(e.message)
     return
   }
   player.ffmpeg = res.ffmpeg
-  if (res.skipped > 0) notify(`${count(res.skipped, 'pista no se puede', 'pistas no se pueden')} reproducir: falta ffmpeg.`)
+  if (res.skipped > 0) say(`${count(res.skipped, 'pista no se puede', 'pistas no se pueden')} reproducir: falta ffmpeg.`)
   if (res.items.length === 0) {
-    if (res.skipped === 0) notify('No hay nada para reproducir acá.')
+    if (res.skipped === 0) say('No hay nada para reproducir acá.')
     return
   }
-  if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
+  if (res.truncated > 0) say(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
   const at = startId == null ? 0 : Math.max(0, res.items.findIndex((it) => it.id === startId))
   setQueue(Q.replace({ ...player.queue, shuffle, station: null }, res.items, shuffle ? Math.floor(Math.random() * res.items.length) : at))
 }
 
 // enqueue adds what to the end of the queue, or right after the current
-// track with next: true.
-export async function enqueue(what, { next = false } = {}) {
+// track with next: true. shuffle mixes the new entries among themselves;
+// addedBy marks them with who asked; startIfIdle starts them playing when
+// nothing is playing and the queue was empty or ran out.
+export async function enqueue(what, { next = false, shuffle = false, startIfIdle = false, addedBy = null, say = notify } = {}) {
   let res
   try {
     res = await api.play(what)
   } catch (e) {
-    notify(e.message)
+    say(e.message)
     return
   }
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    if (res.skipped === 0) notify('No hay nada para reproducir acá.')
+    if (res.skipped === 0) say('No hay nada para reproducir acá.')
     return
   }
+  let items = res.items
+  if (shuffle) items = Q.shuffled(items)
+  if (addedBy != null) items = items.map((it) => ({ ...it, addedBy }))
   const wasEmpty = !Q.current(player.queue)
-  player.queue = next ? Q.playNext(player.queue, res.items) : Q.append(player.queue, res.items)
+  const firstKey = player.queue.nextKey // the first new entry's key
+  player.queue = next ? Q.playNext(player.queue, items) : Q.append(player.queue, items)
   persist()
-  if (res.truncated > 0) notify(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
-  else notify(next ? 'Suena a continuación.' : `${count(res.items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
-  if (wasEmpty) start(Q.current(player.queue), 0, false)
+  if (res.truncated > 0) say(`Se agregaron las primeras ${count(items.length, 'pista', 'pistas')}.`)
+  else say(next ? 'Suena a continuación.' : `${count(items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
+  const idle = !player.playing && (wasEmpty || player.ended)
+  if (startIfIdle && idle) {
+    const pos = player.queue.order.indexOf(firstKey)
+    if (pos >= 0) setQueue({ ...player.queue, pos }, true)
+  } else if (wasEmpty) start(Q.current(player.queue), 0, false)
   else refreshGains()
+}
+
+// posOfKey returns the play-order position of the entry with that key, or -1.
+export function posOfKey(key) {
+  return player.queue.order.indexOf(key)
+}
+
+// entryOfKey returns the entry with that key, or null.
+export function entryOfKey(key) {
+  return player.queue.list.find((e) => e.key === key) ?? null
+}
+
+// unblock clears the autoplay refusal before a gesture-triggered play.
+export function unblock() {
+  player.blocked = false
 }
 
 if (player.queue.list.length > 0) refreshGains()
@@ -430,7 +469,7 @@ export function toggle() {
     start(entry, player.time, true)
     return
   }
-  if (active.paused) active.play().catch(() => {})
+  if (active.paused) active.play().catch(refused)
   else active.pause()
 }
 

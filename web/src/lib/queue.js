@@ -18,10 +18,10 @@ function entries(q, items) {
   return { out, nextKey: key }
 }
 
-// shuffled returns a copy of keys in random order (Fisher–Yates; rand
+// shuffled returns a copy of items in random order (Fisher–Yates; rand
 // returns [0, 1)).
-function shuffled(keys, rand) {
-  const a = [...keys]
+export function shuffled(items, rand = Math.random) {
+  const a = [...items]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1))
     ;[a[i], a[j]] = [a[j], a[i]]

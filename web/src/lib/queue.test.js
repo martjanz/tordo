@@ -212,3 +212,18 @@ describe('trimPlayed', () => {
     expect(Q.trimPlayed(q, 100)).toBe(q)
   })
 })
+
+describe('shuffled', () => {
+  it('returns a permutation and leaves the input untouched', () => {
+    const input = [1, 2, 3, 4]
+    const rands = [0.7, 0.2, 0.9]
+    let n = 0
+    const out = Q.shuffled(input, () => rands[n++ % rands.length])
+    expect(input).toEqual([1, 2, 3, 4])
+    expect([...out].sort()).toEqual([1, 2, 3, 4])
+    expect(out).not.toEqual(input)
+  })
+  it('of nothing is nothing', () => {
+    expect(Q.shuffled([])).toEqual([])
+  })
+})
