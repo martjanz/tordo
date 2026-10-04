@@ -45,11 +45,19 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, c *jukebox.Conn)
 	}
 	tick := time.NewTicker(s.heartbeat())
 	defer tick.Stop()
+	// A phone that vanishes from Wi-Fi leaves a half-open connection: bound every write.
+	deadline := func() bool {
+		err := rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		return err == nil || errors.Is(err, http.ErrNotSupported)
+	}
 	write := func(e jukebox.Event) bool {
 		data, err := json.Marshal(e.Data)
 		if err != nil {
 			log.Printf("rockola: %v", err)
 			return true
+		}
+		if !deadline() {
+			return false
 		}
 		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", e.Type, data); err != nil {
 			return false
@@ -76,6 +84,9 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, c *jukebox.Conn)
 				}
 			}
 		case <-tick.C:
+			if !deadline() {
+				return
+			}
 			if _, err := io.WriteString(w, ": ping\n\n"); err != nil || rc.Flush() != nil {
 				return
 			}

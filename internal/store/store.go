@@ -81,8 +81,15 @@ func migrate(db *sql.DB) error {
 		}
 	}
 	if v == 6 {
-		if _, err := db.Exec(`ALTER TABLE sessions ADD COLUMN host INTEGER NOT NULL DEFAULT 0`); err != nil {
+		// The ALTER and the version bump are not atomic: a previous run may have died in between.
+		var has int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'host'`).Scan(&has); err != nil {
 			return err
+		}
+		if has == 0 {
+			if _, err := db.Exec(`ALTER TABLE sessions ADD COLUMN host INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err := db.Exec(schema); err != nil {

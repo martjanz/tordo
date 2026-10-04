@@ -83,7 +83,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = Open(file, false) // v3 to v6 only adds tables
+	s, err = Open(file, false) // v3 to v7 only adds tables
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,5 +169,37 @@ func TestOpenMigratesV6Sessions(t *testing.T) {
 	se, ok, err = s.SessionByToken("hash-old")
 	if err != nil || !ok || se.Host != true {
 		t.Fatalf("SessionByToken after set: %+v %v %v", se, ok, err)
+	}
+}
+
+func TestOpenMigratesV6SessionsAlreadyHavingHost(t *testing.T) {
+	// A v6-numbered catalog whose ALTER already ran (the app died before the version bump)
+	file := filepath.Join(t.TempDir(), "tordo.db")
+	db, err := sql.Open("sqlite", file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE sessions (
+		id         INTEGER PRIMARY KEY,
+		token_hash TEXT NOT NULL UNIQUE,
+		device     TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		last_seen  INTEGER NOT NULL,
+		host       INTEGER NOT NULL DEFAULT 0
+	);
+	PRAGMA user_version = 6`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 7 {
+		t.Fatalf("version = %d, want 7, err %v", version, err)
 	}
 }
