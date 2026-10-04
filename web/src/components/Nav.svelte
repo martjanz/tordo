@@ -1,5 +1,7 @@
 <script>
   import { listenMode } from '../lib/app.svelte.js'
+  import { player } from '../lib/player.svelte.js'
+  import { reactivate, speaker } from '../lib/speaker.svelte.js'
   import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'
   import Icono from './Icono.svelte'
@@ -42,6 +44,15 @@
       <span class="spacer"></span>
       {#if listenMode()}<a class="modo" href="/ajustes" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
       <Busqueda />
+      {#if speaker.on}
+        {#if player.blocked}
+          <button class="chip" type="button" onclick={reactivate}>Reactivar audio</button>
+        {:else if !speaker.connected}
+          <a class="chip" href="/ajustes">🔊 Reconectando…</a>
+        {:else}
+          <a class="chip" href="/ajustes">🔊 Audio de esta compu</a>
+        {/if}
+      {/if}
       <Estado />
       <a class="gear help" href="/ayuda" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
       <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
@@ -122,6 +133,19 @@
     border-radius: 999px;
     padding: 2px 8px;
     white-space: nowrap;
+  }
+  .chip {
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: none;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+    cursor: pointer;
   }
   .gear {
     display: inline-flex;

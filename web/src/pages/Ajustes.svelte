@@ -1,5 +1,6 @@
 <script>
   import { untrack } from 'svelte'
+  import AudioDeEstaCompu from '../components/AudioDeEstaCompu.svelte'
   import Dispositivos from '../components/Dispositivos.svelte'
   import Raices from '../components/Raices.svelte'
   import RedLocal from '../components/RedLocal.svelte'
@@ -141,6 +142,7 @@
           <small>Empareja el volumen entre temas, solo bajando los más fuertes.</small>
         </span>
       </label>
+      {#if auth.local}<AudioDeEstaCompu />{/if}
     </section>
 
     <section>

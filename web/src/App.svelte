@@ -4,6 +4,7 @@
   import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { isHelpKey } from './lib/ayuda.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
+  import { resumeSpeaker } from './lib/speaker.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
@@ -48,6 +49,15 @@
     } else if (!ready && watching) {
       watching = false
       stopStatus()
+    }
+  })
+
+  // The computer's tab that was playing the Rockola goes back to it.
+  let resumed = false
+  $effect(() => {
+    if (ready && auth.local && !resumed) {
+      resumed = true
+      resumeSpeaker()
     }
   })
 
