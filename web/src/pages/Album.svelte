@@ -8,7 +8,7 @@
   import { albumCoverURL, api, releaseURL } from '../lib/api.js'
   import { app, listenMode } from '../lib/app.svelte.js'
   import { count, country, folderName, formatName, length, quality } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { albumStation } from '../lib/stations.js'
   import { genreLinks, identification } from '../lib/review.js'
   import { albumHref, artistHref, duplicatesHref, exploreHref, folderHref } from '../lib/router.js'

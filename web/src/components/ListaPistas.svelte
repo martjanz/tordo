@@ -4,7 +4,7 @@
   // a link to their page when there is one); the album with showAlbum.
   // Tracks the server cannot deliver (playable false) are dimmed.
   import { count, duration, quality } from '../lib/format.js'
-  import { enqueue } from '../lib/player.svelte.js'
+  import { enqueue } from '../lib/playback.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
   import { isLiked } from '../lib/marks.js'
   import { mine } from '../lib/mine.svelte.js'

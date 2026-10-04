@@ -7,7 +7,7 @@
   import { entries, playableIds } from '../lib/folders.js'
   import { duration, folderName, size } from '../lib/format.js'
   import { matchRows, shortPath } from '../lib/tree.js'
-  import { enqueue, play } from '../lib/player.svelte.js'
+  import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { MIN } from '../lib/search.js'
   import Icono from './Icono.svelte'

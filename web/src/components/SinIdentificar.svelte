@@ -5,7 +5,7 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { count, folderName } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { candidateLine, percent, searchURL, worthAccepting } from '../lib/review.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import Icono from './Icono.svelte'

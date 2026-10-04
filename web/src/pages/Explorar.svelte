@@ -11,7 +11,7 @@
   import { app, notify } from '../lib/app.svelte.js'
   import { parse, toSearch } from '../lib/facets.js'
   import { navigate, patchState, route, savedScroll } from '../lib/nav.svelte.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { exploreStation } from '../lib/stations.js'
 
   const PAGE = 120

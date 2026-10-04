@@ -6,7 +6,7 @@
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { count } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { folderHref } from '../lib/router.js'
   import { searchable, total } from '../lib/search.js'
 

@@ -2,7 +2,7 @@
   // "Estación": starts an endless station. A station without rules gets the
   // defaults; null disables the button (nothing to base a station on).
   import { DEFAULT_RULES, station as makeStation } from '../lib/stations.js'
-  import { playStation } from '../lib/player.svelte.js'
+  import { playStation } from '../lib/playback.svelte.js'
   import Icono from './Icono.svelte'
 
   let { station, label = 'Estación' } = $props()

@@ -8,7 +8,7 @@
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { mine } from '../lib/mine.svelte.js'
-  import { playStation } from '../lib/player.svelte.js'
+  import { playStation } from '../lib/playback.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
   import { FAVORITE_TRACKS, LIBRARY, LIKED, PREFERRED_ALBUMS, rowTitle, station } from '../lib/stations.js'
 

@@ -11,7 +11,7 @@
   import { RowDrag } from '../lib/drag.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { move } from '../lib/order.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
   import { playlistStation } from '../lib/stations.js'
 

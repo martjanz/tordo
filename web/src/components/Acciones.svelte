@@ -2,7 +2,7 @@
   // Play, shuffle and queue buttons for an album, folder or collection; with
   // a station prop (null when none fits) also its "Estación" button.
   import { app } from '../lib/app.svelte.js'
-  import { enqueue, play } from '../lib/player.svelte.js'
+  import { enqueue, play } from '../lib/playback.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'

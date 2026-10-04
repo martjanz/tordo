@@ -2,7 +2,7 @@
   import { itemCoverURL } from '../lib/api.js'
   import { count, duration } from '../lib/format.js'
   import { RowDrag } from '../lib/drag.svelte.js'
-  import { clearUpcoming, jumpTo, moveTo, player, removeAt, stopStation } from '../lib/player.svelte.js'
+  import { clearUpcoming, jumpTo, moveTo, player, removeAt, stopStation } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
   import { summary } from '../lib/stations.js'
   import EstacionAjustes from './EstacionAjustes.svelte'

@@ -5,7 +5,7 @@
   import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
   import { count, duration, length, size } from '../lib/format.js'
-  import { enqueue, play } from '../lib/player.svelte.js'
+  import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { folderStation } from '../lib/stations.js'
   import Acciones from './Acciones.svelte'

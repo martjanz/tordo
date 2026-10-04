@@ -13,7 +13,7 @@
   import { count } from '../lib/format.js'
   import { mine } from '../lib/mine.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { folderHref, listHref } from '../lib/router.js'
 
   // The albums with a picture: a folder image, an embedded or a cached one.

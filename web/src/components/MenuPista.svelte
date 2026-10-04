@@ -1,7 +1,7 @@
 <script>
   // A small menu for a track: queue actions and rating.
   import { app } from '../lib/app.svelte.js'
-  import { enqueue } from '../lib/player.svelte.js'
+  import { enqueue } from '../lib/playback.svelte.js'
   import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'
   import Puntaje from './Puntaje.svelte'

@@ -1,7 +1,7 @@
 <script>
   // An album card: cover, title, artist and year, with a play button.
   import { albumCoverURL } from '../lib/api.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { albumHref } from '../lib/router.js'
   import Icono from './Icono.svelte'
   import Tapa from './Tapa.svelte'

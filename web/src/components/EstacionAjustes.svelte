@@ -3,7 +3,7 @@
   // them to the queue and save it. Closes on Escape and outside click.
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { setStation } from '../lib/player.svelte.js'
+  import { setStation } from '../lib/playback.svelte.js'
 
   let { station, onclose } = $props()
 

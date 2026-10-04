@@ -1,6 +1,6 @@
 <script>
   import { listenMode } from '../lib/app.svelte.js'
-  import { player } from '../lib/player.svelte.js'
+  import { player } from '../lib/playback.svelte.js'
   import { reactivate, speaker } from '../lib/speaker.svelte.js'
   import Busqueda from './Busqueda.svelte'
   import Estado from './Estado.svelte'

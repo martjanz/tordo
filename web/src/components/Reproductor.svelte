@@ -13,7 +13,7 @@
     toggle,
     toggleMute,
     toggleShuffle,
-  } from '../lib/player.svelte.js'
+  } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
   import { app } from '../lib/app.svelte.js'
   import { albumHref } from '../lib/router.js'

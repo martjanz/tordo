@@ -6,7 +6,7 @@
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { count, country, duration } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { artistHref, exploreHref, statsHref } from '../lib/router.js'
 
   let { period } = $props()

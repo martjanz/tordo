@@ -9,7 +9,7 @@
   import { albumCoverURL, api, artistMBURL } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { count, country, years } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { albumHref, exploreHref } from '../lib/router.js'
   import { artistStation } from '../lib/stations.js'
 

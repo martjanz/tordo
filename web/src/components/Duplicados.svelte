@@ -5,7 +5,7 @@
   import { app } from '../lib/app.svelte.js'
   import { KINDS, fileQuality, groupLine } from '../lib/dupes.js'
   import { folderName, size } from '../lib/format.js'
-  import { play } from '../lib/player.svelte.js'
+  import { play } from '../lib/playback.svelte.js'
   import { albumHref, duplicatesHref, folderHref } from '../lib/router.js'
   import Icono from './Icono.svelte'
 
