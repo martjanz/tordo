@@ -19,6 +19,7 @@ import (
 	"tordo/internal/config"
 	"tordo/internal/covers"
 	"tordo/internal/engine"
+	"tordo/internal/jukebox"
 	"tordo/internal/loudness"
 	"tordo/internal/scan"
 	"tordo/internal/store"
@@ -64,6 +65,12 @@ type Server struct {
 	lan     lanListener
 	limiter auth.Limiter // one for every device: there is a single user
 	loginMu sync.Mutex   // logins one at a time, so parallel guesses cannot skip the limiter
+
+	// jukeboxOnce builds the Rockola's hub on first use; beat is the SSE
+	// heartbeat (0: 20 s; tests shorten it).
+	jukeboxOnce sync.Once
+	jukeboxHub  *jukebox.Hub
+	beat        time.Duration
 }
 
 // parts are the pieces config.json decides, read once per request.
@@ -128,6 +135,12 @@ func (s *Server) routeTable() []route {
 		{"POST /api/auth/logout", jsonOnly(s.logout)},
 		{"GET /api/sessions", settings(s.sessions)},
 		{"DELETE /api/sessions/{id}", settings(s.closeSession)},
+		{"PUT /api/sessions/{id}/host", settings(jsonOnly(s.setSessionHost))},
+		{"GET /api/jukebox/speaker", speakerOnly(s.jukeboxSpeaker)},
+		{"POST /api/jukebox/state", speakerOnly(jsonOnly(s.jukeboxState))},
+		{"POST /api/jukebox/notice", speakerOnly(jsonOnly(s.jukeboxNotice))},
+		{"GET /api/jukebox/events", s.jukeboxEvents},
+		{"POST /api/jukebox/command", jsonOnly(s.jukeboxCommand)},
 		{"GET /api/lan", settings(s.lanInfo)},
 		{"GET /api/lan/qr", settings(s.lanQR)},
 		{"GET /api/status", s.status},
@@ -305,6 +318,11 @@ func fail(w http.ResponseWriter, err error) {
 	http.Error(w, "error interno", http.StatusInternalServerError)
 }
 
+func (s *Server) jukebox() *jukebox.Hub {
+	s.jukeboxOnce.Do(func() { s.jukeboxHub = jukebox.New() })
+	return s.jukeboxHub
+}
+
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	p := s.parts()
 	var st scan.Status
@@ -325,7 +343,8 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		loud = s.Loudness.Status()
 	}
 	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
-		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts})
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts,
+		"jukebox": map[string]bool{"speaker": s.jukebox().Speaking()}})
 }
 
 // setupPending answers 409 while the first-use assistant has not saved: nothing

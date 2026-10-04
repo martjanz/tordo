@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 
 	"tordo/internal/auth"
 	"tordo/internal/config"
+	"tordo/internal/jukebox"
 	"tordo/internal/qr"
 	"tordo/internal/store"
 )
@@ -289,8 +291,33 @@ func (s *Server) LANHandler() http.Handler {
 			}
 			http.SetCookie(w, sessionCookieFor(c.Value))
 		}
-		mux.ServeHTTP(w, r)
+		mux.ServeHTTP(w, withSession(r, se))
 	})
+}
+
+type sessionKey struct{}
+
+// withSession carries the request's LAN session to the handlers.
+func withSession(r *http.Request, se store.Session) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), sessionKey{}, se))
+}
+
+// requestRole is who sends the request in the Rockola: the computer is
+// always anfitrión with session 0; a LAN device is anfitrión when its session
+// is marked so. ok is false when the request has neither (cannot happen
+// behind the gate).
+func requestRole(r *http.Request) (session int64, role jukebox.Role, ok bool) {
+	if localRequest(r) {
+		return 0, jukebox.Host, true
+	}
+	se, found := r.Context().Value(sessionKey{}).(store.Session)
+	if !found {
+		return 0, "", false
+	}
+	if se.Host {
+		return se.ID, jukebox.Host, true
+	}
+	return se.ID, jukebox.Guest, true
 }
 
 // requestSession is the session of the request's cookie, if it has a valid one.
@@ -395,6 +422,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 			fail(w, err)
 			return
 		}
+		s.jukebox().DropSession(se.ID)
 	}
 	http.SetCookie(w, clearCookie())
 	writeJSON(w, map[string]bool{"ok": true})
@@ -423,6 +451,7 @@ func (s *Server) closeSession(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s.jukebox().DropSession(id)
 	w.WriteHeader(http.StatusNoContent)
 }
 

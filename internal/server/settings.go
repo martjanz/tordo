@@ -243,6 +243,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 			if err := s.Store.DeleteSessions(); err != nil {
 				log.Printf("no se pudieron cerrar las sesiones: %v", err)
 			}
+			s.jukebox().DropRemoteSessions()
 		}
 		writeJSON(w, s.configView())
 	case errors.As(err, &verr):
