@@ -115,8 +115,8 @@ across reloads.
 an anfitrión. Other LAN devices are invitados by default, but can be marked as
 anfitriones in Ajustes → Red local → Dispositivos. Anfitriones have full control: ▶
 replaces the queue, skip, seek, volume, shuffle/repeat, reorder, clear, and stations.
-Invitados can only add: ▶ adds to the end of the queue and starts playback if nothing
-is playing; tapping a single song adds just that song; ⤮ adds the tracks shuffled;
+Invitados can only add: ▶ adds to the end of the queue and starts playback only when
+the queue is empty or finished; tapping a single song adds just that song; ⤮ adds the tracks shuffled;
 + cola and a continuación work as usual. Invitados can ⏯ and remove only the tracks
 they added. These limits are enforced by the server.
 
