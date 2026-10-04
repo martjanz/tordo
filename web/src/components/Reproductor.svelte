@@ -238,6 +238,9 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .idle {
     grid-template-columns: minmax(0, 1fr) auto;

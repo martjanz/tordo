@@ -45,11 +45,14 @@ class FakeSource {
 }
 
 const store = new Map()
-vi.stubGlobal('localStorage', {
-  getItem: (k) => store.get(k) ?? null,
-  setItem: (k, v) => store.set(k, String(v)),
-  clear: () => store.clear(),
+const fakeStorage = (m) => ({
+  getItem: (k) => m.get(k) ?? null,
+  setItem: (k, v) => m.set(k, String(v)),
+  clear: () => m.clear(),
 })
+const shared = new Map()
+vi.stubGlobal('sessionStorage', fakeStorage(store))
+vi.stubGlobal('localStorage', fakeStorage(shared))
 
 let sources
 const connect = vi.fn((url) => {
@@ -64,7 +67,8 @@ beforeEach(() => {
   sources = []
   connect.mockClear()
   vi.clearAllMocks()
-  localStorage.clear()
+  store.clear()
+  shared.clear()
   P.player.blocked = false
 })
 afterEach(() => {
@@ -76,7 +80,7 @@ describe('enableSpeaker', () => {
   it('connects, remembers, and publishes once the hello arrives', async () => {
     enableSpeaker(connect)
     expect(connect).toHaveBeenCalledWith('/api/jukebox/speaker')
-    expect(localStorage.getItem('tordo.audio-compu')).toBe('1')
+    expect(sessionStorage.getItem('tordo.audio-compu')).toBe('1')
     expect(speaker.on).toBe(true)
     expect(speaker.connected).toBe(false)
 
@@ -112,7 +116,7 @@ describe('replaced', () => {
     last().emit('replaced', {})
     expect(speaker.on).toBe(false)
     expect(speaker.connected).toBe(false)
-    expect(localStorage.getItem('tordo.audio-compu')).toBe('')
+    expect(sessionStorage.getItem('tordo.audio-compu')).toBe('')
     expect(last().closed).toBe(true)
     expect(notify).toHaveBeenCalledWith('Otro navegador tomó el audio de esta compu.')
   })
@@ -157,8 +161,14 @@ describe('resumeSpeaker', () => {
     expect(speaker.on).toBe(false)
   })
 
-  it('reconnects when remembered, with the player blocked', () => {
+  it('ignores the old localStorage flag of other tabs', () => {
     localStorage.setItem('tordo.audio-compu', '1')
+    resumeSpeaker(connect)
+    expect(connect).not.toHaveBeenCalled()
+  })
+
+  it('reconnects when remembered, with the player blocked', () => {
+    sessionStorage.setItem('tordo.audio-compu', '1')
     resumeSpeaker(connect)
     expect(connect).toHaveBeenCalledWith('/api/jukebox/speaker')
     expect(speaker.on).toBe(true)
@@ -175,7 +185,7 @@ describe('disableSpeaker', () => {
     disableSpeaker()
     expect(last().closed).toBe(true)
     expect(speaker.on).toBe(false)
-    expect(localStorage.getItem('tordo.audio-compu')).toBe('')
+    expect(sessionStorage.getItem('tordo.audio-compu')).toBe('')
     await vi.advanceTimersByTimeAsync(5000)
     expect(api.jukeboxState).not.toHaveBeenCalled()
     P.player.playing = false
@@ -191,7 +201,7 @@ describe('publishing and tokens', () => {
     last().emit('hello', { token: 't1' })
     await vi.advanceTimersByTimeAsync(0)
     expect(speaker.on).toBe(false)
-    expect(localStorage.getItem('tordo.audio-compu')).toBe('')
+    expect(sessionStorage.getItem('tordo.audio-compu')).toBe('')
   })
 
   it('does not publish while disconnected', async () => {

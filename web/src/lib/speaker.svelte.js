@@ -7,6 +7,8 @@ import { run, snapshot } from './jukebox.js'
 import * as P from './player.svelte.js'
 import { current } from './queue.js'
 
+// Remembered per tab (sessionStorage): it survives a reload of this tab, and a
+// second tab of the origin does not take the speaker over.
 const KEY = 'tordo.audio-compu'
 const PUBLISH_DELAY = 250 // ms: state changes are batched
 const MAX_BACKOFF = 30000
@@ -22,7 +24,7 @@ let ticker = null
 
 function remember(on) {
   try {
-    localStorage.setItem(KEY, on ? '1' : '')
+    sessionStorage.setItem(KEY, on ? '1' : '')
   } catch {
     // storage unavailable: the switch just is not remembered
   }
@@ -30,7 +32,7 @@ function remember(on) {
 
 function remembered() {
   try {
-    return localStorage.getItem(KEY) === '1'
+    return sessionStorage.getItem(KEY) === '1'
   } catch {
     return false
   }
