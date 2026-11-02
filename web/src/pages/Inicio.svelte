@@ -11,6 +11,7 @@
   import { can, playStation } from '../lib/playback.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
   import { FAVORITE_TRACKS, LIBRARY, LIKED, PREFERRED_ALBUMS, rowTitle, station } from '../lib/stations.js'
+  import { scanMessage } from '../lib/status.js'
 
   const newSeed = () => Math.floor(Math.random() * 2 ** 31)
 
@@ -71,7 +72,8 @@
 {#if data}
   {#if empty}
     {#if scanning}
-      <p class="empty">Escaneando… La música va a aparecer a medida que se encuentre.</p>
+      {@const msg = scanMessage(app.status.scan)}
+      <p class="empty">{msg.title}<br /><small>{msg.detail}</small></p>
     {:else}
       <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
     {/if}

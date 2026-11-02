@@ -297,8 +297,9 @@ The in-app help (Ayuda → *Cómo funciona*) has a plain-language version of thi
 At startup, whenever the music folders or ignore patterns change in Ajustes, and on
 `POST /api/scan`. Scans are **incremental**: only new files and files whose size or
 modification time changed are read again (also every file after an upgrade changes
-the reader, and failed files once `ffprobe` appears on the `PATH`). The top bar shows
-`Escaneando · n/m leídos`; albums appear in Explorar as they are saved. Scanning
+the reader, and failed files once `ffprobe` appears on the `PATH`). The top bar shows the
+step: `Buscando archivos · n`, `Leyendo archivos · n/m (p %)`, `Armando discos`; while reading, the catalog is regrouped every 30 s, so albums
+appear in Inicio and Explorar as the scan goes (the pages reload on their own). Scanning
 never uses the network.
 
 ### 1. Walk (`internal/scan`)

@@ -25,14 +25,17 @@ import (
 var ErrBusy = errors.New("ya hay un escaneo en curso")
 
 type Status struct {
-	Running   bool      `json:"running"`
-	Files     int64     `json:"files"`  // catalogued files seen by the walk
-	ToRead    int       `json:"toRead"` // audio files this run reads
-	Read      int       `json:"read"`
-	Tracks    int       `json:"tracks"`
-	Albums    int       `json:"albums"`
-	LastError string    `json:"lastError"`
-	Finished  time.Time `json:"finished"`
+	Running bool  `json:"running"`
+	Files   int64 `json:"files"`  // catalogued files seen by the walk
+	ToRead  int   `json:"toRead"` // audio files this run reads
+	Read    int   `json:"read"`
+	Tracks  int   `json:"tracks"`
+	Albums  int   `json:"albums"`
+	// EtaSeconds estimates the reading time left from the pace so far; 0
+	// while unknown (too few files read) or not reading.
+	EtaSeconds int       `json:"etaSeconds"`
+	LastError  string    `json:"lastError"`
+	Finished   time.Time `json:"finished"`
 }
 
 type Scanner struct {
@@ -54,14 +57,34 @@ type Scanner struct {
 	// out the next ones.
 	GroupEvery time.Duration
 
-	mu     sync.Mutex
-	status Status
+	now      func() time.Time // nil means time.Now; tests replace it
+	etaAfter int              // files read before estimating; 0 means 200
+
+	mu        sync.Mutex
+	status    Status
+	readStart time.Time
+}
+
+func (s *Scanner) clock() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
 }
 
 func (s *Scanner) Status() Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.status
+	st := s.status
+	after := s.etaAfter
+	if after <= 0 {
+		after = 200
+	}
+	if st.Running && st.Read >= after && st.Read < st.ToRead {
+		elapsed := s.clock().Sub(s.readStart)
+		st.EtaSeconds = int(elapsed.Seconds() * float64(st.ToRead-st.Read) / float64(st.Read))
+	}
+	return st
 }
 
 // Run performs one incremental scan. A call while another runs returns ErrBusy.
@@ -207,6 +230,7 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 	}
 	s.mu.Lock()
 	s.status.ToRead = len(targets)
+	s.readStart = s.clock()
 	s.mu.Unlock()
 
 	every := s.GroupEvery

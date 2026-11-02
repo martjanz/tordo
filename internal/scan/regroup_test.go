@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,4 +70,29 @@ func TestRegroupWhileReadingKeepsChangedAlbums(t *testing.T) {
 func slowRead(ctx context.Context, p string) (audiofile.Info, error) {
 	time.Sleep(20 * time.Millisecond)
 	return fakeRead(ctx, p)
+}
+
+// While reading, the status estimates the time left from the pace so far,
+// once there is enough of it to go by.
+func TestReadingEstimatesTimeLeft(t *testing.T) {
+	l := newLib(t)
+	for i := range 4 {
+		l.write(fmt.Sprintf("A/%02d.mp3", i+1), tags("x", "Alfa", "Primero", i+1))
+	}
+	clock := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	l.sc.now = func() time.Time { return clock }
+	var etas []int
+	l.sc.Read = func(ctx context.Context, p string) (audiofile.Info, error) {
+		etas = append(etas, l.sc.Status().EtaSeconds)
+		clock = clock.Add(20 * time.Second)
+		return fakeRead(ctx, p)
+	}
+	l.sc.etaAfter = 2
+	if st := l.run(); st.EtaSeconds != 0 {
+		t.Fatalf("eta after the scan = %d, want 0", st.EtaSeconds)
+	}
+	// Reading the 3rd file: 2 read in 40 s, 2 left. The 4th: 3 in 60 s, 1 left.
+	if want := []int{0, 0, 40, 20}; fmt.Sprint(etas) != fmt.Sprint(want) {
+		t.Fatalf("etas = %v, want %v", etas, want)
+	}
 }

@@ -13,6 +13,7 @@
   import { navigate, patchState, route, savedScroll } from '../lib/nav.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { exploreStation } from '../lib/stations.js'
+  import { scanMessage } from '../lib/status.js'
 
   const PAGE = 120
 
@@ -132,7 +133,8 @@
   {:else if filtered}
     <p class="empty">Nada con estos filtros. <a href="/explorar">Quitar filtros</a></p>
   {:else if scanning}
-    <p class="empty">Escaneando… La música va a aparecer a medida que se encuentre.</p>
+    {@const msg = scanMessage(app.status.scan)}
+    <p class="empty">{msg.title}<br /><small>{msg.detail}</small></p>
   {:else}
     <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
   {/if}

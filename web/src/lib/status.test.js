@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { busy, listening, pageBlocked, progress, summary } from './status.js'
+import { busy, details, listening, pageBlocked, progress, scanMessage, summary } from './status.js'
 
 describe('summary', () => {
   it.each([
     [null, { text: '', tone: '' }],
-    [{ scan: { running: true, files: 120 } }, { text: 'Escaneando · 120 archivos', tone: 'busy' }],
-    [{ scan: { running: true, files: 120, read: 30, toRead: 90 } }, { text: 'Escaneando · 30/90 leídos', tone: 'busy' }],
+    [{ scan: { running: true, files: 12345 } }, { text: 'Buscando archivos · 12.345', tone: 'busy' }],
+    [
+      { scan: { running: true, files: 246993, read: 6680, toRead: 246993 } },
+      { text: 'Leyendo archivos · 6.680/246.993 (2 %)', tone: 'busy' },
+    ],
+    [{ scan: { running: true, files: 90, read: 90, toRead: 90 } }, { text: 'Armando discos', tone: 'busy' }],
     [{ scan: {}, identify: { state: 'running', identified: 3, toIdentify: 10 } }, { text: 'Identificando · 3/10', tone: 'busy' }],
     [
       { scan: {}, identify: { state: 'running', identified: 10, toIdentify: 10, enriched: 2, toEnrich: 5 } },
@@ -47,5 +51,65 @@ describe('listening and curation', () => {
     expect(pageBlocked('revisar', { listenMode: false })).toBe(false)
     expect(pageBlocked('explorar', { listenMode: true })).toBe(false)
     expect(pageBlocked('revisar', null)).toBe(false)
+  })
+})
+
+describe('scanMessage', () => {
+  it('tells what the scan is doing and when the music shows up', () => {
+    expect(scanMessage({ running: true, files: 12345 })).toEqual({
+      title: 'Buscando archivos de música… 12.345 hasta ahora.',
+      detail: 'Después se leen sus tags y los discos van apareciendo acá.',
+    })
+    expect(scanMessage({ running: true, files: 246993, read: 6680, toRead: 246993 })).toEqual({
+      title: 'Leyendo los archivos: 6.680 de 246.993 (2 %).',
+      detail: 'Los discos aparecen acá a medida que se leen, los primeros en menos de un minuto. La página se actualiza sola.',
+    })
+    expect(scanMessage({ running: true, files: 10, read: 10, toRead: 10 })).toEqual({
+      title: 'Armando los discos…',
+      detail: 'Ya se leyeron todos los archivos; en un momento aparecen acá.',
+    })
+  })
+})
+
+describe('details', () => {
+  const then = 'Al terminar, Tordo identifica los álbumes en MusicBrainz.'
+  it.each([
+    [{ scan: { running: true, files: 12345 } }, ['Escaneo, paso 1 de 3: buscando archivos de música en las carpetas.', '12.345 encontrados hasta ahora.', then]],
+    [
+      { scan: { running: true, read: 6680, toRead: 246993 } },
+      ['Escaneo, paso 2 de 3: leyendo los tags y datos técnicos de cada archivo.', '6.680 de 246.993 (2 %).', 'Los primeros discos aparecen en menos de un minuto.', then],
+    ],
+    [
+      { scan: { running: true, read: 6680, toRead: 246993, albums: 1200, tracks: 15000, etaSeconds: 3 * 3600 + 600 } },
+      ['Escaneo, paso 2 de 3: leyendo los tags y datos técnicos de cada archivo.', '6.680 de 246.993 (2 %) · faltan unas 3 h.', 'Ya hay 1.200 discos y 15.000 pistas; aparecen más cada medio minuto.', then],
+    ],
+    [{ scan: { running: true, read: 90, toRead: 90 } }, ['Escaneo, paso 3 de 3: armando los discos con lo leído.', then]],
+    [
+      { scan: {}, identify: { state: 'running', identified: 3, toIdentify: 10 } },
+      ['Identificando álbumes en MusicBrainz: 3 de 10.', 'Una consulta por segundo, como pide MusicBrainz; si se corta, sigue donde quedó.', 'Lo que no se identifique solo queda en Revisar → Sin identificar.'],
+    ],
+    [
+      { scan: {}, identify: { state: 'running', identified: 10, toIdentify: 10, enriched: 2, toEnrich: 5 } },
+      ['Completando datos de los álbumes identificados: 2 de 5.', 'Títulos, año original, país, tapas y géneros.'],
+    ],
+    [{ readOnly: true, scan: {} }, ['La carpeta de Tordo no se puede modificar: se puede explorar y escuchar, pero no se guardan cambios.']],
+    [{ scan: { lastError: 'disco desconectado' } }, ['El último escaneo falló: disco desconectado']],
+    [{ scan: {}, identify: { state: 'offline' } }, ['Sin conexión con MusicBrainz: la identificación se pausa y se reintenta sola.']],
+    [{ scan: {}, counts: { albums: 1234, tracks: 15000 } }, ['Catálogo al día: 1.234 discos, 15.000 pistas.']],
+  ])('%j', (st, want) => {
+    expect(details(st)).toBe(want.join('\n'))
+  })
+
+  it.each([
+    [30, 'menos de un minuto'],
+    [61, 'unos 2 min'],
+    [89 * 60, 'unos 89 min'],
+    [90 * 60, 'unas 2 h'],
+  ])('time left %i s', (eta, want) => {
+    expect(details({ scan: { running: true, read: 1, toRead: 2, etaSeconds: eta } })).toContain(`faltan ${want}.`)
+  })
+
+  it('explains a lost server', () => {
+    expect(details({ scan: {} }, true)).toBe('No se puede contactar a Tordo; se reintenta cada 3 segundos.')
   })
 })
