@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -169,7 +170,11 @@ func TestSaveIsAtomicAndLeavesNoTempFiles(t *testing.T) {
 	if len(entries) != 1 || entries[0].Name() != FileName {
 		t.Fatalf("app folder holds %v", entries)
 	}
-	if info, err := os.Stat(filepath.Join(app, FileName)); err != nil || info.Mode().Perm() != 0o644 {
+	want := os.FileMode(0o644)
+	if runtime.GOOS == "windows" {
+		want = 0o666 // Windows has only a read-only bit, so a writable file reports 0666
+	}
+	if info, err := os.Stat(filepath.Join(app, FileName)); err != nil || info.Mode().Perm() != want {
 		t.Fatalf("config.json: %v %v", info, err)
 	}
 	// A failed Save leaves nothing behind.

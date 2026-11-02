@@ -343,7 +343,7 @@ func TestApplyLAN(t *testing.T) {
 		t.Fatal("old port still open")
 	}
 	// A taken port: an error naming it, the listener stays where it was.
-	taken, err := net.Listen("tcp", ":0")
+	taken, err := net.Listen("tcp4", "0.0.0.0:0") // the address ApplyLAN binds; ":0" is IPv6 on Windows and would not clash
 	if err != nil {
 		t.Fatal(err)
 	}
