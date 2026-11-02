@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busy, details, listening, pageBlocked, progress, scanMessage, summary } from './status.js'
+import { busy, listening, pageBlocked, panel, progress, scanMessage, summary } from './status.js'
 
 describe('summary', () => {
   it.each([
@@ -71,45 +71,97 @@ describe('scanMessage', () => {
   })
 })
 
-describe('details', () => {
-  const then = 'Al terminar, Tordo identifica los álbumes en MusicBrainz.'
-  it.each([
-    [{ scan: { running: true, files: 12345 } }, ['Escaneo, paso 1 de 3: buscando archivos de música en las carpetas.', '12.345 encontrados hasta ahora.', then]],
-    [
-      { scan: { running: true, read: 6680, toRead: 246993 } },
-      ['Escaneo, paso 2 de 3: leyendo los tags y datos técnicos de cada archivo.', '6.680 de 246.993 (2 %).', 'Los primeros discos aparecen en menos de un minuto.', then],
-    ],
-    [
-      { scan: { running: true, read: 6680, toRead: 246993, albums: 1200, tracks: 15000, etaSeconds: 3 * 3600 + 600 } },
-      ['Escaneo, paso 2 de 3: leyendo los tags y datos técnicos de cada archivo.', '6.680 de 246.993 (2 %) · faltan unas 3 h.', 'Ya hay 1.200 discos y 15.000 pistas; aparecen más cada medio minuto.', then],
-    ],
-    [{ scan: { running: true, read: 90, toRead: 90 } }, ['Escaneo, paso 3 de 3: armando los discos con lo leído.', then]],
-    [
-      { scan: {}, identify: { state: 'running', identified: 3, toIdentify: 10 } },
-      ['Identificando álbumes en MusicBrainz: 3 de 10.', 'Una consulta por segundo, como pide MusicBrainz; si se corta, sigue donde quedó.', 'Lo que no se identifique solo queda en Revisar → Sin identificar.'],
-    ],
-    [
-      { scan: {}, identify: { state: 'running', identified: 10, toIdentify: 10, enriched: 2, toEnrich: 5 } },
-      ['Completando datos de los álbumes identificados: 2 de 5.', 'Títulos, año original, país, tapas y géneros.'],
-    ],
-    [{ readOnly: true, scan: {} }, ['La carpeta de Tordo no se puede modificar: se puede explorar y escuchar, pero no se guardan cambios.']],
-    [{ scan: { lastError: 'disco desconectado' } }, ['El último escaneo falló: disco desconectado']],
-    [{ scan: {}, identify: { state: 'offline' } }, ['Sin conexión con MusicBrainz: la identificación se pausa y se reintenta sola.']],
-    [{ scan: {}, counts: { albums: 1234, tracks: 15000 } }, ['Catálogo al día: 1.234 discos, 15.000 pistas.']],
-  ])('%j', (st, want) => {
-    expect(details(st)).toBe(want.join('\n'))
+describe('panel', () => {
+  const steps = (current, tone = 'busy') =>
+    ['Buscar archivos', 'Leer tags', 'Armar discos', 'Identificar', 'Completar datos'].map((label, i) => ({
+      label,
+      state: current == null || i < current ? 'done' : i === current ? tone : 'todo',
+    }))
+  const counts = { albums: 1200, tracks: 15000, unreadable: 0, identified: 0, unidentified: 0 }
+
+  it('walks a scan through its steps', () => {
+    const walk = panel({ scan: { running: true, files: 12345 }, counts: { albums: 0, tracks: 0 } })
+    expect(walk.title).toBe('Escaneando la música')
+    expect(walk.tone).toBe('busy')
+    expect(walk.steps).toEqual(steps(0))
+    expect(walk.progress).toEqual({ label: 'Archivos encontrados', value: '12.345', percent: null, eta: '' })
+    expect(walk.facts).toEqual([])
+
+    const read = panel({ scan: { running: true, files: 246993, read: 6680, toRead: 246993, etaSeconds: 3 * 3600 + 600 }, counts })
+    expect(read.steps).toEqual(steps(1))
+    expect(read.progress).toEqual({ label: 'Archivos leídos', value: '6.680 de 246.993', percent: 2, eta: 'faltan unas 3 h' })
+    expect(read.facts).toEqual([
+      { label: 'Discos', value: '1.200' },
+      { label: 'Pistas', value: '15.000' },
+    ])
+    expect(read.notes).toEqual(['Los discos aparecen a medida que se leen: el catálogo se rearma cada medio minuto.'])
+
+    const group = panel({ scan: { running: true, read: 90, toRead: 90 }, counts })
+    expect(group.steps).toEqual(steps(2))
+    expect(group.progress).toEqual({ label: 'Armando los discos con lo leído', value: '', percent: null, eta: '' })
+  })
+
+  it('follows identification and enrichment', () => {
+    const id = panel({ scan: {}, identify: { state: 'running', identified: 3, toIdentify: 10 }, counts })
+    expect(id.title).toBe('Identificando en MusicBrainz')
+    expect(id.steps).toEqual(steps(3))
+    expect(id.progress).toEqual({ label: 'Álbumes buscados', value: '3 de 10', percent: 30, eta: '' })
+    expect(id.notes).toEqual(['Una consulta por segundo, como pide MusicBrainz; si se corta, sigue donde quedó.'])
+
+    const en = panel({ scan: {}, identify: { state: 'running', identified: 10, toIdentify: 10, enriched: 2, toEnrich: 5 }, counts })
+    expect(en.title).toBe('Completando datos')
+    expect(en.steps).toEqual(steps(4))
+    expect(en.progress).toEqual({ label: 'Álbumes completados', value: '2 de 5', percent: 40, eta: '' })
+  })
+
+  it('sums up a quiet catalog, with links to what needs a look', () => {
+    const ok = panel({ scan: {}, identify: { state: 'idle' }, counts: { ...counts, identified: 1100, unidentified: 90, unreadable: 3 } })
+    expect(ok.title).toBe('Al día')
+    expect(ok.tone).toBe('ok')
+    expect(ok.steps).toEqual(steps(null))
+    expect(ok.progress).toBeNull()
+    expect(ok.facts).toEqual([
+      { label: 'Discos', value: '1.200' },
+      { label: 'Pistas', value: '15.000' },
+      { label: 'Identificados', value: '1.100' },
+      { label: 'Sin identificar', value: '90', href: '/revisar' },
+      { label: 'Ilegibles', value: '3' },
+    ])
+    // Listen mode closes Revisar: no link there.
+    expect(panel({ scan: {}, listenMode: true, counts: { ...counts, unidentified: 90 } }).facts.find((f) => f.label === 'Sin identificar')).toEqual({ label: 'Sin identificar', value: '90' })
+  })
+
+  it('explains the warnings', () => {
+    const off = panel({ scan: {}, identify: { state: 'offline' }, counts })
+    expect(off.title).toBe('Sin conexión con MusicBrainz')
+    expect(off.tone).toBe('warn')
+    expect(off.steps).toEqual(steps(3, 'warn'))
+    expect(off.notes).toEqual(['La identificación se pausa y se reintenta sola. Todo lo demás funciona igual.'])
+
+    const failed = panel({ scan: { lastError: 'disco desconectado' }, counts })
+    expect(failed.title).toBe('El último escaneo falló')
+    expect(failed.error).toBe('disco desconectado')
+
+    const ro = panel({ readOnly: true, scan: {}, counts })
+    expect(ro.title).toBe('Modo consulta')
+    expect(ro.notes).toEqual(['La carpeta de Tordo no se puede modificar: se puede explorar y escuchar, pero no se guardan cambios.'])
+
+    const lost = panel({ scan: { running: true } }, true)
+    expect(lost).toMatchObject({ title: 'Sin conexión con Tordo', tone: 'down', steps: null, progress: null, facts: [] })
+    expect(lost.notes).toEqual(['No se puede contactar a Tordo; se reintenta cada 3 segundos.'])
+  })
+
+  it('mentions the loudness measuring going on in the background', () => {
+    const p = panel({ scan: {}, loudness: { state: 'running', pending: 4200 }, counts })
+    expect(p.notes).toContain('Midiendo el volumen de las pistas para normalizarlo: faltan 4.200.')
   })
 
   it.each([
-    [30, 'menos de un minuto'],
-    [61, 'unos 2 min'],
-    [89 * 60, 'unos 89 min'],
-    [90 * 60, 'unas 2 h'],
+    [30, 'falta menos de un minuto'],
+    [61, 'faltan unos 2 min'],
+    [89 * 60, 'faltan unos 89 min'],
+    [90 * 60, 'faltan unas 2 h'],
   ])('time left %i s', (eta, want) => {
-    expect(details({ scan: { running: true, read: 1, toRead: 2, etaSeconds: eta } })).toContain(`faltan ${want}.`)
-  })
-
-  it('explains a lost server', () => {
-    expect(details({ scan: {} }, true)).toBe('No se puede contactar a Tordo; se reintenta cada 3 segundos.')
+    expect(panel({ scan: { running: true, read: 1, toRead: 2, etaSeconds: eta } }).progress.eta).toBe(want)
   })
 })

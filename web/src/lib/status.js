@@ -40,55 +40,84 @@ export function summary(st, lost = false) {
   return { text: 'Al día', tone: 'ok' }
 }
 
-// details is the longer text of the status indicator, for its tooltip: what
-// is going on, how far along, and what comes next.
-export function details(st, lost = false) {
-  if (lost) return 'No se puede contactar a Tordo; se reintenta cada 3 segundos.'
-  if (!st) return ''
-  const scan = st.scan
-  if (scan?.running) {
-    const then = 'Al terminar, Tordo identifica los álbumes en MusicBrainz.'
-    const { files = 0, read = 0, toRead = 0, albums = 0, tracks = 0, etaSeconds = 0 } = scan
+// STEPS are the steps from the music folders to a complete catalog, as the
+// status panel lists them.
+const STEPS = ['Buscar archivos', 'Leer tags', 'Armar discos', 'Identificar', 'Completar datos']
+
+// panel is what the status panel shows: a title and tone (as summary's), the
+// steps with the current one, a progress bar, the catalog's figures and some
+// notes. progress.percent is null for a step with no known end.
+export function panel(st, lost = false) {
+  const { text, tone } = summary(st, lost)
+  const out = { title: text, tone, steps: null, progress: null, facts: [], notes: [] }
+  if (lost) return { ...out, title: 'Sin conexión con Tordo', notes: ['No se puede contactar a Tordo; se reintenta cada 3 segundos.'] }
+  if (!st) return out
+  const steps = (current, state = 'busy') =>
+    STEPS.map((label, i) => ({ label, state: current == null || i < current ? 'done' : i === current ? state : 'todo' }))
+  const bar = (label, done, total, eta = '') => ({ label, value: `${num(done)} de ${num(total)}`, percent: percent(done, total), eta })
+  const scan = st.scan ?? {}
+  const id = st.identify ?? {}
+
+  if (scan.running) {
+    out.title = 'Escaneando la música'
     switch (scanPhase(scan)) {
       case 'walk':
-        return lines('Escaneo, paso 1 de 3: buscando archivos de música en las carpetas.', `${num(files)} encontrados hasta ahora.`, then)
+        out.steps = steps(0)
+        out.progress = { label: 'Archivos encontrados', value: num(scan.files), percent: null, eta: '' }
+        out.notes.push('Después se leen sus tags y se arman los discos.')
+        break
       case 'group':
-        return lines('Escaneo, paso 3 de 3: armando los discos con lo leído.', then)
+        out.steps = steps(2)
+        out.progress = { label: 'Armando los discos con lo leído', value: '', percent: null, eta: '' }
+        break
       default:
-        return lines(
-          'Escaneo, paso 2 de 3: leyendo los tags y datos técnicos de cada archivo.',
-          `${num(read)} de ${num(toRead)} (${percent(read, toRead)} %)${etaSeconds > 0 ? ` · faltan ${timeLeft(etaSeconds)}` : ''}.`,
-          albums > 0
-            ? `Ya hay ${num(albums)} discos y ${num(tracks)} pistas; aparecen más cada medio minuto.`
-            : 'Los primeros discos aparecen en menos de un minuto.',
-          then,
-        )
+        out.steps = steps(1)
+        out.progress = bar('Archivos leídos', scan.read, scan.toRead, scan.etaSeconds > 0 ? timeLeft(scan.etaSeconds) : '')
+        out.notes.push('Los discos aparecen a medida que se leen: el catálogo se rearma cada medio minuto.')
     }
-  }
-  const id = st.identify
-  if (id?.state === 'running') {
+  } else if (id.state === 'running') {
     if (id.toEnrich > 0 && id.identified >= id.toIdentify) {
-      return lines(`Completando datos de los álbumes identificados: ${num(id.enriched)} de ${num(id.toEnrich)}.`, 'Títulos, año original, país, tapas y géneros.')
+      out.title = 'Completando datos'
+      out.steps = steps(4)
+      out.progress = bar('Álbumes completados', id.enriched, id.toEnrich)
+      out.notes.push('Títulos de MusicBrainz, año original, país, tapas y géneros.')
+    } else {
+      out.title = 'Identificando en MusicBrainz'
+      out.steps = steps(3)
+      out.progress = bar('Álbumes buscados', id.identified, id.toIdentify)
+      out.notes.push('Una consulta por segundo, como pide MusicBrainz; si se corta, sigue donde quedó.')
     }
-    return lines(
-      `Identificando álbumes en MusicBrainz: ${num(id.identified)} de ${num(id.toIdentify)}.`,
-      'Una consulta por segundo, como pide MusicBrainz; si se corta, sigue donde quedó.',
-      'Lo que no se identifique solo queda en Revisar → Sin identificar.',
-    )
+  } else if (st.readOnly) {
+    out.notes.push('La carpeta de Tordo no se puede modificar: se puede explorar y escuchar, pero no se guardan cambios.')
+  } else if (scan.lastError) {
+    out.error = scan.lastError
+  } else if (id.state === 'offline') {
+    out.steps = steps(3, 'warn')
+    out.notes.push('La identificación se pausa y se reintenta sola. Todo lo demás funciona igual.')
+  } else {
+    out.steps = steps(null)
   }
-  if (st.readOnly) return 'La carpeta de Tordo no se puede modificar: se puede explorar y escuchar, pero no se guardan cambios.'
-  if (scan?.lastError) return `El último escaneo falló: ${scan.lastError}`
-  if (id?.state === 'offline') return 'Sin conexión con MusicBrainz: la identificación se pausa y se reintenta sola.'
-  return `Catálogo al día: ${num(st.counts?.albums)} discos, ${num(st.counts?.tracks)} pistas.`
-}
 
-const lines = (...ls) => ls.join('\n')
+  const c = st.counts ?? {}
+  if (c.albums > 0 || c.tracks > 0) out.facts.push({ label: 'Discos', value: num(c.albums) }, { label: 'Pistas', value: num(c.tracks) })
+  if (c.identified > 0) out.facts.push({ label: 'Identificados', value: num(c.identified) })
+  if (c.unidentified > 0) {
+    const fact = { label: 'Sin identificar', value: num(c.unidentified) }
+    out.facts.push(pageBlocked('revisar', st) ? fact : { ...fact, href: '/revisar' })
+  }
+  if (c.unreadable > 0) out.facts.push({ label: 'Ilegibles', value: num(c.unreadable) })
+
+  if (st.loudness?.state === 'running' && st.loudness.pending > 0) {
+    out.notes.push(`Midiendo el volumen de las pistas para normalizarlo: faltan ${num(st.loudness.pending)}.`)
+  }
+  return out
+}
 
 // timeLeft words an estimate in seconds: minutes rounded up, then hours.
 function timeLeft(secs) {
-  if (secs < 60) return 'menos de un minuto'
-  if (secs < 90 * 60) return `unos ${Math.ceil(secs / 60)} min`
-  return `unas ${Math.round(secs / 3600)} h`
+  if (secs < 60) return 'falta menos de un minuto'
+  if (secs < 90 * 60) return `faltan unos ${Math.ceil(secs / 60)} min`
+  return `faltan unas ${Math.round(secs / 3600)} h`
 }
 
 // scanPhase is what a running scan is doing: "walk" (finding the files),
@@ -101,7 +130,7 @@ function scanPhase(scan) {
 const num = (v) => (v ?? 0).toLocaleString('es-AR')
 
 // percent rounds down: 100 % only once everything is done.
-const percent = (done, total) => Math.floor((done * 100) / total)
+const percent = (done = 0, total = 0) => (total > 0 ? Math.floor((done * 100) / total) : 0)
 
 // scanMessage explains a running scan to a page that has nothing to show
 // yet: what it is doing, and when the music will show up (the scan regroups
