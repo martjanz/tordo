@@ -49,6 +49,11 @@ type Scanner struct {
 	// identification runner's Trigger); nil for none.
 	OnDone func()
 
+	// GroupEvery is how often a long read regroups the catalog, so the music
+	// shows up as it is read; 0 means 30 s. A regroup that takes long spaces
+	// out the next ones.
+	GroupEvery time.Duration
+
 	mu     sync.Mutex
 	status Status
 }
@@ -101,7 +106,7 @@ func (s *Scanner) run(ctx context.Context) error {
 	}
 	// The catalog is regrouped even when reading stopped early: what was read
 	// is already saved.
-	return errors.Join(readErr, s.group())
+	return errors.Join(readErr, s.group(false))
 }
 
 // walk lists the catalogued files of every available root. attempted are the
@@ -204,6 +209,12 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 	s.status.ToRead = len(targets)
 	s.mu.Unlock()
 
+	every := s.GroupEvery
+	if every <= 0 {
+		every = 30 * time.Second
+	}
+	nextGroup := time.Now().Add(every)
+
 	var batch []store.ReadResult
 	flush := func() error {
 		if len(batch) == 0 {
@@ -253,13 +264,28 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 				return err
 			}
 		}
+		if time.Now().After(nextGroup) {
+			if err := flush(); err != nil {
+				return err
+			}
+			start := time.Now()
+			if err := s.group(true); err != nil {
+				return err
+			}
+			nextGroup = time.Now().Add(max(every, 10*time.Since(start)))
+		}
 	}
 	return flush()
 }
 
-// group rebuilds albums, tracks and folders from the whole catalog.
-func (s *Scanner) group() error {
-	tracks, images, err := s.Store.GroupingInput()
+// group rebuilds albums, tracks and folders from the whole catalog; interim
+// while reading (see store.InterimGroupingInput).
+func (s *Scanner) group(interim bool) error {
+	input := s.Store.GroupingInput
+	if interim {
+		input = s.Store.InterimGroupingInput
+	}
+	tracks, images, err := input()
 	if err != nil {
 		return err
 	}

@@ -137,9 +137,20 @@ func rekey(tx *sql.Tx, fileID int64, fingerprint string) error {
 // GroupingInput returns the present, readable audio files with their tags,
 // and the present images.
 func (s *Store) GroupingInput() ([]grouping.Track, []grouping.Image, error) {
+	return s.groupingInput(false)
+}
+
+// InterimGroupingInput is GroupingInput for a regroup while a scan reads:
+// files changed since their last read count with that read, so their albums
+// do not drop out (and lose their ids) until they are read again.
+func (s *Store) InterimGroupingInput() ([]grouping.Track, []grouping.Image, error) {
+	return s.groupingInput(true)
+}
+
+func (s *Store) groupingInput(stale bool) ([]grouping.Track, []grouping.Image, error) {
 	rows, err := s.db.Query(`SELECT f.id, f.path, a.duration_ms, a.tags FROM files f JOIN audio a ON a.file_id = f.id
-		WHERE f.missing = 0 AND f.kind = 'audio' AND a.error = '' AND a.size = f.size AND a.mtime = f.mtime
-		ORDER BY f.path`)
+		WHERE f.missing = 0 AND f.kind = 'audio' AND a.error = '' AND (?1 OR (a.size = f.size AND a.mtime = f.mtime))
+		ORDER BY f.path`, stale)
 	if err != nil {
 		return nil, nil, err
 	}
