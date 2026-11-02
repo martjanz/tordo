@@ -1,5 +1,5 @@
 <script>
-  // Lists: the playlists, favourite tracks (♥), Preferidos albums (✦), what
+  // Lists: the playlists, favourite tracks (♥), Preferidos albums (bookmark), what
   // else the user likes (artists, collections) and the collections found in
   // the folders.
   import ListaPistas from '../components/ListaPistas.svelte'
@@ -135,7 +135,7 @@
 <h2>Álbumes preferidos</h2>
 {#if likedLists}
   {#if likedLists.albums.length === 0}
-    <p class="empty">Todavía no hay álbumes preferidos: tocá ✦ en los que quieras tener a mano.</p>
+    <p class="empty">Todavía no hay álbumes preferidos: tocá el marcador en los que quieras tener a mano.</p>
   {:else}
     <div class="grid">
       {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}

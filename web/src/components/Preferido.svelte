@@ -1,7 +1,7 @@
 <script>
-  // The ✦ toggle of an album: Preferidos, a shortlist of albums to come back
+  // The bookmark toggle of an album: Preferidos, a shortlist of albums to come back
   // to (the ♥ is for tracks, artists and collections). In browse-only mode: a
-  // static ✦ when marked, nothing otherwise. Same mark as the album's ♥ in the
+  // static bookmark when marked, nothing otherwise. Same mark as the album's ♥ in the
   // API (kind "album").
   import { app } from '../lib/app.svelte.js'
   import { isLiked } from '../lib/marks.js'
@@ -16,10 +16,10 @@
 {#if !app.status?.readOnly}
   <button class="icon preferred" class:on aria-pressed={on} onclick={() => toggleLike('album', ref)}
     title={on ? 'Quitar de Preferidos' : 'Agregar a Preferidos'} aria-label={on ? 'Quitar de Preferidos' : 'Agregar a Preferidos'}>
-    <Icono name="sparkle" {size} />
+    <Icono name="bookmark" {size} />
   </button>
 {:else if on}
-  <span class="preferred on static" role="img" aria-label="Preferido"><Icono name="sparkle" {size} /></span>
+  <span class="preferred on static" role="img" aria-label="Preferido"><Icono name="bookmark" {size} /></span>
 {/if}
 
 <style>
