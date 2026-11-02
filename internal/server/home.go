@@ -19,12 +19,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		seed = rand.Uint64()
 	}
-	c, err := s.catalog()
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	p, err := s.personal()
+	c, p, err := s.browse()
 	if err != nil {
 		fail(w, err)
 		return

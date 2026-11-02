@@ -2,6 +2,7 @@
   // Inicio: rows of albums and stations. Fixed rows first, then three
   // rotating ones drawn with a seed (a new one per visit, or on demand).
   import { untrack } from 'svelte'
+  import Cargando from '../components/Cargando.svelte'
   import FilaAlbumes from '../components/FilaAlbumes.svelte'
   import Icono from '../components/Icono.svelte'
   import TarjetaEstacion from '../components/TarjetaEstacion.svelte'
@@ -111,6 +112,8 @@
         albums={row.albums} />
     {/each}
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

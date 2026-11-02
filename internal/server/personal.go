@@ -17,10 +17,27 @@ const readOnlyMsg = "modo consulta: no se pueden guardar cambios"
 // personalState is the user's data resolved to the catalog's ids, kept while
 // neither the catalog (ids move with scans) nor the data changed.
 type personalState struct {
-	mu      sync.Mutex
+	mu      sync.Mutex // guards the fields; never held while loading
+	load    sync.Mutex // one load at a time
 	changes int64
 	version int64
 	p       *store.Personal
+}
+
+// current is the last data loaded (nil before the first) and its version.
+func (st *personalState) current() (*store.Personal, int64) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.p, st.version
+}
+
+func (st *personalState) fresh(changes, version int64) *store.Personal {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.p != nil && st.changes == changes && st.version == version {
+		return st.p
+	}
+	return nil
 }
 
 // personal returns the user's data, reloaded when the store's change counter
@@ -32,17 +49,22 @@ func (s *Server) personal() (*store.Personal, error) {
 	}
 	version := s.Store.PersonalVersion()
 	st := &s.pers
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if st.p != nil && st.changes == changes && st.version == version {
-		return st.p, nil
+	if p := st.fresh(changes, version); p != nil {
+		return p, nil
+	}
+	st.load.Lock()
+	defer st.load.Unlock()
+	if p := st.fresh(changes, version); p != nil {
+		return p, nil
 	}
 	p, err := s.Store.Personal()
 	if err != nil {
 		return nil, err
 	}
+	st.mu.Lock()
 	st.p, st.changes, st.version = &p, changes, version
-	return st.p, nil
+	st.mu.Unlock()
+	return &p, nil
 }
 
 // readBody decodes a JSON body into v, answering 400 when it cannot.

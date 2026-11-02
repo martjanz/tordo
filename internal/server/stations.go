@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"tordo/internal/catalog"
 	"tordo/internal/store"
@@ -52,8 +53,25 @@ func stationErr(w http.ResponseWriter, err error) {
 	answer(w, err)
 }
 
-// savedStations lists the saved stations, most recently updated first.
+// stationsState keeps the saved stations listed while the user's data
+// stays (they are part of it), so Inicio does not wait for the store.
+type stationsState struct {
+	mu      sync.Mutex
+	version int64
+	list    []savedStation // nil: not listed yet
+}
+
+// savedStations lists the saved stations, most recently updated first;
+// callers must not modify them.
 func (s *Server) savedStations() ([]savedStation, error) {
+	version := s.Store.PersonalVersion()
+	st := &s.stationList
+	st.mu.Lock()
+	if st.list != nil && st.version == version {
+		defer st.mu.Unlock()
+		return st.list, nil
+	}
+	st.mu.Unlock()
 	all, err := s.Store.Stations()
 	if err != nil {
 		return nil, err
@@ -62,6 +80,9 @@ func (s *Server) savedStations() ([]savedStation, error) {
 	for i, ss := range all {
 		out[i] = listed(ss)
 	}
+	st.mu.Lock()
+	st.list, st.version = out, version
+	st.mu.Unlock()
 	return out, nil
 }
 

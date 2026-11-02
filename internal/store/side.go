@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"sync"
+	"sync/atomic"
 )
 
 // trackRef is, in SQL over files f, what the user's data is keyed by: the
@@ -15,7 +16,7 @@ const trackRef = `CASE WHEN f.fingerprint != '' THEN f.fingerprint ELSE 'id:' ||
 type side struct {
 	mu       sync.Mutex // held by side writes and by reads of the counter
 	rows     int64      // rows changed by side writes since the store opened
-	personal int64      // personal side writes since the store opened
+	personal atomic.Int64 // personal side writes since the store opened; read without the lock
 }
 
 // sideWrite runs fn in a transaction whose changes are not catalog
@@ -49,7 +50,7 @@ func (s *Store) sideWrite(personal bool, fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	if personal {
-		s.side.personal++
+		s.side.personal.Add(1)
 	}
 	return nil
 }
@@ -65,9 +66,8 @@ func (s *Store) Changes() (int64, error) {
 	return n - s.side.rows, err
 }
 
-// PersonalVersion grows with every change to the user's data.
+// PersonalVersion grows with every change to the user's data. It does not
+// wait for a Snapshot in progress.
 func (s *Store) PersonalVersion() int64 {
-	s.side.mu.Lock()
-	defer s.side.mu.Unlock()
-	return s.side.personal
+	return s.side.personal.Load()
 }

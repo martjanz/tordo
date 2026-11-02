@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -23,10 +24,11 @@ type fakeIdentifier struct {
 	set                map[int64]string
 	ignored, reset     []int64
 	err                error
+	state              string // "" is idle
 }
 
 func (f *fakeIdentifier) Status() identify.Status {
-	return identify.Status{State: identify.StateIdle, Discogs: identify.DiscogsNoToken}
+	return identify.Status{State: cmp.Or(f.state, identify.StateIdle), Discogs: identify.DiscogsNoToken}
 }
 func (f *fakeIdentifier) Trigger()     { f.triggered++ }
 func (f *fakeIdentifier) Apply() error { f.applied++; return nil }

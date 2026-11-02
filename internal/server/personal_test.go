@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"tordo/internal/catalog"
+	"tordo/internal/identify"
 	"tordo/internal/store"
 )
 
@@ -140,9 +141,17 @@ func TestPlaysEndpoint(t *testing.T) {
 	}
 }
 
+// Also during an identification run, when Explorar answers with the
+// catalog it has: a like shows at once.
 func TestExploreFollowsLikes(t *testing.T) {
+	for _, state := range []string{identify.StateIdle, identify.StateRunning} {
+		t.Run(state, func(t *testing.T) { exploreFollowsLikes(t, state) })
+	}
+}
+
+func exploreFollowsLikes(t *testing.T, state string) {
 	st := newStore(t)
-	s := &Server{Store: st}
+	s := &Server{Store: st, Identifier: &fakeIdentifier{state: state}}
 	h := s.Handler()
 	_, al := ids(t, st)
 	total := func() int {

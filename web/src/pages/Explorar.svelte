@@ -4,6 +4,7 @@
   import { tick, untrack } from 'svelte'
   import BarraFacetas from '../components/BarraFacetas.svelte'
   import BotonEstacion from '../components/BotonEstacion.svelte'
+  import Cargando from '../components/Cargando.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
@@ -23,6 +24,7 @@
   let sentinel = $state()
   let loadedSearch = null
   let loads = 0
+  let pending = $state(false) // other facets are loading: the list is the previous one
 
   const query = $derived(parse(route.search))
   const key = (v) => (v === 'artistas' ? 'artists' : v === 'pistas' ? 'tracks' : 'albums')
@@ -41,14 +43,19 @@
     const fresh = search !== loadedSearch
     // Coming back to a long list: load as much of it as was shown.
     const want = fresh ? Math.max(PAGE, history.state?.shown ?? PAGE) : Math.max(PAGE, items.length)
+    pending = fresh
     let d
     try {
       d = await api.explore(search, 0, Math.min(500, want))
     } catch (e) {
-      if (id === loads) notify(e.message)
+      if (id === loads) {
+        pending = false
+        notify(e.message)
+      }
       return
     }
     if (id !== loads || (route.path !== '/explorar' && route.path !== '/')) return // a newer request is on its way
+    pending = false
     // The server drops malformed facets: show the URL of what it applied.
     const applied = toSearch(d.query)
     if (applied !== toSearch(parse(search))) {
@@ -109,7 +116,9 @@
 {#if data}
   <BarraFacetas query={data.query} facets={data.facets} total={data.total} onchange={change} />
   <div class="estacion"><BotonEstacion station={exploreStation(data.query, data.facets)} /></div>
-  {#if items.length}
+  {#if pending}
+    <Cargando />
+  {:else if items.length}
     {#if data.query.view === 'pistas'}
       <div class="list">
         <ListaPistas
@@ -138,6 +147,8 @@
   {:else}
     <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

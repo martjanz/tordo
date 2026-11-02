@@ -1,11 +1,14 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"tordo/internal/catalog"
+	"tordo/internal/identify"
 	"tordo/internal/search"
 	"tordo/internal/store"
 	"tordo/internal/stream"
@@ -15,10 +18,20 @@ import (
 // kept between requests while the store's change counter stays: Explorar
 // and typing in the search ask often, and building takes a whole snapshot.
 type catalogState struct {
-	mu      sync.Mutex
-	cat     *catalog.Catalog
+	mu         sync.Mutex // guards cat; never held while building
+	build      sync.Mutex // one build at a time
+	cat        *catalog.Catalog
+	refreshing atomic.Bool // a background rebuild is on its way
+
+	indexMu sync.Mutex // guards index
 	index   *search.Index
-	indexed int64 // the change counter the index was built at
+}
+
+// current is the last catalog built, nil before the first.
+func (st *catalogState) current() *catalog.Catalog {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.cat
 }
 
 // playable tells whether the server can deliver a track's audio.
@@ -34,17 +47,66 @@ func (s *Server) catalog() (*catalog.Catalog, error) {
 		return nil, err
 	}
 	st := &s.cat
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if st.cat != nil && st.cat.Changes == changes {
-		return st.cat, nil
+	if c := st.current(); c != nil && c.Changes == changes {
+		return c, nil
+	}
+	st.build.Lock()
+	defer st.build.Unlock()
+	// Another request may have built it while this one waited.
+	if c := st.current(); c != nil && c.Changes >= changes {
+		return c, nil
 	}
 	snap, err := s.Store.Snapshot()
 	if err != nil {
 		return nil, err
 	}
-	st.cat = catalog.Build(snap, catalog.Options{Playable: s.playable})
-	return st.cat, nil
+	c := catalog.Build(snap, catalog.Options{Playable: s.playable})
+	st.mu.Lock()
+	st.cat = c
+	st.mu.Unlock()
+	return c, nil
+}
+
+// browse returns the catalog and the user's data for Inicio and Explorar.
+// While a scan or an identification run keeps changing the store, a
+// rebuild on every visit would keep those pages waiting (seconds on a large
+// collection, holding the store's only connection while it reads): it
+// answers the last ones built, without touching the store, and brings them
+// up to date in the background. The pages load again as the run makes
+// progress and when it ends, and by then nothing is running and the answer
+// is current. A change to the user's data is never answered late.
+func (s *Server) browse() (*catalog.Catalog, *store.Personal, error) {
+	c := s.cat.current()
+	p, version := s.pers.current()
+	if c != nil && p != nil && version == s.Store.PersonalVersion() && s.running() {
+		if s.cat.refreshing.CompareAndSwap(false, true) {
+			go func() {
+				defer s.cat.refreshing.Store(false)
+				if _, err := s.catalog(); err != nil {
+					log.Printf("catálogo: %v", err)
+				} else if _, err := s.personal(); err != nil {
+					log.Printf("catálogo: %v", err)
+				}
+			}()
+		}
+		return c, p, nil
+	}
+	c, err := s.catalog()
+	if err != nil {
+		return nil, nil, err
+	}
+	p, err = s.personal()
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, p, nil
+}
+
+// running tells whether a scan or an identification run is under way.
+func (s *Server) running() bool {
+	p := s.parts()
+	return (p.scanner != nil && p.scanner.Status().Running) ||
+		(p.identifier != nil && p.identifier.Status().State == identify.StateRunning)
 }
 
 // searchIndex returns the catalog and its search index, both current.
@@ -54,8 +116,8 @@ func (s *Server) searchIndex() (*catalog.Catalog, *search.Index, error) {
 		return nil, nil, err
 	}
 	st := &s.cat
-	st.mu.Lock()
-	defer st.mu.Unlock()
+	st.indexMu.Lock()
+	defer st.indexMu.Unlock()
 	if st.index == nil {
 		if st.index, err = search.New(); err != nil {
 			return nil, nil, err
@@ -80,12 +142,7 @@ func intParam(r *http.Request, name string, def, lo, hi int) int {
 // explore answers Explorar: ?ver= (albumes, artistas, pistas), the facets,
 // ?orden= and ?dir=, a page from ?desde= of ?limite= items.
 func (s *Server) explore(w http.ResponseWriter, r *http.Request) {
-	c, err := s.catalog()
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	p, err := s.personal()
+	c, p, err := s.browse()
 	if err != nil {
 		fail(w, err)
 		return

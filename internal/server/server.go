@@ -56,8 +56,9 @@ type Server struct {
 	interfaces func() ([]net.IP, string)
 	now        func() time.Time
 
-	cat  catalogState
-	pers personalState
+	cat         catalogState
+	pers        personalState
+	stationList stationsState
 
 	muxOnce sync.Once
 	mux     http.Handler

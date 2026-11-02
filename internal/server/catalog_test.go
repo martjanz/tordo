@@ -4,8 +4,10 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"tordo/internal/catalog"
+	"tordo/internal/identify"
 	"tordo/internal/store"
 )
 
@@ -48,6 +50,38 @@ func TestCatalogFollowsChanges(t *testing.T) {
 	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
 	if r.Total != 1 {
 		t.Fatalf("the catalog was not rebuilt: %+v", r)
+	}
+}
+
+func TestExploreDuringARun(t *testing.T) {
+	s, _ := mediaServer(t, "")
+	s.Identifier = &fakeIdentifier{state: identify.StateRunning}
+	h := s.Handler()
+	var r catalog.Result
+	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	if r.Total != 0 {
+		t.Fatalf("before: %+v", r)
+	}
+	as, _ := s.Store.Albums("")
+	if err := s.Store.ApplyIdentities([]store.AlbumIdentity{{AlbumID: as[0].ID, Status: store.StatusAuto, ReleaseID: "r1",
+		Country: "AR"}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	// While the run goes on, Explorar answers with the catalog it has and
+	// the new one is built in the background.
+	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	if r.Total != 0 {
+		t.Fatalf("a run waited for the rebuild: %+v", r)
+	}
+	changes, _ := s.Store.Changes()
+	for deadline := time.Now().Add(5 * time.Second); s.cat.current().Changes != changes; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the catalog was not rebuilt in the background")
+		}
+	}
+	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	if r.Total != 1 {
+		t.Fatalf("after the background rebuild: %+v", r)
 	}
 }
 
