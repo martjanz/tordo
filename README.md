@@ -537,3 +537,7 @@ go run ./cmd/tordo -dir .run        # config and catalog in .run/
 bash scripts/build.sh               # web app, then binaries in dist/tordo/
 TORDO_CORPUS=/path/to/music go test ./internal/audiofile -run Corpus -v -timeout 0
 ```
+
+To publish a release, push a version tag (`git tag v1.0.0 && git push origin v1.0.0`):
+the `release` workflow runs the tests and `scripts/build.sh`, then attaches the binaries
+and `SHA256SUMS.txt` to the tag's GitHub release.
