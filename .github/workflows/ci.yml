@@ -1,5 +1,9 @@
 name: ci
-on: [push, pull_request]
+# PRs get one run each; pushes run only on dev and main, so PR branches are not tested twice.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
 jobs:
   test:
     strategy:
