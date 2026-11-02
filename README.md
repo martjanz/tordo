@@ -13,6 +13,25 @@ for sharing playback across devices; see `docs/superpowers/specs/2026-10-01-tord
   `config.json` live next to it, with paths relative to it.
 - **Local or LAN:** runs on `127.0.0.1` by default; optionally listens on the home network (`0.0.0.0`) with PIN authentication.
 
+## Screenshots
+
+![Explorar: the album grid with facet filters (decade, artist, country, genre, collection, rating, listening)](docs/screenshots/explorar.webp)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/inicio.png" alt="Inicio: recently added albums and your stations"><br><sub><b>Inicio</b>: recently added albums and your stations</sub></td>
+    <td width="50%"><img src="docs/screenshots/album.png" alt="Album page with tracks, format, rating and identification"><br><sub><b>Album</b>: tracks, format, rating, play, shuffle, station, queue and playlist</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/now-playing.png" alt="Sonando: the full-screen player"><br><sub><b>Sonando</b>: the full-screen player</sub></td>
+    <td width="50%"><img src="docs/screenshots/carpetas.png" alt="Carpetas: browse the music folders with track counts, duration and size"><br><sub><b>Carpetas</b>: browse the folders with track counts, duration, format and size</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/scan-status.png" alt="Scan status panel with steps, progress and time left"><br><sub><b>Scan status</b>: each step, progress and time left; albums show up while reading</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
 ## Use
 
 Put the `tordo/` folder on the drive, next to your music folders, and run the
