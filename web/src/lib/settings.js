@@ -1,14 +1,13 @@
 // The settings as the pages edit them: a draft made from GET /api/config,
 // and the body of PUT /api/config.
 
-// draft is what the page edits. On first use the suggested folders come
-// checked (the assistant proposes every sibling folder); later they are
-// offered unchecked. token is null while the saved one is kept; the PIN is
+// draft is what the page edits. The suggested folders (the siblings of the
+// app folder) come unchecked: a drive usually holds more than music. token is null while the saved one is kept; the PIN is
 // '' while the saved one is kept.
 export function draft(config) {
   const roots = [
     ...config.roots.map((r) => ({ ...r, checked: true })),
-    ...config.suggested.map((path) => ({ path, available: true, checked: config.setupPending })),
+    ...config.suggested.map((path) => ({ path, available: true, checked: false })),
   ]
   return {
     roots,
@@ -26,6 +25,11 @@ export function addRoot(d, root) {
     ? d.roots.map((r) => (r.path === root.path ? { ...r, checked: true } : r))
     : [...d.roots, { ...root, checked: true }]
   return { ...d, roots }
+}
+
+// checkAll checks (or unchecks) every folder listed.
+export function checkAll(d, checked) {
+  return { ...d, roots: d.roots.map((r) => ({ ...r, checked })) }
 }
 
 const lines = (text) =>

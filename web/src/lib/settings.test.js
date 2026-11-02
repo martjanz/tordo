@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addRoot, body, changed, draft, pinProblem, portProblem, savedNotice } from './settings.js'
+import { addRoot, body, changed, checkAll, draft, pinProblem, portProblem, savedNotice } from './settings.js'
 
 const config = {
   setupPending: false,
@@ -14,9 +14,9 @@ const config = {
 }
 
 describe('draft', () => {
-  it('checks the suggested folders on first use only', () => {
+  it('offers the suggested folders unchecked, also on first use', () => {
     expect(draft(config).roots.map((r) => r.checked)).toEqual([true, false])
-    expect(draft({ ...config, setupPending: true }).roots.map((r) => r.checked)).toEqual([true, true])
+    expect(draft({ ...config, setupPending: true }).roots.map((r) => r.checked)).toEqual([true, false])
   })
   it('puts the ignore patterns one per line and keeps the PIN empty', () => {
     const d = draft(config)
@@ -82,6 +82,15 @@ describe('changed', () => {
     const d = draft(config)
     expect(changed(config, { ...d, ignore: ' *.tmp \n\nSamples ' })).toBe(false)
     expect(changed(config, { ...d, lan: { ...d.lan, port: '4748' } })).toBe(false)
+  })
+})
+
+describe('checkAll', () => {
+  it('checks or unchecks every folder', () => {
+    const d = draft(config)
+    expect(checkAll(d, true).roots.map((r) => r.checked)).toEqual([true, true])
+    expect(checkAll(d, false).roots.map((r) => r.checked)).toEqual([false, false])
+    expect(d.roots.map((r) => r.checked)).toEqual([true, false])
   })
 })
 

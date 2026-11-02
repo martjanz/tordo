@@ -1,6 +1,6 @@
 <script>
   import { api } from '../lib/api.js'
-  import { addRoot } from '../lib/settings.js'
+  import { addRoot, checkAll } from '../lib/settings.js'
 
   // d is the settings draft; the folders are d.roots.
   let { d = $bindable(), disabled = false } = $props()
@@ -28,6 +28,12 @@
   }
 </script>
 
+{#if d.roots.length > 1}
+  <div class="all">
+    <button type="button" class="link" onclick={() => (d = checkAll(d, true))} {disabled}>Marcar todas</button>
+    <button type="button" class="link" onclick={() => (d = checkAll(d, false))} {disabled}>Desmarcar todas</button>
+  </div>
+{/if}
 <ul>
   {#each d.roots as root (root.path)}
     <li>
@@ -49,6 +55,23 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
+  .all {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+  .link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .link:hover:not(:disabled) {
+    color: var(--strong);
+    text-decoration: underline;
+  }
   ul {
     list-style: none;
     margin: 0 0 12px;
