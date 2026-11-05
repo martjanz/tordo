@@ -56,7 +56,7 @@ func mediaServerFingerprints(t *testing.T, ffmpeg string, files map[string]audio
 		rows = append(rows, store.FileRow{Path: "../musica/" + name, Size: 10, MTime: 1, Kind: "audio"})
 	}
 	roots := []string{"../musica"}
-	if err := st.SyncFiles(rows, roots); err != nil {
+	if _, err := st.SyncFiles(rows, roots); err != nil {
 		t.Fatal(err)
 	}
 	env := store.ReadEnv{Version: 1}

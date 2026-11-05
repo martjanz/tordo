@@ -50,7 +50,7 @@ func load(t *testing.T, st *store.Store, files ...file) {
 		rows = append(rows, store.FileRow{Path: f.path, Size: 1, MTime: 1, Kind: "audio"})
 		byPath[f.path] = f
 	}
-	if err := st.SyncFiles(rows, roots); err != nil {
+	if _, err := st.SyncFiles(rows, roots); err != nil {
 		t.Fatal(err)
 	}
 	env := store.ReadEnv{Version: 1}

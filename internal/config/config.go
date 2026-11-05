@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const FileName = "config.json"
@@ -20,7 +21,13 @@ type Config struct {
 	Normalize    *bool    `json:"normalize,omitempty"` // volume normalization; nil (absent): on
 	LAN          LAN      `json:"lan"`
 	ListenMode   bool     `json:"listenMode"` // listen mode: the server refuses curation (scan, identify, collections, genre aliases)
+	// RescanMinutes is how often the folders are checked for changes; nil
+	// (absent): DefaultRescanMinutes, 0: never.
+	RescanMinutes *int `json:"rescanMinutes,omitempty"`
 }
+
+// DefaultRescanMinutes is the rescan interval when config.json does not say.
+const DefaultRescanMinutes = 60
 
 // DefaultPort is the LAN port when config.json does not say.
 const DefaultPort = 4747
@@ -42,6 +49,14 @@ func (l LAN) PortOrDefault() int {
 
 // Normalizing reports whether the player evens out the volume of tracks.
 func (c Config) Normalizing() bool { return c.Normalize == nil || *c.Normalize }
+
+// RescanEvery is how often the folders are checked for changes; 0 means never.
+func (c Config) RescanEvery() time.Duration {
+	if c.RescanMinutes == nil {
+		return DefaultRescanMinutes * time.Minute
+	}
+	return time.Duration(max(*c.RescanMinutes, 0)) * time.Minute
+}
 
 // Load reads config.json from appDir. When the file does not exist it returns
 // the defaults (the sibling folders of appDir as roots, no ignore patterns,

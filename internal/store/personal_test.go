@@ -105,7 +105,7 @@ func TestMarksFollowTheAudio(t *testing.T) {
 	}
 	rs.Close()
 	rows = append(rows, audioRow(moved, 10, 1))
-	if err := s.SyncFiles(rows, root); err != nil {
+	if _, err := s.SyncFiles(rows, root); err != nil {
 		t.Fatal(err)
 	}
 	env := ReadEnv{Version: 1}

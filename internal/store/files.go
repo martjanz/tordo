@@ -15,14 +15,37 @@ type FileRow struct {
 	Kind  string
 }
 
-// SyncFiles upserts the files seen in a scan and marks as missing the known
-// files under scannedRoots that were not seen. Files under other roots keep
-// their state, so an unplugged drive does not wipe its entries. A file whose
-// size or mtime changed loses its fingerprint until it is read again.
-func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) error {
+// SyncFiles writes what differs between the files seen in a scan and the
+// catalog, and marks as missing the known files under scannedRoots that were
+// not seen. Files under other roots keep their state, so an unplugged drive
+// does not wipe its entries. A file whose size or mtime changed loses its
+// fingerprint until it is read again. It reports whether anything changed; an
+// unchanged disk writes nothing.
+func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) (bool, error) {
+	known, err := s.knownFiles()
+	if err != nil {
+		return false, err
+	}
+	var write []FileRow
+	for _, f := range seen {
+		k, ok := known[f.Path]
+		if !ok || k.missing || k.row != f {
+			write = append(write, f)
+		}
+		delete(known, f.Path)
+	}
+	var gone []string
+	for p, k := range known { // what is left was not seen
+		if !k.missing && underAny(p, scannedRoots) {
+			gone = append(gone, p)
+		}
+	}
+	if len(write) == 0 && len(gone) == 0 {
+		return false, nil
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback()
 	up, err := tx.Prepare(`INSERT INTO files (path, size, mtime, kind, missing, first_seen) VALUES (?1, ?2, ?3, ?4, 0, ?5)
@@ -30,25 +53,42 @@ func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) error {
 			fingerprint = CASE WHEN files.size != excluded.size OR files.mtime != excluded.mtime THEN '' ELSE files.fingerprint END,
 			size = excluded.size, mtime = excluded.mtime, kind = excluded.kind, missing = 0`)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer up.Close()
 	now := time.Now().UnixMilli()
-	present := make(map[string]bool, len(seen))
-	for _, f := range seen {
+	for _, f := range write {
 		if _, err := up.Exec(f.Path, f.Size, f.MTime, f.Kind, now); err != nil {
-			return err
+			return false, err
 		}
-		present[f.Path] = true
-	}
-	gone, err := presentPaths(tx, func(p string) bool { return !present[p] && underAny(p, scannedRoots) })
-	if err != nil {
-		return err
 	}
 	if err := markMissing(tx, gone); err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit()
+	return true, tx.Commit()
+}
+
+type knownFile struct {
+	row     FileRow
+	missing bool
+}
+
+// knownFiles returns every file in the catalog by path.
+func (s *Store) knownFiles() (map[string]knownFile, error) {
+	rows, err := s.db.Query(`SELECT path, size, mtime, kind, missing FROM files`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]knownFile{}
+	for rows.Next() {
+		var k knownFile
+		if err := rows.Scan(&k.row.Path, &k.row.Size, &k.row.MTime, &k.row.Kind, &k.missing); err != nil {
+			return nil, err
+		}
+		out[k.row.Path] = k
+	}
+	return out, rows.Err()
 }
 
 // MarkOutsideRoots marks as missing the present files that are not under any
