@@ -8,7 +8,7 @@ import (
 
 // Folder is what a folder's name says.
 type Folder struct {
-	Position int // order prefix inside a collection: "[LA-599] …" → 599, "07 - …" → 7
+	Position int // order prefix inside a collection: "[LA-599] …" → 599, "07 - …" → 7, "0625.…" → 625, "CLC 0866 - …" → 866
 	Artist   string
 	Album    string // the whole name when there is no "Artist - Album" split
 	Year     int
@@ -18,7 +18,8 @@ type Folder struct {
 
 var (
 	rePosBracket = regexp.MustCompile(`^\[\s*(?:[A-Za-z]{1,5}\s*[-_ ]?\s*)?(\d{1,4})\s*\]\s*`)
-	rePosNumber  = regexp.MustCompile(`^(\d{1,3})\s*[.)\-_]\s*`)
+	rePosNumber  = regexp.MustCompile(`^(\d{1,3}|0\d{3})\s*[.)\-_]\s*`)
+	rePosCode    = regexp.MustCompile(`^[A-Z]{2,5}\s*(\d{4})\s*[-–]\s+`)
 	reNoise      = regexp.MustCompile(`(?i)\s*[\[(]\s*(?:\d{2,3}\s*k(?:b|bps)?|v0|v2|320|aac[^)\]]*|mp3[^)\]]*|flac[^)\]]*|ogg[^)\]]*|digital|lp|vinyl|web|cd|cdrip|hi-?res|\d{2}\s*[-/ ]\s*\d{2,3}(?:[.,]\d)?(?:\s*khz)?|\d{2}\s*bits?[^)\]]*)\s*[\])]`)
 	reYearParen  = regexp.MustCompile(`\s*[\[(]((?:19|20)\d{2})(?:\s*[-–/]\s*(?:19|20)?\d{2})?[\])]`)
 	reYear       = regexp.MustCompile(`^(?:19|20)\d{2}$`)
@@ -39,6 +40,9 @@ func ParseFolder(name string) Folder {
 		f.Position, _ = strconv.Atoi(s[m[2]:m[3]])
 		s = s[m[1]:]
 	} else if m := rePosNumber.FindStringSubmatchIndex(s); m != nil {
+		f.Position, _ = strconv.Atoi(s[m[2]:m[3]])
+		s = s[m[1]:]
+	} else if m := rePosCode.FindStringSubmatchIndex(s); m != nil {
 		f.Position, _ = strconv.Atoi(s[m[2]:m[3]])
 		s = s[m[1]:]
 	}

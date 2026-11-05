@@ -247,10 +247,10 @@ func makeAlbum(key string, ms []*member) Album {
 		a.Artist = aa
 	case aa != "" || folder.Various:
 		a.Artist, a.Compilation = Various, true
-	case folder.Artist != "":
-		a.Artist = folder.Artist
-	case artists.distinct() == 1:
+	case artists.distinct() == 1: // the tags agree: a folder name may be a catalog code
 		a.Artist = artists.top()
+	case folder.Artist != "": // tracks with guests: the folder names the main artist
+		a.Artist = folder.Artist
 	case artists.distinct() > 1:
 		a.Artist, a.Compilation = Various, true
 	}

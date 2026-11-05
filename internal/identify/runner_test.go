@@ -180,6 +180,55 @@ func TestSecondRunMakesNoRequests(t *testing.T) {
 	}
 }
 
+// ageMatches makes every stored match look made by an older matcher.
+func ageMatches(t *testing.T, st *store.Store) {
+	t.Helper()
+	ms, err := st.Matches()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old []store.Match
+	for _, m := range ms {
+		m.MatcherVersion = MatcherVersion - 1
+		old = append(old, m)
+	}
+	if err := st.SaveMatches(old); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOlderMatcherRetriesOnlyUnmatched(t *testing.T) {
+	st := newCatalog(t, signosFiles()...)
+	mb := signosMB()
+	r, _ := newRunner(t, st, mb, nil)
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ageMatches(t, st)
+	mb.calls = nil
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(mb.calls) != 0 {
+		t.Fatalf("an identified album was matched again: %v", mb.calls)
+	}
+
+	st = newCatalog(t, signosFiles()...)
+	mb = &fakeMB{}
+	r, _ = newRunner(t, st, mb, nil)
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ageMatches(t, st)
+	mb.calls = nil
+	if err := r.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(mb.calls) == 0 {
+		t.Fatal("an unmatched album was not matched again")
+	}
+}
+
 func TestUnmatchedGoesToReview(t *testing.T) {
 	st := newCatalog(t, signosFiles()...)
 	mb := &fakeMB{search: map[string][]musicbrainz.ReleaseHit{"Signos|Soda Stereo|false": {otherHit()}}}

@@ -232,6 +232,28 @@ func TestJunkTagsFallBackToFolder(t *testing.T) {
 	}
 }
 
+func TestTrackArtistBeatsFolderArtist(t *testing.T) {
+	d := "../musica/colecciones/Radio Nacional - Metallica en vivo"
+	r := Build([]Track{
+		tr(1, d+"/01.mp3", audiofile.Tags{Title: "a", Artist: "Metallica", Album: "En vivo", Track: 1}),
+		tr(2, d+"/02.mp3", audiofile.Tags{Title: "b", Artist: "METALLICA", Album: "En vivo", Track: 2}),
+	}, nil, roots)
+	if a := albumByTitle(t, r, "En vivo"); a.Artist != "Metallica" || a.Compilation {
+		t.Fatalf("album = %+v", a)
+	}
+}
+
+func TestFolderArtistNamesAlbumWithGuests(t *testing.T) {
+	d := "../musica/colecciones/Fito Páez - Euforia"
+	r := Build([]Track{
+		tr(1, d+"/01.mp3", audiofile.Tags{Title: "a", Artist: "Fito Páez", Album: "Euforia", Track: 1}),
+		tr(2, d+"/02.mp3", audiofile.Tags{Title: "b", Artist: "Fito Páez & Mercedes Sosa", Album: "Euforia", Track: 2}),
+	}, nil, roots)
+	if a := albumByTitle(t, r, "Euforia"); a.Artist != "Fito Páez" || a.Compilation {
+		t.Fatalf("album = %+v", a)
+	}
+}
+
 func TestUnknownArtistComesFromParentArtistFolder(t *testing.T) {
 	z := "../musica/Uruguay/Alfredo Zitarrosa"
 	casi := z + "/Casi en privado"
