@@ -14,9 +14,9 @@ import (
 	"tordo/internal/store"
 )
 
-// MatcherVersion changes when matching changes: queries matched by an older
-// version are matched again.
-const MatcherVersion = 1
+// MatcherVersion changes when matching changes: queries an older version left
+// unmatched are matched again. Identified ones stay, to spare the requests.
+const MatcherVersion = 2
 
 // Variant is one way of searching an album.
 type Variant struct {

@@ -104,10 +104,11 @@ func tracksScore(n, m int) float64 {
 	return 0
 }
 
-// durationsScore is the share of the album's tracks (with a known
-// duration) that match a release track: position by position when both
-// have as many tracks, else any unused track. Unknown durations give a
-// neutral half.
+// durationsScore is the share of the album's tracks (with a known duration)
+// that match a release track. Any unused track will do, as an album's order
+// is only as good as its track tags; when both have as many tracks, position
+// by position counts too if it pairs more. Unknown durations give a neutral
+// half: all the album's, or each one the release lacks.
 func durationsScore(album, release []int64) float64 {
 	known := 0
 	for _, d := range album {
@@ -119,25 +120,32 @@ func durationsScore(album, release []int64) float64 {
 		return 0.5
 	}
 	matched := 0
-	if len(album) == len(release) {
-		for i, d := range album {
-			if near(d, release[i]) {
+	used := make([]bool, len(release))
+	for _, d := range album {
+		for j, r := range release {
+			if !used[j] && near(d, r) {
+				used[j] = true
 				matched++
-			}
-		}
-	} else {
-		used := make([]bool, len(release))
-		for _, d := range album {
-			for j, r := range release {
-				if !used[j] && near(d, r) {
-					used[j] = true
-					matched++
-					break
-				}
+				break
 			}
 		}
 	}
-	return float64(matched) / float64(known)
+	if len(album) == len(release) {
+		positional := 0
+		for i, d := range album {
+			if near(d, release[i]) {
+				positional++
+			}
+		}
+		matched = max(matched, positional)
+	}
+	unknown := 0
+	for _, r := range release {
+		if r <= 0 {
+			unknown++
+		}
+	}
+	return (float64(matched) + 0.5*float64(min(unknown, known-matched))) / float64(known)
 }
 
 func near(a, b int64) bool { return a > 0 && b > 0 && absDiff(a, b) <= durationSlackMs }

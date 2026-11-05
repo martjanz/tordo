@@ -259,7 +259,7 @@ func (r *Runner) identifyAll(ctx context.Context, fetched map[string]musicbrainz
 		}
 		q := BuildQuery(t)
 		k := q.Key()
-		if m, ok := matches[k]; (ok && m.MatcherVersion >= MatcherVersion) || queued[k] {
+		if m, ok := matches[k]; (ok && (m.Status == store.StatusAuto || m.MatcherVersion >= MatcherVersion)) || queued[k] {
 			continue
 		}
 		queued[k] = true

@@ -39,6 +39,12 @@ func TestParseFolder(t *testing.T) {
 		{"[1980-1981] Casi en privado (programa de Radio Educación - Mexico)",
 			Folder{Album: "Casi en privado (programa de Radio Educación - Mexico)", Year: 1980}},
 		{"[1962] en Radio Centenario", Folder{Album: "en Radio Centenario", Year: 1962}},
+		{"0625.Metallica - ...And Justice For All [1988]", Folder{Position: 625, Artist: "Metallica", Album: "...And Justice For All", Year: 1988}},
+		{"0003 - The Louvin Brothers - Tragic Songs Of Life (1956)", Folder{Position: 3, Artist: "The Louvin Brothers", Album: "Tragic Songs Of Life", Year: 1956}},
+		{"CLC 0866 - Louis Jordan (1943-1945)", Folder{Position: 866, Album: "Louis Jordan", Year: 1943}},
+		{"SVLP 2026 - Cliff Jackson - Uptown And Lowdown (1962)", Folder{Position: 2026, Artist: "Cliff Jackson", Album: "Uptown And Lowdown", Year: 1962}},
+		{"1971 - Tiempo", Folder{Album: "Tiempo", Year: 1971}},
+		{"Blink 182 - Enema of the State", Folder{Artist: "Blink 182", Album: "Enema of the State"}},
 	}
 	for _, c := range cases {
 		if got := ParseFolder(c.in); got != c.want {
