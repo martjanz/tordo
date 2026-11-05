@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"path"
+	"slices"
 	"strings"
 	"time"
 )
@@ -22,6 +23,13 @@ type FileRow struct {
 // fingerprint until it is read again. It reports whether anything changed; an
 // unchanged disk writes nothing.
 func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) (bool, error) {
+	return s.SyncFilesExcept(seen, scannedRoots, nil)
+}
+
+// SyncFilesExcept is SyncFiles for a walk that could not read some folders or
+// files: those (and what a folder holds) keep their state, since not seeing
+// them says nothing.
+func (s *Store) SyncFilesExcept(seen []FileRow, scannedRoots, unreadable []string) (bool, error) {
 	known, err := s.knownFiles()
 	if err != nil {
 		return false, err
@@ -36,7 +44,7 @@ func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) (bool, error) {
 	}
 	var gone []string
 	for p, k := range known { // what is left was not seen
-		if !k.missing && underAny(p, scannedRoots) {
+		if !k.missing && underAny(p, scannedRoots) && !slices.Contains(unreadable, p) && !underAny(p, unreadable) {
 			gone = append(gone, p)
 		}
 	}

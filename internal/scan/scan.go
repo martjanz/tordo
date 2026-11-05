@@ -33,10 +33,17 @@ type Status struct {
 	Albums  int   `json:"albums"`
 	// EtaSeconds estimates the reading time left from the pace so far; 0
 	// while unknown (too few files read) or not reading.
-	EtaSeconds int       `json:"etaSeconds"`
-	LastError  string    `json:"lastError"`
-	Finished   time.Time `json:"finished"`
+	EtaSeconds int    `json:"etaSeconds"`
+	LastError  string `json:"lastError"`
+	// Skipped counts the folders and files the walk could not read;
+	// SkippedPaths names the first ones (catalog form).
+	Skipped      int       `json:"skipped"`
+	SkippedPaths []string  `json:"skippedPaths"`
+	Finished     time.Time `json:"finished"`
 }
+
+// maxSkippedPaths is how many unreadable paths the status names.
+const maxSkippedPaths = 20
 
 type Scanner struct {
 	AppDir string
@@ -60,6 +67,8 @@ type Scanner struct {
 	now       func() time.Time // nil means time.Now; tests replace it
 	etaAfter  int              // files read before estimating; 0 means 200
 	afterSync func()           // nil in production; tests run it once the walk is saved
+	// walkDir nil means filepath.WalkDir; tests replace it to fail on a folder.
+	walkDir func(root string, fn fs.WalkDirFunc) error
 
 	mu        sync.Mutex
 	status    Status
@@ -139,11 +148,15 @@ func (s *Scanner) start(ctx context.Context, check bool) error {
 }
 
 func (s *Scanner) run(ctx context.Context) error {
-	attempted, clean, seen, err := s.walk(ctx)
+	attempted, skipped, seen, err := s.walk(ctx)
 	if err != nil {
 		return err
 	}
-	changed, err := s.Store.SyncFiles(seen, clean)
+	s.mu.Lock()
+	s.status.Skipped = len(skipped)
+	s.status.SkippedPaths = skipped[:min(len(skipped), maxSkippedPaths)]
+	s.mu.Unlock()
+	changed, err := s.Store.SyncFilesExcept(seen, attempted, skipped)
 	if err != nil {
 		return err
 	}
@@ -197,7 +210,7 @@ func (s *Scanner) settle(roots []string, files int) (done bool, err error) {
 		return true, nil
 	}
 	if checking {
-		s.status = Status{Running: true, Files: int64(files)}
+		s.status = Status{Running: true, Files: int64(files), Skipped: s.status.Skipped, SkippedPaths: s.status.SkippedPaths}
 		s.checking = false
 	}
 	s.grouped = false
@@ -205,9 +218,13 @@ func (s *Scanner) settle(roots []string, files int) (done bool, err error) {
 }
 
 // walk lists the catalogued files of every available root. attempted are the
-// roots walked at all; clean those walked without read errors (only under
-// those may unseen files be marked missing).
-func (s *Scanner) walk(ctx context.Context) (attempted, clean []string, seen []store.FileRow, err error) {
+// roots walked at all; skipped the folders and files that could not be read
+// (under those, not seeing a file does not mean it is gone).
+func (s *Scanner) walk(ctx context.Context) (attempted, skipped []string, seen []store.FileRow, err error) {
+	walkDir := s.walkDir
+	if walkDir == nil {
+		walkDir = filepath.WalkDir
+	}
 	for _, root := range s.Roots {
 		abs := appdir.Abs(s.AppDir, root)
 		if st, err := os.Stat(abs); err != nil || !st.IsDir() {
@@ -215,11 +232,21 @@ func (s *Scanner) walk(ctx context.Context) (attempted, clean []string, seen []s
 			continue
 		}
 		attempted = append(attempted, root)
-		rootHadError := false
-		werr := filepath.WalkDir(abs, func(p string, d fs.DirEntry, err error) error {
+		start := appdir.Verbatim(abs)
+		skip := func(p string, cause error) error {
+			log.Printf("no se puede leer %s: %v; lo que contiene queda como estaba en el catálogo", p, cause)
+			rel, err := appdir.Rel(s.AppDir, p)
 			if err != nil {
-				rootHadError = true
-				log.Printf("no se puede leer %s: %v", p, err)
+				return err
+			}
+			skipped = append(skipped, rel)
+			return nil
+		}
+		werr := walkDir(start, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				if err := skip(p, err); err != nil {
+					return err
+				}
 				if d != nil && d.IsDir() {
 					return fs.SkipDir
 				}
@@ -229,10 +256,10 @@ func (s *Scanner) walk(ctx context.Context) (attempted, clean []string, seen []s
 				return err
 			}
 			if d.IsDir() {
-				if p == abs {
+				if p == start {
 					return nil
 				}
-				rel, err := filepath.Rel(abs, p)
+				rel, err := filepath.Rel(start, p)
 				if err != nil {
 					return err
 				}
@@ -247,9 +274,7 @@ func (s *Scanner) walk(ctx context.Context) (attempted, clean []string, seen []s
 			}
 			info, err := d.Info()
 			if err != nil {
-				rootHadError = true
-				log.Printf("no se puede leer %s: %v", p, err)
-				return nil
+				return skip(p, err)
 			}
 			rel, err := appdir.Rel(s.AppDir, p)
 			if err != nil {
@@ -271,13 +296,8 @@ func (s *Scanner) walk(ctx context.Context) (attempted, clean []string, seen []s
 		if _, err := os.Stat(abs); err != nil {
 			return nil, nil, nil, fmt.Errorf("la raíz %s desapareció durante el escaneo", root)
 		}
-		if rootHadError {
-			log.Printf("raíz leída en parte por errores de lectura; no se marcan ausentes bajo ella: %s", root)
-			continue
-		}
-		clean = append(clean, root)
 	}
-	return attempted, clean, seen, nil
+	return attempted, skipped, seen, nil
 }
 
 // readBatch is how many results are committed at once, so an interrupted

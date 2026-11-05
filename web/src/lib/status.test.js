@@ -17,6 +17,9 @@ describe('summary', () => {
     ],
     [{ readOnly: true, scan: {} }, { text: 'Modo consulta', tone: 'warn' }],
     [{ scan: { lastError: 'disco desconectado' } }, { text: 'El último escaneo falló', tone: 'warn' }],
+    [{ scan: { skipped: 1 } }, { text: '1 carpeta sin leer', tone: 'warn' }],
+    [{ scan: { skipped: 3 } }, { text: '3 carpetas sin leer', tone: 'warn' }],
+    [{ scan: { lastError: 'disco desconectado', skipped: 3 } }, { text: 'El último escaneo falló', tone: 'warn' }],
     [{ scan: {}, identify: { state: 'offline' } }, { text: 'Sin conexión con MusicBrainz', tone: 'warn' }],
     [{ scan: {} }, { text: 'Al día', tone: 'ok' }],
   ])('%j', (st, want) => {
@@ -163,5 +166,19 @@ describe('panel', () => {
     [90 * 60, 'faltan unas 2 h'],
   ])('time left %i s', (eta, want) => {
     expect(panel({ scan: { running: true, read: 1, toRead: 2, etaSeconds: eta } }).progress.eta).toBe(want)
+  })
+})
+
+describe('panel with unread folders', () => {
+  it('names them and says what happens to their files', () => {
+    const { notes, title, tone } = panel({ scan: { skipped: 3, skippedPaths: ['../music/a ', '../music/b'] } })
+    expect(title).toBe('3 carpetas sin leer')
+    expect(tone).toBe('warn')
+    expect(notes).toEqual([
+      'No se pudieron leer: lo que tenían sigue en el catálogo tal como estaba.',
+      '../music/a ',
+      '../music/b',
+      'Y 1 más.',
+    ])
   })
 })

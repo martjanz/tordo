@@ -139,3 +139,27 @@ func TestMovedFileKeepsFirstSeen(t *testing.T) {
 		t.Fatalf("first_seen = %d, want 1000 (inherited)", after)
 	}
 }
+
+func TestUnreadableFolderKeepsOnlyItsFiles(t *testing.T) {
+	s := open(t)
+	all := []FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../musica/rota/b.mp3", 10, 1), audioRow("../musica/rotativa/c.mp3", 10, 1), audioRow("../musica/d.mp3", 10, 1)}
+	if _, err := s.SyncFiles(all, root); err != nil {
+		t.Fatal(err)
+	}
+	save(t, s, ReadEnv{Version: 1}, "", audiofile.Info{})
+	// Only d.mp3 was seen; rota could not be read, and neither could the data of a.mp3.
+	if _, err := s.SyncFilesExcept(all[3:], root, []string{"../musica/rota", "../musica/a.mp3"}); err != nil {
+		t.Fatal(err)
+	}
+	tracks, _, err := s.GroupingInput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, tr := range tracks {
+		got[tr.Path] = true
+	}
+	if len(got) != 3 || !got["../musica/a.mp3"] || !got["../musica/rota/b.mp3"] || !got["../musica/d.mp3"] {
+		t.Fatalf("tracks = %v, want all but rotativa/c.mp3", got)
+	}
+}
