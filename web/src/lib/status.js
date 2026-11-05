@@ -36,6 +36,9 @@ export function summary(st, lost = false) {
   }
   if (st.readOnly) return { text: 'Modo consulta', tone: 'warn' }
   if (st.scan?.lastError) return { text: 'El último escaneo falló', tone: 'warn' }
+  if (st.scan?.skipped > 0) {
+    return { text: st.scan.skipped === 1 ? '1 carpeta sin leer' : `${num(st.scan.skipped)} carpetas sin leer`, tone: 'warn' }
+  }
   if (id?.state === 'offline') return { text: 'Sin conexión con MusicBrainz', tone: 'warn' }
   return { text: 'Al día', tone: 'ok' }
 }
@@ -96,6 +99,12 @@ export function panel(st, lost = false) {
     out.notes.push('La identificación se pausa y se reintenta sola. Todo lo demás funciona igual.')
   } else {
     out.steps = steps(null)
+  }
+
+  if (!scan.running && scan.skipped > 0) {
+    const paths = scan.skippedPaths ?? []
+    out.notes.push('No se pudieron leer: lo que tenían sigue en el catálogo tal como estaba.', ...paths)
+    if (scan.skipped > paths.length) out.notes.push(`Y ${num(scan.skipped - paths.length)} más.`)
   }
 
   const c = st.counts ?? {}

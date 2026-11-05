@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"path"
+	"slices"
 	"strings"
 	"time"
 )
@@ -20,6 +21,13 @@ type FileRow struct {
 // their state, so an unplugged drive does not wipe its entries. A file whose
 // size or mtime changed loses its fingerprint until it is read again.
 func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) error {
+	return s.SyncFilesExcept(seen, scannedRoots, nil)
+}
+
+// SyncFilesExcept is SyncFiles for a walk that could not read some folders or
+// files: those (and what a folder holds) keep their state, since not seeing
+// them says nothing.
+func (s *Store) SyncFilesExcept(seen []FileRow, scannedRoots, unreadable []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -41,7 +49,9 @@ func (s *Store) SyncFiles(seen []FileRow, scannedRoots []string) error {
 		}
 		present[f.Path] = true
 	}
-	gone, err := presentPaths(tx, func(p string) bool { return !present[p] && underAny(p, scannedRoots) })
+	gone, err := presentPaths(tx, func(p string) bool {
+		return !present[p] && underAny(p, scannedRoots) && !slices.Contains(unreadable, p) && !underAny(p, unreadable)
+	})
 	if err != nil {
 		return err
 	}
