@@ -147,7 +147,7 @@ func TestPlaylistEntryWhoseTrackLeft(t *testing.T) {
 		if path != "" {
 			rows = append(rows, audioRow(path, 10, 1))
 		}
-		if err := s.SyncFiles(rows, root); err != nil {
+		if _, err := s.SyncFiles(rows, root); err != nil {
 			t.Fatal(err)
 		}
 		env := ReadEnv{Version: 1}

@@ -113,3 +113,42 @@ func TestFolderNameEndingInSpaceIsCatalogued(t *testing.T) {
 		t.Errorf("tracks = %v", got)
 	}
 }
+
+// A timed check that finds changes starts a visible run: the folders it could
+// not read have to stay named.
+func TestRefreshWithChangesKeepsTheSkippedFolders(t *testing.T) {
+	l := newLib(t)
+	l.write("bien/a.mp3", tags("A", "x", "Uno", 1))
+	l.write("rota/c.mp3", tags("C", "x", "Dos", 1))
+	l.run()
+
+	l.write("bien/nuevo.mp3", tags("N", "x", "Uno", 2))
+	l.sc.walkDir = failing("rota")
+	st := l.refresh()
+	if st.ToRead != 1 || st.Skipped != 1 || len(st.SkippedPaths) != 1 || st.SkippedPaths[0] != "../musica/rota" {
+		t.Fatalf("status = %+v", st)
+	}
+}
+
+// With nothing else to do the check stays quiet, but what it could read is
+// still news: the status follows the folder going bad and coming back.
+func TestQuietRefreshFollowsTheSkippedFolders(t *testing.T) {
+	l := newLib(t)
+	l.write("bien/a.mp3", tags("A", "x", "Uno", 1))
+	l.write("rota/c.mp3", tags("C", "x", "Dos", 1))
+	l.run()
+	done := 0
+	l.sc.OnDone = func() { done++ }
+
+	l.sc.walkDir = failing("rota")
+	if st := l.refresh(); st.Skipped != 1 || st.Tracks != 2 {
+		t.Fatalf("with the folder unreadable: status = %+v", st)
+	}
+	l.sc.walkDir = nil
+	if st := l.refresh(); st.Skipped != 0 || len(st.SkippedPaths) != 0 || st.Tracks != 2 {
+		t.Fatalf("with the folder back: status = %+v", st)
+	}
+	if done != 0 {
+		t.Fatalf("OnDone ran %d times for an unchanged catalog", done)
+	}
+}

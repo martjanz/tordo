@@ -45,6 +45,8 @@ type configView struct {
 	Normalize    bool       `json:"normalize"`
 	LAN          lanView    `json:"lan"`
 	ListenMode   bool       `json:"listenMode"`
+	// RescanMinutes is how often the folders are checked for changes; 0: never.
+	RescanMinutes int `json:"rescanMinutes"`
 }
 
 func (s *Server) configView() configView {
@@ -53,7 +55,7 @@ func (s *Server) configView() configView {
 		cfg = rt.Config
 	}
 	v := configView{SetupPending: s.Engine.SetupPending(), ReadOnly: s.readOnly(), Roots: []rootView{}, Suggested: []string{},
-		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(), ListenMode: cfg.ListenMode,
+		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(), ListenMode: cfg.ListenMode, RescanMinutes: int(cfg.RescanEvery().Minutes()),
 		LAN: lanView{Enabled: cfg.LAN.Enabled, Port: cfg.LAN.PortOrDefault(), HasPin: cfg.LAN.PinHash != ""}}
 	for _, r := range cfg.Roots {
 		v.Roots = append(v.Roots, rootView{r, config.Available(s.AppDir, r)})
@@ -152,9 +154,12 @@ func cleanIgnore(in []string) ([]string, error) {
 	return out, nil
 }
 
+// maxRescanMinutes is a week.
+const maxRescanMinutes = 7 * 24 * 60
+
 // putConfig validates and saves the settings, and restarts what depends on
 // them. A null token or PIN keeps the saved one; a "" token removes it. An
-// absent (or null) roots, ignore, normalize, lan or listenMode keeps the saved
+// absent (or null) roots, ignore, normalize, lan, listenMode or rescanMinutes keeps the saved
 // value, so the page can save listen mode on its own.
 func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	if s.readOnly() {
@@ -167,6 +172,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		Token      *string   `json:"token"`
 		Normalize  *bool     `json:"normalize"`
 		ListenMode *bool     `json:"listenMode"`
+		Rescan     *int      `json:"rescanMinutes"`
 		LAN        *struct {
 			Enabled bool    `json:"enabled"`
 			Port    int     `json:"port"`
@@ -223,8 +229,14 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 				return invalid(errors.New("elegí un PIN para usar Tordo desde la red"))
 			}
 		}
+		if req.Rescan != nil && (*req.Rescan < 0 || *req.Rescan > maxRescanMinutes) {
+			return invalid(fmt.Errorf("el intervalo de búsqueda de cambios tiene que estar entre 0 y %d minutos", maxRescanMinutes))
+		}
 		cfg := cur
 		cfg.Roots, cfg.Ignore, cfg.LAN = roots, ignore, lan
+		if req.Rescan != nil {
+			cfg.RescanMinutes = req.Rescan
+		}
 		if req.Normalize != nil {
 			cfg.Normalize = req.Normalize
 		}

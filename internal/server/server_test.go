@@ -25,7 +25,7 @@ func newStore(t *testing.T) *store.Store {
 	}
 	t.Cleanup(func() { st.Close() })
 	roots := []string{"../musica"}
-	if err := st.SyncFiles([]store.FileRow{{Path: "../musica/Virus - Locura/01.mp3", Size: 1, MTime: 1, Kind: "audio"}}, roots); err != nil {
+	if _, err := st.SyncFiles([]store.FileRow{{Path: "../musica/Virus - Locura/01.mp3", Size: 1, MTime: 1, Kind: "audio"}}, roots); err != nil {
 		t.Fatal(err)
 	}
 	env := store.ReadEnv{Version: 1}

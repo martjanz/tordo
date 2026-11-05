@@ -64,14 +64,18 @@ type Scanner struct {
 	// out the next ones.
 	GroupEvery time.Duration
 
-	now      func() time.Time // nil means time.Now; tests replace it
-	etaAfter int              // files read before estimating; 0 means 200
+	now       func() time.Time // nil means time.Now; tests replace it
+	etaAfter  int              // files read before estimating; 0 means 200
+	afterSync func()           // nil in production; tests run it once the walk is saved
 	// walkDir nil means filepath.WalkDir; tests replace it to fail on a folder.
 	walkDir func(root string, fn fs.WalkDirFunc) error
 
 	mu        sync.Mutex
 	status    Status
 	readStart time.Time
+	busy      bool // a scan or a Refresh is under way
+	checking  bool // a Refresh that has found nothing to do so far
+	grouped   bool // the albums reflect the catalog of files
 }
 
 func (s *Scanner) clock() time.Time {
@@ -96,26 +100,48 @@ func (s *Scanner) Status() Status {
 	return st
 }
 
-// Run performs one incremental scan. A call while another runs returns ErrBusy.
-func (s *Scanner) Run(ctx context.Context) error {
+// Busy reports whether a scan or a Refresh is under way, also one that the
+// status does not show.
+func (s *Scanner) Busy() bool {
 	s.mu.Lock()
-	if s.status.Running {
+	defer s.mu.Unlock()
+	return s.busy
+}
+
+// Run performs one incremental scan. A call while another runs returns ErrBusy.
+func (s *Scanner) Run(ctx context.Context) error { return s.start(ctx, false) }
+
+// Refresh checks whether the disk differs from the catalog and only then does
+// what Run does. While it checks the status stays as it was, and with nothing
+// to do it ends there: the albums are not rebuilt, OnDone is not called and
+// the pages, which reload when a run ends, do not notice. A call while another
+// runs returns ErrBusy.
+func (s *Scanner) Refresh(ctx context.Context) error { return s.start(ctx, true) }
+
+func (s *Scanner) start(ctx context.Context, check bool) error {
+	s.mu.Lock()
+	if s.busy {
 		s.mu.Unlock()
 		return ErrBusy
 	}
-	s.status = Status{Running: true}
+	s.busy, s.checking = true, check
+	if !check {
+		s.status = Status{Running: true}
+	}
 	s.mu.Unlock()
 
 	err := s.run(ctx)
 
 	s.mu.Lock()
+	worked := !s.checking
+	s.busy, s.checking = false, false
 	s.status.Running = false
 	s.status.Finished = time.Now()
 	if err != nil {
 		s.status.LastError = err.Error()
 	}
 	s.mu.Unlock()
-	if ctx.Err() == nil && s.OnDone != nil {
+	if worked && ctx.Err() == nil && s.OnDone != nil {
 		s.OnDone()
 	}
 	return err
@@ -130,10 +156,22 @@ func (s *Scanner) run(ctx context.Context) error {
 	s.status.Skipped = len(skipped)
 	s.status.SkippedPaths = skipped[:min(len(skipped), maxSkippedPaths)]
 	s.mu.Unlock()
-	if err := s.Store.SyncFilesExcept(seen, attempted, skipped); err != nil {
+	changed, err := s.Store.SyncFilesExcept(seen, attempted, skipped)
+	if err != nil {
 		return err
 	}
 	if err := s.Store.MarkOutsideRoots(s.Roots); err != nil {
+		return err
+	}
+	if changed {
+		s.mu.Lock()
+		s.grouped = false
+		s.mu.Unlock()
+	}
+	if s.afterSync != nil {
+		s.afterSync()
+	}
+	if done, err := s.settle(attempted, len(seen)); done || err != nil {
 		return err
 	}
 	readErr := s.readAll(ctx, attempted)
@@ -142,7 +180,41 @@ func (s *Scanner) run(ctx context.Context) error {
 	}
 	// The catalog is regrouped even when reading stopped early: what was read
 	// is already saved.
-	return errors.Join(readErr, s.group(false))
+	groupErr := s.group(false)
+	if readErr == nil && groupErr == nil {
+		s.mu.Lock()
+		s.grouped = true
+		s.mu.Unlock()
+	}
+	return errors.Join(readErr, groupErr)
+}
+
+// settle ends a Refresh that has nothing to do (done), or else turns it into
+// a run the status shows. From here until the albums are rebuilt they are
+// behind the files, whatever interrupts this.
+func (s *Scanner) settle(roots []string, files int) (done bool, err error) {
+	s.mu.Lock()
+	checking := s.checking
+	s.mu.Unlock()
+	var pending []store.ReadTarget
+	if checking {
+		_, env := s.reader()
+		if pending, err = s.pendingUnder(env, roots); err != nil {
+			return false, err
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if checking && s.grouped && len(pending) == 0 {
+		s.status.LastError = ""
+		return true, nil
+	}
+	if checking {
+		s.status = Status{Running: true, Files: int64(files), Skipped: s.status.Skipped, SkippedPaths: s.status.SkippedPaths}
+		s.checking = false
+	}
+	s.grouped = false
+	return false, nil
 }
 
 // walk lists the catalogued files of every available root. attempted are the
@@ -210,7 +282,9 @@ func (s *Scanner) walk(ctx context.Context) (attempted, skipped []string, seen [
 			}
 			seen = append(seen, store.FileRow{Path: rel, Size: info.Size(), MTime: info.ModTime().UnixMilli(), Kind: string(kind)})
 			s.mu.Lock()
-			s.status.Files++
+			if !s.checking {
+				s.status.Files++
+			}
 			s.mu.Unlock()
 			return nil
 		})
@@ -234,19 +308,10 @@ const readBatch = 100
 // fingerprint. Files that cannot be read now are left for the next scan;
 // files read but not understood are stored with their error.
 func (s *Scanner) readAll(ctx context.Context, roots []string) error {
-	read, env := s.Read, s.Env
-	if read == nil {
-		read, env = audiofile.Read, store.ReadEnv{Version: audiofile.Version, FFprobe: audiofile.HasFFprobe()}
-	}
-	pending, err := s.Store.PendingReads(env)
+	read, env := s.reader()
+	targets, err := s.pendingUnder(env, roots)
 	if err != nil {
 		return err
-	}
-	var targets []store.ReadTarget
-	for _, t := range pending {
-		if rootOf(t.Path, roots) != "" {
-			targets = append(targets, t)
-		}
 	}
 	s.mu.Lock()
 	s.status.ToRead = len(targets)
@@ -320,6 +385,28 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 		}
 	}
 	return flush()
+}
+
+func (s *Scanner) reader() (func(context.Context, string) (audiofile.Info, error), store.ReadEnv) {
+	if s.Read != nil {
+		return s.Read, s.Env
+	}
+	return audiofile.Read, store.ReadEnv{Version: audiofile.Version, FFprobe: audiofile.HasFFprobe()}
+}
+
+// pendingUnder lists the audio files under roots that have to be read.
+func (s *Scanner) pendingUnder(env store.ReadEnv, roots []string) ([]store.ReadTarget, error) {
+	pending, err := s.Store.PendingReads(env)
+	if err != nil {
+		return nil, err
+	}
+	var targets []store.ReadTarget
+	for _, t := range pending {
+		if rootOf(t.Path, roots) != "" {
+			targets = append(targets, t)
+		}
+	}
+	return targets, nil
 }
 
 // group rebuilds albums, tracks and folders from the whole catalog; interim

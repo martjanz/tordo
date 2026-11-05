@@ -49,6 +49,7 @@ binary without write access) shows a settings page instead.
   "discogsToken": "",
   "normalize": true,
   "listenMode": false,
+  "rescanMinutes": 60,
   "lan": {
     "enabled": false,
     "port": 4747,
@@ -60,6 +61,9 @@ binary without write access) shows a settings page instead.
 `listenMode` (default `false`) is listen mode: the server answers 403 on the
 curation routes (scan, identification, collections, genre aliases); it is turned
 on in Ajustes, from the computer that runs Tordo only.
+
+`rescanMinutes` (default `60`) is how often the folders are checked for changes; `0`
+turns it off. The maximum is 10080 (a week).
 
 `discogsToken` is optional; without it genres come from MusicBrainz, from its
 links to Discogs and from the tags; get one at https://www.discogs.com/settings/developers.
@@ -75,8 +79,8 @@ Soulseek's `downloading`, Apple Music libraries) are always skipped.
 
 ### Ajustes (Settings)
 
-The settings page lets you manage the music roots, ignore patterns, Discogs token,
-loudness normalization, and local network access. Each setting shows what it does
+The settings page lets you manage the music roots, ignore patterns, how often to look
+for changes, Discogs token, loudness normalization, and local network access. Each setting shows what it does
 when changed: scanning the library (roots or ignore patterns changed), updating
 genres (new Discogs token), or taking effect immediately (normalization).
 
@@ -296,7 +300,7 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 | `GET /api/covers/album/{id}?size=` | an album's picture, whole or as a 160/320/640 px thumbnail |
 | `GET /api/covers/track/{id}?size=` | the picture embedded in a track's file |
 | `GET /api/config` | current configuration (settings only readable from the local computer) |
-| `PUT /api/config` | save configuration: roots, ignore patterns, Discogs token, normalization, LAN settings (local computer only) |
+| `PUT /api/config` | save configuration: roots, ignore patterns, rescan interval, Discogs token, normalization, LAN settings (local computer only) |
 | `POST /api/config/root` | check whether a folder can be a root: returns its canonical path or an error |
 | `POST /api/config/token` | check whether Discogs accepts a token: returns `{valid: true/false/null}` (null when offline) |
 | `GET /api/lan` | LAN info: enabled, port, listening, and URLs for other devices to reach Tordo |
@@ -313,8 +317,18 @@ The in-app help (Ayuda → *Cómo funciona*) has a plain-language version of thi
 
 ### When a scan runs
 
-At startup, whenever the music folders or ignore patterns change in Ajustes, and on
-`POST /api/scan`. Scans are **incremental**: only new files and files whose size or
+At startup, whenever the music folders or ignore patterns change in Ajustes, on
+`POST /api/scan`, and every hour (`rescanMinutes`, counted from the end of the last scan).
+
+The timed round walks the folders and compares sizes and modification times with the
+catalog, opening no file and writing only the rows that differ. With no differences and
+nothing waiting to be read it ends there: the status does not change, albums are not
+rebuilt, identification does not run and the pages do not reload. Otherwise it carries on
+as a normal scan, and shows in the top bar from then on. It runs in listen mode too, like the
+startup scan: that mode blocks what people ask for, not keeping the catalog current. A
+sleeping external drive wakes up on each round, so a longer interval or `0` avoids that.
+
+Scans are **incremental**: only new files and files whose size or
 modification time changed are read again (also every file after an upgrade changes
 the reader, and failed files once `ffprobe` appears on the `PATH`). The top bar shows the
 step: `Buscando archivos · n`, `Leyendo archivos · n/m (p %)`, `Armando discos`; while reading, the catalog is regrouped every 30 s, so albums

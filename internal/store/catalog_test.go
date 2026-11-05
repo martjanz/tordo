@@ -18,7 +18,7 @@ func catalog(t *testing.T, files map[string]audiofile.Tags, images ...string) *S
 	for _, p := range images {
 		rows = append(rows, FileRow{Path: p, Size: 1, MTime: 1, Kind: "image"})
 	}
-	if err := s.SyncFiles(rows, root); err != nil {
+	if _, err := s.SyncFiles(rows, root); err != nil {
 		t.Fatal(err)
 	}
 	env := ReadEnv{Version: 1}
