@@ -14,6 +14,7 @@ export function draft(config) {
     ignore: (config.ignore ?? []).join('\n'),
     token: null,
     normalize: config.normalize,
+    rescanMinutes: config.rescanMinutes,
     lan: { enabled: config.lan.enabled, port: config.lan.port, pin: '' },
   }
 }
@@ -47,6 +48,7 @@ export function body(d) {
     ignore: lines(d.ignore),
     token: d.token === null ? null : d.token.trim(),
     normalize: d.normalize,
+    rescanMinutes: Number(d.rescanMinutes),
     lan: { enabled: d.lan.enabled, port: Number(d.lan.port), pin: !d.lan.enabled || d.lan.pin === '' ? null : d.lan.pin },
   }
 }
@@ -64,6 +66,7 @@ export function changed(config, d) {
     scanChanged(config, b) ||
     b.token !== null ||
     b.normalize !== config.normalize ||
+    b.rescanMinutes !== config.rescanMinutes ||
     b.lan.enabled !== config.lan.enabled ||
     b.lan.port !== config.lan.port ||
     b.lan.pin !== null
@@ -78,6 +81,22 @@ export function savedNotice(config, d) {
   if (config.setupPending || scanChanged(config, b)) return 'Ajustes guardados. Se escanean las carpetas.'
   if (b.token !== null) return 'Ajustes guardados. Se actualizan los géneros con el token nuevo.'
   return 'Ajustes guardados.'
+}
+
+const RESCAN_CHOICES = [
+  { minutes: 0, label: 'Nunca' },
+  { minutes: 30, label: 'Cada 30 minutos' },
+  { minutes: 60, label: 'Cada hora' },
+  { minutes: 180, label: 'Cada 3 horas' },
+  { minutes: 360, label: 'Cada 6 horas' },
+  { minutes: 1440, label: 'Una vez por día' },
+]
+
+// rescanChoices lists the intervals to offer, with the saved one in its place
+// when it was set by hand in config.json.
+export function rescanChoices(saved) {
+  if (RESCAN_CHOICES.some((c) => c.minutes === saved)) return RESCAN_CHOICES
+  return [...RESCAN_CHOICES, { minutes: saved, label: saved === 1 ? 'Cada minuto' : `Cada ${saved} minutos` }].sort((a, b) => a.minutes - b.minutes)
 }
 
 // pinProblem is what is wrong with the PIN typed ('' keeps the saved one),

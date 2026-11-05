@@ -367,7 +367,7 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "modo consulta: no se puede escanear", http.StatusConflict)
 		return
 	}
-	if p.scanner.Status().Running {
+	if p.scanner.Busy() {
 		http.Error(w, scan.ErrBusy.Error(), http.StatusConflict)
 		return
 	}

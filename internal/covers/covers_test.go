@@ -95,7 +95,7 @@ func setup(t *testing.T, files map[string][]byte, tags map[string]audiofile.Tags
 	}
 	t.Cleanup(func() { st.Close() })
 	roots := []string{"../musica"}
-	if err := st.SyncFiles(rows, roots); err != nil {
+	if _, err := st.SyncFiles(rows, roots); err != nil {
 		t.Fatal(err)
 	}
 	env := store.ReadEnv{Version: 1}

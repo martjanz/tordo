@@ -8,7 +8,7 @@
   import { api } from '../lib/api.js'
   import { notify, refreshStatus, settingsSaved } from '../lib/app.svelte.js'
   import { auth, checkAuth } from '../lib/auth.svelte.js'
-  import { body, changed, draft, pinProblem, portProblem, savedNotice } from '../lib/settings.js'
+  import { body, changed, draft, pinProblem, portProblem, rescanChoices, savedNotice } from '../lib/settings.js'
 
   let config = $state(null)
   let d = $state(null)
@@ -124,6 +124,18 @@
           placeholder={'Un patrón por línea, por ejemplo:\nSamples\n*.tmp'}
         ></textarea>
       </label>
+      <label class="rescan">
+        <span class="label">Buscar cambios en las carpetas</span>
+        <select bind:value={d.rescanMinutes} disabled={config.readOnly}>
+          {#each rescanChoices(config.rescanMinutes) as choice (choice.minutes)}
+            <option value={choice.minutes}>{choice.label}</option>
+          {/each}
+        </select>
+        <small>
+          Compara tamaños y fechas, sin abrir los archivos. Si no hay cambios no pasa nada más. Un disco externo dormido se
+          despierta en cada búsqueda.
+        </small>
+      </label>
     </section>
 
     <section>
@@ -203,9 +215,19 @@
   .warn {
     color: var(--warn);
   }
-  .ignore {
+  .ignore,
+  .rescan {
     display: block;
     margin-top: 16px;
+  }
+  .rescan select {
+    display: block;
+    margin-top: 6px;
+  }
+  .rescan small {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
   }
   .ignore textarea {
     display: block;

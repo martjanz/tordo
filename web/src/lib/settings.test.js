@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addRoot, body, changed, checkAll, draft, pinProblem, portProblem, savedNotice } from './settings.js'
+import { addRoot, body, changed, checkAll, draft, pinProblem, portProblem, rescanChoices, savedNotice } from './settings.js'
 
 const config = {
   setupPending: false,
@@ -10,6 +10,7 @@ const config = {
   hasToken: true,
   tokenHint: '…a1b2',
   normalize: true,
+  rescanMinutes: 60,
   lan: { enabled: false, port: 4748, hasPin: false },
 }
 
@@ -35,6 +36,7 @@ describe('body', () => {
       ignore: ['*.tmp', 'Samples'],
       token: null,
       normalize: true,
+      rescanMinutes: 60,
       lan: { enabled: false, port: 4748, pin: null },
     })
     expect(changed(config, d)).toBe(false)
@@ -74,6 +76,7 @@ describe('changed', () => {
     expect(changed(config, { ...d, token: '' })).toBe(true)
     expect(changed(config, { ...d, ignore: '*.tmp' })).toBe(true)
     expect(changed(config, { ...d, normalize: false })).toBe(true)
+    expect(changed(config, { ...d, rescanMinutes: 180 })).toBe(true)
     expect(changed(config, { ...d, lan: { ...d.lan, enabled: true } })).toBe(true)
     expect(changed(config, { ...d, lan: { ...d.lan, port: '5000' } })).toBe(true)
     expect(changed(config, { ...d, lan: { ...d.lan, enabled: true, pin: '123456' } })).toBe(true)
@@ -102,6 +105,7 @@ describe('savedNotice', () => {
     expect(savedNotice(config, { ...d, ignore: '*.tmp' })).toBe('Ajustes guardados. Se escanean las carpetas.')
     expect(savedNotice(config, { ...d, token: 'nuevo' })).toBe('Ajustes guardados. Se actualizan los géneros con el token nuevo.')
     expect(savedNotice(config, { ...d, normalize: false })).toBe('Ajustes guardados.')
+    expect(savedNotice(config, { ...d, rescanMinutes: 180 })).toBe('Ajustes guardados.')
     expect(savedNotice(config, { ...d, lan: { ...d.lan, enabled: true } })).toBe('Ajustes guardados.')
   })
 })
@@ -133,5 +137,20 @@ describe('portProblem', () => {
     expect(portProblem('')).toBe(msg)
     expect(portProblem('abc')).toBe(msg)
     expect(portProblem('80.5')).toBe(msg)
+  })
+})
+
+describe('rescanChoices', () => {
+  it('offers off and the usual intervals, in order', () => {
+    expect(rescanChoices(60).map((c) => c.minutes)).toEqual([0, 30, 60, 180, 360, 1440])
+  })
+  it('keeps an interval set by hand in config.json, in its place', () => {
+    const choices = rescanChoices(45)
+    expect(choices.map((c) => c.minutes)).toEqual([0, 30, 45, 60, 180, 360, 1440])
+    expect(choices[2].label).toBe('Cada 45 minutos')
+    expect(rescanChoices(1)[1].label).toBe('Cada minuto')
+  })
+  it('sends the choice as a number', () => {
+    expect(body({ ...draft(config), rescanMinutes: '180' }).rescanMinutes).toBe(180)
   })
 })

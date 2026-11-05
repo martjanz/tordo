@@ -37,7 +37,7 @@ func addCompilation(t *testing.T, s *Store) {
 	for p := range tags {
 		rows = append(rows, audioRow(p, 10, 1))
 	}
-	if err := s.SyncFiles(rows, root); err != nil {
+	if _, err := s.SyncFiles(rows, root); err != nil {
 		t.Fatal(err)
 	}
 	env := ReadEnv{Version: 1}
@@ -112,7 +112,7 @@ func refCount(t *testing.T, s *Store, table, ref string) int {
 
 func TestIDRefsFollowTheFingerprint(t *testing.T) {
 	s := open(t)
-	if err := s.SyncFiles([]FileRow{audioRow("../musica/Tangos/a.mp3", 10, 1)}, root); err != nil {
+	if _, err := s.SyncFiles([]FileRow{audioRow("../musica/Tangos/a.mp3", 10, 1)}, root); err != nil {
 		t.Fatal(err)
 	}
 	env := ReadEnv{Version: 1}

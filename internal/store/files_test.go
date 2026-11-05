@@ -40,7 +40,7 @@ func save(t *testing.T, s *Store, env ReadEnv, fp string, info audiofile.Info) {
 func TestPendingReadsFollowChanges(t *testing.T) {
 	s := open(t)
 	env := ReadEnv{Version: 1}
-	if err := s.SyncFiles([]FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../musica/b.mp3", 20, 1), {Path: "../musica/cover.jpg", Size: 5, MTime: 1, Kind: "image"}}, root); err != nil {
+	if _, err := s.SyncFiles([]FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../musica/b.mp3", 20, 1), {Path: "../musica/cover.jpg", Size: 5, MTime: 1, Kind: "image"}}, root); err != nil {
 		t.Fatal(err)
 	}
 	pending, _ := s.PendingReads(env)
@@ -52,7 +52,7 @@ func TestPendingReadsFollowChanges(t *testing.T) {
 		t.Fatalf("pending after saving = %+v", pending)
 	}
 	// b.mp3 changes: read again; a newer reader version: read everything again.
-	if err := s.SyncFiles([]FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../musica/b.mp3", 21, 2)}, root); err != nil {
+	if _, err := s.SyncFiles([]FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../musica/b.mp3", 21, 2)}, root); err != nil {
 		t.Fatal(err)
 	}
 	if pending, _ := s.PendingReads(env); len(pending) != 1 || pending[0].Path != "../musica/b.mp3" {
@@ -88,7 +88,7 @@ func TestMissingFiles(t *testing.T) {
 	s.SyncFiles([]FileRow{audioRow("../musica/a.mp3", 10, 1), audioRow("../otra/b.mp3", 10, 1)}, []string{"../musica", "../otra"})
 	save(t, s, env, "", audiofile.Info{})
 	// ../otra was not scanned (unavailable): b stays. a disappeared from ../musica.
-	if err := s.SyncFiles(nil, []string{"../musica"}); err != nil {
+	if _, err := s.SyncFiles(nil, []string{"../musica"}); err != nil {
 		t.Fatal(err)
 	}
 	tracks, _, _ := s.GroupingInput()

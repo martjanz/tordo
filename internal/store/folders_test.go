@@ -85,7 +85,7 @@ func TestFolderSizesSkipMissing(t *testing.T) {
 	for _, p := range explorerImages {
 		rows = append(rows, FileRow{Path: p, Size: 1, MTime: 1, Kind: "image"})
 	}
-	if err := s.SyncFiles(rows, root); err != nil {
+	if _, err := s.SyncFiles(rows, root); err != nil {
 		t.Fatal(err)
 	}
 	low, _, err := s.Folder(sk + "/Low_ID")

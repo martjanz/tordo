@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"tordo/internal/config"
 	"tordo/internal/discogs"
@@ -46,7 +47,17 @@ type Engine struct {
 	mu      sync.Mutex // serializes Update
 	current atomic.Pointer[Runtime]
 	pending atomic.Bool
+
+	rescanMu    sync.Mutex
+	rescanFor   *scan.Scanner // the scanner rescanSince is about
+	rescanSince time.Time     // its last scan, or when it was first seen
+	quit        chan struct{} // ends the rescan loop; nil before Start
+	quitOnce    sync.Once
 }
+
+// rescanTick is how often the rescan loop looks at the clock. It only compares
+// times: the disk is touched when a rescan is due.
+const rescanTick = time.Minute
 
 // Runtime is everything built from one configuration. Pages read it once
 // per request; it does not change after it is built. A change that no part
@@ -82,6 +93,47 @@ func (e *Engine) Start(cfg config.Config, setupPending bool) {
 	if !setupPending {
 		rt.Scan()
 	}
+	if !e.ReadOnly {
+		e.quit = make(chan struct{})
+		go e.rescanLoop(e.quit)
+	}
+}
+
+func (e *Engine) rescanLoop(quit <-chan struct{}) {
+	tick := time.NewTicker(rescanTick)
+	defer tick.Stop()
+	for {
+		select {
+		case <-quit:
+			return
+		case now := <-tick.C:
+			e.rescanCheck(now)
+		}
+	}
+}
+
+// rescanCheck starts a Refresh when the configured time has passed since the
+// last scan. It reads the runtime in use each time, so a new interval or a
+// rebuilt scanner needs no signal.
+func (e *Engine) rescanCheck(now time.Time) {
+	e.rescanMu.Lock()
+	defer e.rescanMu.Unlock()
+	rt := e.Current()
+	if rt == nil || rt.Scanner == nil || e.pending.Load() {
+		return
+	}
+	if rt.Scanner != e.rescanFor {
+		e.rescanFor, e.rescanSince = rt.Scanner, now
+	}
+	if f := rt.Scanner.Status().Finished; f.After(e.rescanSince) {
+		e.rescanSince = f
+	}
+	every := rt.Config.RescanEvery()
+	if every <= 0 || now.Sub(e.rescanSince) < every {
+		return
+	}
+	e.rescanSince = now
+	rt.Refresh()
 }
 
 // Current is the runtime in use.
@@ -113,7 +165,8 @@ func (e *Engine) Apply(cfg config.Config) error {
 // save while the LAN is on; if the
 // listener cannot be opened nothing is saved. Then the runtime is replaced;
 // what runs next depends on what changed:
-//   - only normalization or LAN: the running parts are kept as they are;
+//   - only normalization, LAN or the rescan interval: the running parts are
+//     kept as they are;
 //   - the roots or the ignore patterns: the scanner is rebuilt and the
 //     library is scanned again (incremental);
 //   - anything else (the Discogs token): no scan, the identification runs
@@ -184,9 +237,10 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 }
 
 // sameParts reports whether a and b differ at most in what no part of the
-// runtime depends on (normalization, LAN, listen mode).
+// runtime depends on (normalization, LAN, listen mode, rescan interval).
 func sameParts(a, b config.Config) bool {
 	a.Normalize, b.Normalize = nil, nil
+	a.RescanMinutes, b.RescanMinutes = nil, nil
 	a.LAN, b.LAN = config.LAN{}, config.LAN{}
 	a.ListenMode, b.ListenMode = false, false
 	// nil and empty lists are the same; the lists are taken out so DeepEqual
@@ -230,7 +284,12 @@ func (e *Engine) build(cfg config.Config) *Runtime {
 
 // Scan starts a scan of every root in the background; nothing in browse-only
 // mode, after Stop, or while one is running.
-func (rt *Runtime) Scan() {
+func (rt *Runtime) Scan() { rt.start((*scan.Scanner).Run) }
+
+// Refresh is Scan for a timed round: see scan.Scanner.Refresh.
+func (rt *Runtime) Refresh() { rt.start((*scan.Scanner).Refresh) }
+
+func (rt *Runtime) start(run func(*scan.Scanner, context.Context) error) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if rt.Scanner == nil || rt.stopped {
@@ -243,7 +302,7 @@ func (rt *Runtime) Scan() {
 	rt.scans.Add(1)
 	go func() {
 		defer rt.scans.Done()
-		if err := rt.Scanner.Run(ctx); err != nil && !errors.Is(err, scan.ErrBusy) && ctx.Err() == nil {
+		if err := run(rt.Scanner, ctx); err != nil && !errors.Is(err, scan.ErrBusy) && ctx.Err() == nil {
 			log.Printf("escaneo: %v", err)
 		}
 	}()
@@ -266,6 +325,9 @@ func (rt *Runtime) Stop() {
 
 // Close stops the current runtime.
 func (e *Engine) Close() {
+	if e.quit != nil {
+		e.quitOnce.Do(func() { close(e.quit) })
+	}
 	if rt := e.current.Load(); rt != nil {
 		rt.Stop()
 	}
