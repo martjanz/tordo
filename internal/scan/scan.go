@@ -31,6 +31,8 @@ type Status struct {
 	Read    int   `json:"read"`
 	Tracks  int   `json:"tracks"`
 	Albums  int   `json:"albums"`
+	// Grouping: the reading is over and the albums are being rebuilt.
+	Grouping bool `json:"grouping"`
 	// EtaSeconds estimates the reading time left from the pace so far; 0
 	// while unknown (too few files read) or not reading.
 	EtaSeconds int    `json:"etaSeconds"`
@@ -64,9 +66,10 @@ type Scanner struct {
 	// out the next ones.
 	GroupEvery time.Duration
 
-	now       func() time.Time // nil means time.Now; tests replace it
-	etaAfter  int              // files read before estimating; 0 means 200
-	afterSync func()           // nil in production; tests run it once the walk is saved
+	now         func() time.Time // nil means time.Now; tests replace it
+	etaAfter    int              // files read before estimating; 0 means 200
+	afterSync   func()           // nil in production; tests run it once the walk is saved
+	beforeGroup func()           // nil in production; tests run it as the last regroup starts
 	// walkDir nil means filepath.WalkDir; tests replace it to fail on a folder.
 	walkDir func(root string, fn fs.WalkDirFunc) error
 
@@ -135,7 +138,7 @@ func (s *Scanner) start(ctx context.Context, check bool) error {
 	s.mu.Lock()
 	worked := !s.checking
 	s.busy, s.checking = false, false
-	s.status.Running = false
+	s.status.Running, s.status.Grouping = false, false
 	s.status.Finished = time.Now()
 	if err != nil {
 		s.status.LastError = err.Error()
@@ -180,6 +183,12 @@ func (s *Scanner) run(ctx context.Context) error {
 	}
 	// The catalog is regrouped even when reading stopped early: what was read
 	// is already saved.
+	s.mu.Lock()
+	s.status.Grouping = true
+	s.mu.Unlock()
+	if s.beforeGroup != nil {
+		s.beforeGroup()
+	}
 	groupErr := s.group(false)
 	if readErr == nil && groupErr == nil {
 		s.mu.Lock()

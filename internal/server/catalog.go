@@ -22,6 +22,7 @@ type catalogState struct {
 	build      sync.Mutex // one build at a time
 	cat        *catalog.Catalog
 	refreshing atomic.Bool // a background rebuild is on its way
+	preparing  atomic.Bool // Prepare has not finished
 
 	indexMu sync.Mutex // guards index
 	index   *search.Index
@@ -65,6 +66,20 @@ func (s *Server) catalog() (*catalog.Catalog, error) {
 	st.cat = c
 	st.mu.Unlock()
 	return c, nil
+}
+
+// Prepare starts building the first catalog in the background, so the status
+// can tell what the first pages are waiting for, and they wait less.
+func (s *Server) Prepare() {
+	s.cat.preparing.Store(true)
+	go func() {
+		defer s.cat.preparing.Store(false)
+		if _, err := s.catalog(); err != nil {
+			log.Printf("catálogo: %v", err)
+		} else if _, err := s.personal(); err != nil {
+			log.Printf("catálogo: %v", err)
+		}
+	}()
 }
 
 // browse returns the catalog and the user's data for Inicio and Explorar.

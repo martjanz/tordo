@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { busy, listening, pageBlocked, panel, progress, scanMessage, summary } from './status.js'
+import { busy, listening, loadingMessage, pageBlocked, panel, progress, scanMessage, summary } from './status.js'
 
 describe('summary', () => {
   it.each([
@@ -10,6 +10,7 @@ describe('summary', () => {
       { text: 'Leyendo archivos · 6.680/246.993 (2 %)', tone: 'busy' },
     ],
     [{ scan: { running: true, files: 90, read: 90, toRead: 90 } }, { text: 'Armando discos', tone: 'busy' }],
+    [{ scan: { running: true, files: 90, grouping: true } }, { text: 'Armando discos', tone: 'busy' }],
     [{ scan: {}, identify: { state: 'running', identified: 3, toIdentify: 10 } }, { text: 'Identificando · 3/10', tone: 'busy' }],
     [
       { scan: {}, identify: { state: 'running', identified: 10, toIdentify: 10, enriched: 2, toEnrich: 5 } },
@@ -22,6 +23,9 @@ describe('summary', () => {
     [{ scan: { lastError: 'disco desconectado', skipped: 3 } }, { text: 'El último escaneo falló', tone: 'warn' }],
     [{ scan: {}, identify: { state: 'offline' } }, { text: 'Sin conexión con MusicBrainz', tone: 'warn' }],
     [{ scan: {} }, { text: 'Al día', tone: 'ok' }],
+    [{ scan: {}, preparing: true }, { text: 'Preparando el catálogo', tone: 'busy' }],
+    [{ readOnly: true, scan: {}, preparing: true }, { text: 'Preparando el catálogo', tone: 'busy' }],
+    [{ scan: { running: true, files: 5 }, preparing: true }, { text: 'Buscando archivos · 5', tone: 'busy' }],
   ])('%j', (st, want) => {
     expect(summary(st)).toEqual(want)
   })
@@ -180,5 +184,53 @@ describe('panel with unread folders', () => {
       '../music/b',
       'Y 1 más.',
     ])
+  })
+})
+
+describe('loadingMessage', () => {
+  it('says only that it loads when nothing is known', () => {
+    expect(loadingMessage(null)).toEqual({ title: 'Cargando…', detail: '' })
+    expect(loadingMessage({ scan: {} })).toEqual({ title: 'Cargando…', detail: '' })
+  })
+
+  it('tells the catalog is being prepared, with what else is going on', () => {
+    expect(loadingMessage({ scan: {}, preparing: true })).toEqual({
+      title: 'Preparando el catálogo…',
+      detail: 'Se hace una vez al abrir Tordo; con una colección grande puede tardar.',
+    })
+    expect(loadingMessage({ scan: { running: true, files: 12345 }, preparing: true })).toEqual({
+      title: 'Preparando el catálogo…',
+      detail: 'Buscando archivos · 12.345',
+    })
+  })
+
+  it('shows a run while the page waits', () => {
+    expect(loadingMessage({ scan: { running: true, files: 90, read: 9, toRead: 90 } })).toEqual({
+      title: 'Cargando…',
+      detail: 'Leyendo archivos · 9/90 (10 %)',
+    })
+  })
+
+  it('tells when the server is out of reach', () => {
+    expect(loadingMessage({ scan: {}, preparing: true }, true)).toEqual({
+      title: 'Sin conexión con Tordo',
+      detail: 'Se reintenta cada 3 segundos.',
+    })
+  })
+})
+
+describe('panel while preparing', () => {
+  it('shows an open-ended bar and works without counts', () => {
+    const p = panel({ scan: {}, preparing: true })
+    expect(p.title).toBe('Preparando el catálogo')
+    expect(p.tone).toBe('busy')
+    expect(p.progress.percent).toBeNull()
+    expect(p.facts).toEqual([])
+  })
+
+  it('keeps a running scan as the main thing and adds a note', () => {
+    const p = panel({ scan: { running: true, files: 5 }, preparing: true })
+    expect(p.title).toBe('Escaneando la música')
+    expect(p.notes).toContain('También se está preparando el catálogo para mostrarlo.')
   })
 })

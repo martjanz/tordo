@@ -18,6 +18,7 @@ export function progress(st) {
 export function summary(st, lost = false) {
   if (lost) return { text: 'Sin conexión con Tordo', tone: 'down' }
   if (!st) return { text: '', tone: '' }
+  if (st.preparing && !st.scan?.running && st.identify?.state !== 'running') return { text: 'Preparando el catálogo', tone: 'busy' }
   if (st.scan?.running) {
     const { files = 0, read = 0, toRead = 0 } = st.scan
     const text = {
@@ -61,7 +62,13 @@ export function panel(st, lost = false) {
   const scan = st.scan ?? {}
   const id = st.identify ?? {}
 
-  if (scan.running) {
+  if (st.preparing && (scan.running || id.state === 'running')) {
+    out.notes.push('También se está preparando el catálogo para mostrarlo.')
+  }
+  if (st.preparing && !scan.running && id.state !== 'running') {
+    out.progress = { label: 'Cargando discos y pistas', value: '', percent: null, eta: '' }
+    out.notes.push('Se hace una vez al abrir Tordo; con una colección grande puede tardar.')
+  } else if (scan.running) {
     out.title = 'Escaneando la música'
     switch (scanPhase(scan)) {
       case 'walk':
@@ -130,9 +137,11 @@ function timeLeft(secs) {
 }
 
 // scanPhase is what a running scan is doing: "walk" (finding the files),
-// "read" (reading them) or "group" (building the albums once all are read).
+// "read" (reading them) or "group" (building the albums once all are read,
+// also when there was nothing to read).
 function scanPhase(scan) {
-  const { read = 0, toRead = 0 } = scan ?? {}
+  const { read = 0, toRead = 0, grouping = false } = scan ?? {}
+  if (grouping) return 'group'
   return toRead === 0 ? 'walk' : read >= toRead ? 'group' : 'read'
 }
 
@@ -160,6 +169,18 @@ export function scanMessage(scan) {
         detail: 'Los discos aparecen acá a medida que se leen, los primeros en menos de un minuto. La página se actualiza sola.',
       }
   }
+}
+
+// loadingMessage is what a page says while its data is on its way: what the
+// server is doing, so a long wait does not look stuck.
+export function loadingMessage(st, lost = false) {
+  if (lost) return { title: 'Sin conexión con Tordo', detail: 'Se reintenta cada 3 segundos.' }
+  const running = !!st?.scan?.running || st?.identify?.state === 'running'
+  const detail = running ? summary(st).text : ''
+  if (st?.preparing) {
+    return { title: 'Preparando el catálogo…', detail: detail || 'Se hace una vez al abrir Tordo; con una colección grande puede tardar.' }
+  }
+  return { title: 'Cargando…', detail }
 }
 
 // listening reports whether listen mode is on: the server blocks curation

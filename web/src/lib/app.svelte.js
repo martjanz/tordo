@@ -17,6 +17,7 @@ export const listenMode = () => listening(app.status)
 
 let timer
 let wasBusy = false
+let preparing = false
 let lastProgress = ''
 let lastRefresh = Date.now() // pages load their data when they open
 let polls = 0
@@ -51,6 +52,7 @@ async function poll() {
       lastRefresh = Date.now()
     }
     wasBusy = now
+    preparing = !!st.preparing
     lastProgress = progress(st)
     app.status = st
     app.lost = false
@@ -59,11 +61,12 @@ async function poll() {
     app.lost = true
   }
   if (id !== polls) return
-  timer = setTimeout(poll, wasBusy || app.lost ? 3000 : 30000)
+  timer = setTimeout(poll, preparing ? 1000 : wasBusy || app.lost ? 3000 : 30000)
 }
 
-// watchStatus starts polling /api/status: every 3 s while something runs or
-// the server is out of reach, every 30 s otherwise.
+// watchStatus starts polling /api/status: every second while the first catalog
+// is being prepared, every 3 s while something runs or the server is out of
+// reach, every 30 s otherwise.
 export function watchStatus() {
   poll()
 }
