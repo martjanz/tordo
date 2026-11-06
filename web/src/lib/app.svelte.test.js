@@ -43,3 +43,27 @@ describe('stopStatus', () => {
     expect(app.status?.scanning).not.toBe(true)
   })
 })
+
+describe('polling', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    stopStatus()
+    vi.useRealTimers()
+  })
+
+  it('asks every second while the catalog is being prepared, then relaxes', async () => {
+    api.status.mockReset()
+    api.status.mockResolvedValue({ scan: {}, preparing: true })
+    watchStatus()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.status).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(api.status).toHaveBeenCalledTimes(2)
+
+    api.status.mockResolvedValue({ scan: {} })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(api.status).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(api.status).toHaveBeenCalledTimes(3)
+  })
+})

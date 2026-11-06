@@ -54,6 +54,7 @@ func run(dirOverride string, port int, browser bool) error {
 	if err != nil {
 		return err
 	}
+	a.server.Prepare()
 	url := "http://" + ln.Addr().String() + "/"
 	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
 	if urls := a.server.LANURLs(); len(urls) > 0 {

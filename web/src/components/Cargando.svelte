@@ -1,7 +1,12 @@
 <script>
-  // A spinner and "Cargando…" for a page whose data is on its way. It shows
-  // only after a moment, so a quick answer does not flash it.
+  // A spinner and what the server is doing, for a page whose data is on its
+  // way. It shows only after a moment, so a quick answer does not flash it.
+  import { app } from '../lib/app.svelte.js'
+  import { loadingMessage } from '../lib/status.js'
+
   let { delay = 400 } = $props()
+
+  const msg = $derived(loadingMessage(app.status, app.lost))
 
   let shown = $state(false)
 
@@ -12,18 +17,28 @@
 </script>
 
 {#if shown}
-  <p class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Cargando…</p>
+  <div class="loading" role="status">
+    <p class="title"><span class="spinner" aria-hidden="true"></span> {msg.title}</p>
+    {#if msg.detail}<p class="detail">{msg.detail}</p>{/if}
+  </div>
 {/if}
 
 <style>
   .loading {
+    color: var(--muted);
+    padding: 48px 0;
+    text-align: center;
+  }
+  .title {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: var(--muted);
-    padding: 48px 0;
     margin: 0;
+  }
+  .detail {
+    margin: 8px 0 0;
+    font-size: 13px;
   }
   .spinner {
     width: 18px;

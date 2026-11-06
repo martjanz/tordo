@@ -255,7 +255,7 @@ Show the artist's 5 most-played tracks (all time) above their albums.
 
 | Method and path | What it returns |
 |---|---|
-| `GET /api/status` | scan progress, catalog counts, normalization status, `setupPending` flag |
+| `GET /api/status` | scan progress, catalog counts (the last known ones when the catalog is busy; none before the first), `preparing` while the first catalog is built, normalization status, `setupPending` flag |
 | `POST /api/scan` | starts a scan (`Content-Type: application/json`) |
 | `GET /api/albums?folder=` | albums, all or inside a folder |
 | `GET /api/albums/{id}` | an album with its tracks (with `sizeBytes` per track), versions (other albums sharing duplicate groups), and technical data |

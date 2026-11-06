@@ -56,7 +56,11 @@ type Server struct {
 	interfaces func() ([]net.IP, string)
 	now        func() time.Time
 
+	// countStore reads the catalog's figures; nil: Store.Counts.
+	countStore func() (store.Counts, error)
+
 	cat         catalogState
+	counts      countsState
 	pers        personalState
 	stationList stationsState
 
@@ -324,13 +328,64 @@ func (s *Server) jukebox() *jukebox.Hub {
 	return s.jukeboxHub
 }
 
+// countsState is the last figures read for the status, and the read under way.
+type countsState struct {
+	mu     sync.Mutex
+	last   *store.Counts
+	flight bool
+}
+
+// countsWait is how long the status waits for fresh figures.
+const countsWait = 150 * time.Millisecond
+
+// statusCounts returns the catalog's figures without making the status wait
+// for the store, whose only connection a catalog build or a regroup can hold
+// for a long time: the status is what shows the progress of those. When the
+// figures take long it answers the last ones (nil before the first), and the
+// read goes on in the background.
+func (s *Server) statusCounts() (*store.Counts, error) {
+	st := &s.counts
+	st.mu.Lock()
+	if st.flight {
+		defer st.mu.Unlock()
+		return st.last, nil
+	}
+	st.flight = true
+	st.mu.Unlock()
+	count := s.countStore
+	if count == nil {
+		count = s.Store.Counts
+	}
+	done := make(chan error, 1)
+	go func() {
+		c, err := count()
+		st.mu.Lock()
+		st.flight = false
+		if err == nil {
+			st.last = &c
+		}
+		st.mu.Unlock()
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			return nil, err
+		}
+	case <-time.After(countsWait):
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.last, nil
+}
+
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	p := s.parts()
 	var st scan.Status
 	if p.scanner != nil {
 		st = p.scanner.Status()
 	}
-	counts, err := s.Store.Counts()
+	counts, err := s.statusCounts()
 	if err != nil {
 		fail(w, err)
 		return
@@ -344,7 +399,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		loud = s.Loudness.Status()
 	}
 	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
-		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts,
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts, "preparing": s.cat.preparing.Load(),
 		"jukebox": map[string]bool{"speaker": s.jukebox().Speaking()}})
 }
 
