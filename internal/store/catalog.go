@@ -1,7 +1,9 @@
 package store
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"path"
@@ -42,13 +44,35 @@ func (s *Store) Counts() (Counts, error) {
 }
 
 // ReplaceGrouping stores a grouping result. Albums are upserted by key so
-// their ids survive rebuilds; albums that disappeared are deleted.
+// their ids survive rebuilds; albums that disappeared are deleted. A result
+// equal to the one stored writes nothing: every scan regroups, and on an
+// unchanged library rewriting it would only bump the change counter (the
+// pages rebuild their catalog) and wipe what identification set on the tracks
+// until it runs again.
 func (s *Store) ReplaceGrouping(r grouping.Result) error {
+	stamp, err := groupingStamp(r)
+	if err != nil {
+		return err
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	var stored string
+	switch err := tx.QueryRow(`SELECT hash FROM grouping_stamp`).Scan(&stored); {
+	case errors.Is(err, sql.ErrNoRows):
+	case err != nil:
+		return err
+	case stored == stamp:
+		return nil
+	}
+	if _, err := tx.Exec(`DELETE FROM grouping_stamp`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO grouping_stamp (hash) VALUES (?)`, stamp); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`UPDATE albums SET seen = 0`); err != nil {
 		return err
 	}
@@ -115,6 +139,15 @@ func (s *Store) ReplaceGrouping(r grouping.Result) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// groupingStamp hashes a grouping result.
+func groupingStamp(r grouping.Result) (string, error) {
+	h := sha256.New()
+	if err := json.NewEncoder(h).Encode(r); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 type AlbumView struct {

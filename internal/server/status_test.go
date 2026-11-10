@@ -105,3 +105,25 @@ func TestPrepareReportsTheFirstCatalog(t *testing.T) {
 		t.Fatal("Prepare builds the catalog")
 	}
 }
+
+// The startup scan waits for the first catalog (both read the same disk):
+// Prepare tells when it is built.
+func TestPrepareTellsWhenTheFirstCatalogIsBuilt(t *testing.T) {
+	s := &Server{Store: newStore(t)}
+	s.cat.build.Lock()
+	ready := s.Prepare()
+	select {
+	case <-ready:
+		t.Fatal("ready before the catalog was built")
+	case <-time.After(50 * time.Millisecond):
+	}
+	s.cat.build.Unlock()
+	select {
+	case <-ready:
+	case <-time.After(5 * time.Second):
+		t.Fatal("never ready")
+	}
+	if s.cat.current() == nil {
+		t.Fatal("ready without a catalog")
+	}
+}

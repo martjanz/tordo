@@ -189,6 +189,38 @@ func TestStartScans(t *testing.T) {
 	}
 }
 
+// The startup scan waits for ScanAfter: the first catalog is built from the
+// same disk the scan walks, and the albums are what people wait for.
+func TestStartScansAfterScanAfter(t *testing.T) {
+	e, _, _ := newEngine(t)
+	ready := make(chan struct{})
+	e.ScanAfter = ready
+	e.Start(cfgOf("../musica"), false)
+	time.Sleep(100 * time.Millisecond)
+	if !e.Current().Scanner.Status().Finished.IsZero() || tracks(t, e) != 0 {
+		t.Fatal("scanned before ScanAfter")
+	}
+	close(ready)
+	waitScan(t, e)
+	if tracks(t, e) != 1 {
+		t.Fatalf("tracks %d", tracks(t, e))
+	}
+}
+
+// Closing the app while the startup scan waits leaves nothing behind.
+func TestCloseWhileTheStartupScanWaits(t *testing.T) {
+	e, _, _ := newEngine(t)
+	ready := make(chan struct{})
+	e.ScanAfter = ready
+	e.Start(cfgOf("../musica"), false)
+	e.Close()
+	close(ready)
+	time.Sleep(100 * time.Millisecond)
+	if !e.Current().Scanner.Status().Finished.IsZero() || tracks(t, e) != 0 {
+		t.Fatal("scanned after Close")
+	}
+}
+
 func TestApplyFirstUse(t *testing.T) {
 	e, _, _ := newEngine(t)
 	cfg := cfgOf("../musica")

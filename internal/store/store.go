@@ -42,7 +42,9 @@ func OpenMemory() (*Store, error) {
 // rebuilds them. Version 3 (M3b) only added not_collections. The other
 // tables are only ever added to. Version 4 (M4a) added the user's tables
 // (marks, plays, playlists) and loudness. Version 5 (M4b) added saved stations. Version 6 (M5) added the LAN sessions.
-// Version 7 (M6) added sessions.host (the Rockola's anfitriones).
+// Version 7 (M6) added sessions.host (the Rockola's anfitriones). grouping_stamp came
+// later without a new version: it is created on the next writable open, and a
+// read-only one never regroups.
 const schemaVersion = 7
 
 // derivedVersion is the last version that changed the derived tables.
@@ -77,7 +79,7 @@ func migrate(db *sql.DB) error {
 	}
 	if v < derivedVersion {
 		if _, err := db.Exec(`DROP TABLE IF EXISTS tracks; DROP TABLE IF EXISTS album_genres;
-			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders`); err != nil {
+			DROP TABLE IF EXISTS albums; DROP TABLE IF EXISTS folders; DROP TABLE IF EXISTS grouping_stamp`); err != nil {
 			return err
 		}
 	}

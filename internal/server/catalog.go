@@ -69,10 +69,15 @@ func (s *Server) catalog() (*catalog.Catalog, error) {
 }
 
 // Prepare starts building the first catalog in the background, so the status
-// can tell what the first pages are waiting for, and they wait less.
-func (s *Server) Prepare() {
+// can tell what the first pages are waiting for, and they wait less. The
+// channel closes when it is done (also when it failed): the startup scan
+// waits for it, since walking the folders while the catalog is read from the
+// same disk makes both slow, and the albums are what people wait for.
+func (s *Server) Prepare() <-chan struct{} {
 	s.cat.preparing.Store(true)
+	ready := make(chan struct{})
 	go func() {
+		defer close(ready)
 		defer s.cat.preparing.Store(false)
 		if _, err := s.catalog(); err != nil {
 			log.Printf("catálogo: %v", err)
@@ -80,6 +85,7 @@ func (s *Server) Prepare() {
 			log.Printf("catálogo: %v", err)
 		}
 	}()
+	return ready
 }
 
 // browse returns the catalog and the user's data for Inicio and Explorar.

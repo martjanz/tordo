@@ -54,7 +54,6 @@ func run(dirOverride string, port int, browser bool) error {
 	if err != nil {
 		return err
 	}
-	a.server.Prepare()
 	url := "http://" + ln.Addr().String() + "/"
 	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
 	if urls := a.server.LANURLs(); len(urls) > 0 {
@@ -123,6 +122,8 @@ func setup(dirOverride string) (*app, error) {
 	}
 	a.server.Streamer = stream.Streamer{FFmpeg: ffmpeg}
 	a.server.Covers = covers.New(st, appDir, thumbs)
+	// The albums first: the startup scan waits for the first catalog.
+	eng.ScanAfter = a.server.Prepare()
 	eng.Start(cfg, pending)
 	return a, nil
 }

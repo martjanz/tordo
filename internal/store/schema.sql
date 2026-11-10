@@ -232,3 +232,10 @@ CREATE TABLE IF NOT EXISTS sessions (
 	last_seen  INTEGER NOT NULL,
 	host       INTEGER NOT NULL DEFAULT 0 -- 1: anfitrión of the Rockola
 );
+
+-- The hash of the grouping result stored in albums, tracks and folders (one
+-- row at most): a regroup with the same result writes nothing. Dropped with
+-- the derived tables.
+CREATE TABLE IF NOT EXISTS grouping_stamp (
+	hash TEXT NOT NULL
+);

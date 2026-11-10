@@ -43,6 +43,9 @@ type Engine struct {
 	Discogs  func(token string) identify.Discogs // nil: discogs.New
 	Loudness interface{ Trigger() }              // nil: none; triggered after every scan
 	LAN      func(config.LAN) error              // opens, moves or closes the LAN listener; nil: none
+	// ScanAfter delays the startup scan until it closes (the first catalog
+	// is built from the same disk); nil: it starts at once.
+	ScanAfter <-chan struct{}
 
 	mu      sync.Mutex // serializes Update
 	current atomic.Pointer[Runtime]
@@ -90,13 +93,24 @@ func (e *Engine) Start(cfg config.Config, setupPending bool) {
 			log.Print(err)
 		}
 	}
-	if !setupPending {
-		rt.Scan()
-	}
 	if !e.ReadOnly {
 		e.quit = make(chan struct{})
 		go e.rescanLoop(e.quit)
 	}
+	if setupPending {
+		return
+	}
+	if e.ScanAfter == nil {
+		rt.Scan()
+		return
+	}
+	go func(quit <-chan struct{}) {
+		select {
+		case <-e.ScanAfter:
+			rt.Scan() // nothing once stopped: Close, or new settings that scan on their own
+		case <-quit:
+		}
+	}(e.quit)
 }
 
 func (e *Engine) rescanLoop(quit <-chan struct{}) {

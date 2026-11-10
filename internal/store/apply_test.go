@@ -3,6 +3,8 @@ package store
 import (
 	"reflect"
 	"testing"
+
+	"tordo/internal/grouping"
 )
 
 func albumID(t *testing.T, s *Store, title string) int64 {
@@ -66,9 +68,31 @@ func TestIdentityKeptAcrossRegroup(t *testing.T) {
 		Genres: []GenreLink{{Genre: "Rock", Source: "mb"}}, Tracks: []TrackIdentity{{FileID: a.Tracks[0].ID, Title: "MB"}}}}, nil); err != nil {
 		t.Fatal(err)
 	}
+	// An identical regroup writes nothing: the tracks keep their identity too.
 	regroup(t, s)
 	a, _, _ = s.Album(id)
-	// The album row keeps its identity; tracks are rebuilt until the next apply.
+	if a.Status != StatusAuto || a.Title != "Signos MB" || len(a.Genres) != 1 || a.Tracks[0].Title != "MB" {
+		t.Fatalf("after an identical regroup: %+v", a)
+	}
+	// A regroup that changes something (the loose track is gone)...
+	tracks, images, err := s.GroupingInput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []grouping.Track
+	for _, tr := range tracks {
+		if tr.Path != "../musica/suelto.mp3" {
+			kept = append(kept, tr)
+		}
+	}
+	if len(kept) != len(tracks)-1 {
+		t.Fatalf("loose track not found in %d tracks", len(tracks))
+	}
+	if err := s.ReplaceGrouping(grouping.Build(kept, images, root)); err != nil {
+		t.Fatal(err)
+	}
+	a, _, _ = s.Album(id)
+	// ...keeps the album row's identity; tracks are rebuilt until the next apply.
 	if a.Status != StatusAuto || a.Title != "Signos MB" || len(a.Genres) != 1 || a.Tracks[0].Title != "Signos" {
 		t.Fatalf("after regroup: %+v", a)
 	}

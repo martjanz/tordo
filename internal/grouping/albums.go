@@ -326,12 +326,20 @@ func indexImages(images []Image) coverIndex {
 
 // pick chooses the album's cover: a "cover", "folder" or "front" image is
 // best; then one whose name mentions them; then the largest image in the
-// album's own folders. Images named "back…" never count.
+// album's own folders. Images named "back…" never count. Between equally
+// good ones the first found wins: the album's folder is looked at first, then
+// its tracks' folders in order ("Disc 1" before "Disc 2"), so every run picks
+// the same.
 func (ix coverIndex) pick(albumDir string, ms []*member) string {
 	dirs := map[string]bool{albumDir: true}
+	var others []string
 	for _, m := range ms {
+		if !dirs[m.out.Dir] {
+			others = append(others, m.out.Dir)
+		}
 		dirs[m.out.Dir] = true
 	}
+	sort.Slice(others, func(i, j int) bool { return natsort.Less(others[i], others[j]) })
 	best, bestScore, bestSize := "", 0, int64(-1)
 	consider := func(img Image, own bool) {
 		st := strings.ToLower(stem(img.Path))
@@ -350,7 +358,7 @@ func (ix coverIndex) pick(albumDir string, ms []*member) string {
 			best, bestScore, bestSize = img.Path, score, img.Size
 		}
 	}
-	for d := range dirs {
+	for _, d := range append([]string{albumDir}, others...) {
 		for _, img := range ix.byDir[d] {
 			consider(img, true)
 		}

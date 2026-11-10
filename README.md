@@ -319,6 +319,9 @@ The in-app help (Ayuda → *Cómo funciona*) has a plain-language version of thi
 
 At startup, whenever the music folders or ignore patterns change in Ajustes, on
 `POST /api/scan`, and every hour (`rescanMinutes`, counted from the end of the last scan).
+The startup scan waits until the albums are on screen: the saved catalog is shown first,
+and walking the folders at the same time would slow down reading it when both are on the
+same disk.
 
 The timed round walks the folders and compares sizes and modification times with the
 catalog, opening no file and writing only the rows that differ. With no differences and
@@ -365,7 +368,9 @@ stored with their error.
 ### 3. Group (`internal/grouping`)
 
 After reading, albums, tracks, folders and collections are rebuilt from the whole
-catalog (a pure function of the stored data):
+catalog (a pure function of the stored data, the same on every run). A result equal to
+the stored one (its hash is kept in `grouping_stamp`) writes nothing, so a scan of an
+unchanged library leaves the catalog and the identified titles as they were:
 
 - **Track fields** come from the tags, falling back to the file name
   (`01 - Artista - Título.mp3`) and the folder name (`Artista - Álbum (1985)`).

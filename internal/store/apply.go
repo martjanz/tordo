@@ -44,56 +44,198 @@ type AlbumIdentity struct {
 // The identities are computed outside this transaction, so a scan may have
 // regrouped meanwhile: rows for albums that are gone, and tracks that moved to
 // another album, are skipped.
+// Only what differs from the stored rows is written. Identification applies
+// every album several times per run, mostly unchanged: rewriting them all
+// held the catalog's only connection for seconds on a large catalog, while the
+// pages waited, and bumped the change counter, so the catalog was rebuilt.
 func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	for _, q := range []string{`UPDATE tracks SET mb_title = '', recording_id = ''`, `DELETE FROM album_genres`, `DELETE FROM unmapped_genres`} {
-		if _, err := tx.Exec(q); err != nil {
-			return err
-		}
+	cur, err := currentIdentities(tx)
+	if err != nil {
+		return err
 	}
+
 	al, err := tx.Prepare(`UPDATE albums SET match_query = ?, status = ?, release_id = ?, confidence = ?, mb_title = ?,
 		mb_artist = ?, mb_compilation = ?, original_year = ?, country = ?, artist_id = ?, cover_cache = ? WHERE id = ?`)
 	if err != nil {
 		return err
 	}
 	defer al.Close()
-	gi, err := tx.Prepare(`INSERT OR IGNORE INTO album_genres (album_id, genre, style, source)
-		SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM albums WHERE id = ?)`)
-	if err != nil {
-		return err
+	wantTracks := map[int64]trackIdentity{}
+	wantGenres := map[genreRow]string{}
+	for _, id := range ids {
+		row, ok := cur.albums[id.AlbumID]
+		if !ok {
+			continue // gone since the identities were computed
+		}
+		want := albumIdentityRow{id.Query, id.Status, id.ReleaseID, id.Confidence, id.Title, id.Artist, id.Compilation,
+			id.OriginalYear, id.Country, id.ArtistID, id.CoverCache}
+		if row != want {
+			if _, err := al.Exec(id.Query, id.Status, id.ReleaseID, id.Confidence, id.Title, id.Artist, id.Compilation,
+				id.OriginalYear, id.Country, id.ArtistID, id.CoverCache, id.AlbumID); err != nil {
+				return err
+			}
+		}
+		for _, g := range id.Genres {
+			k := genreRow{id.AlbumID, g.Genre, g.Style}
+			if _, dup := wantGenres[k]; !dup { // the first one wins, as INSERT OR IGNORE did
+				wantGenres[k] = g.Source
+			}
+		}
+		for _, t := range id.Tracks {
+			if ct, ok := cur.tracks[t.FileID]; ok && ct.album == id.AlbumID {
+				wantTracks[t.FileID] = trackIdentity{album: id.AlbumID, title: t.Title, recording: t.RecordingID}
+			}
+		}
 	}
-	defer gi.Close()
-	ti, err := tx.Prepare(`UPDATE tracks SET mb_title = ?, recording_id = ? WHERE file_id = ? AND album_id = ?`)
+
+	ti, err := tx.Prepare(`UPDATE tracks SET mb_title = ?, recording_id = ? WHERE file_id = ?`)
 	if err != nil {
 		return err
 	}
 	defer ti.Close()
-	for _, id := range ids {
-		if _, err := al.Exec(id.Query, id.Status, id.ReleaseID, id.Confidence, id.Title, id.Artist, id.Compilation,
-			id.OriginalYear, id.Country, id.ArtistID, id.CoverCache, id.AlbumID); err != nil {
-			return err
-		}
-		for _, g := range id.Genres {
-			if _, err := gi.Exec(id.AlbumID, g.Genre, g.Style, g.Source, id.AlbumID); err != nil {
+	for fileID, ct := range cur.tracks {
+		want := wantTracks[fileID] // the zero value clears it
+		if ct.title != want.title || ct.recording != want.recording {
+			if _, err := ti.Exec(want.title, want.recording, fileID); err != nil {
 				return err
 			}
 		}
-		for _, t := range id.Tracks {
-			if _, err := ti.Exec(t.Title, t.RecordingID, t.FileID, id.AlbumID); err != nil {
+	}
+
+	for k, source := range cur.genres {
+		if want, ok := wantGenres[k]; !ok || want != source {
+			if _, err := tx.Exec(`DELETE FROM album_genres WHERE album_id = ? AND genre = ? AND style = ?`, k.album, k.genre, k.style); err != nil {
+				return err
+			}
+		}
+	}
+	for k, source := range wantGenres {
+		if have, ok := cur.genres[k]; !ok || have != source {
+			if _, err := tx.Exec(`INSERT INTO album_genres (album_id, genre, style, source) VALUES (?, ?, ?, ?)`, k.album, k.genre, k.style, source); err != nil {
+				return err
+			}
+		}
+	}
+
+	for raw, n := range cur.unmapped {
+		if want, ok := unmapped[raw]; !ok {
+			if _, err := tx.Exec(`DELETE FROM unmapped_genres WHERE raw = ?`, raw); err != nil {
+				return err
+			}
+		} else if want != n {
+			if _, err := tx.Exec(`UPDATE unmapped_genres SET albums = ? WHERE raw = ?`, want, raw); err != nil {
 				return err
 			}
 		}
 	}
 	for raw, n := range unmapped {
-		if _, err := tx.Exec(`INSERT INTO unmapped_genres (raw, albums) VALUES (?, ?)`, raw, n); err != nil {
-			return err
+		if _, ok := cur.unmapped[raw]; !ok {
+			if _, err := tx.Exec(`INSERT INTO unmapped_genres (raw, albums) VALUES (?, ?)`, raw, n); err != nil {
+				return err
+			}
 		}
 	}
 	return tx.Commit()
+}
+
+// albumIdentityRow is what ApplyIdentities writes on an album row.
+type albumIdentityRow struct {
+	query, status, releaseID string
+	confidence               float64
+	title, artist            string
+	compilation              bool
+	originalYear             int
+	country, artistID, cover string
+}
+
+type trackIdentity struct {
+	album            int64 // 0: a loose track
+	title, recording string
+}
+
+type genreRow struct {
+	album        int64
+	genre, style string
+}
+
+// storedIdentities is what ApplyIdentities compares with.
+type storedIdentities struct {
+	albums   map[int64]albumIdentityRow
+	tracks   map[int64]trackIdentity
+	genres   map[genreRow]string // the source
+	unmapped map[string]int
+}
+
+func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
+	cur := storedIdentities{albums: map[int64]albumIdentityRow{}, tracks: map[int64]trackIdentity{},
+		genres: map[genreRow]string{}, unmapped: map[string]int{}}
+	err := eachRow(tx, `SELECT id, match_query, status, release_id, confidence, mb_title, mb_artist, mb_compilation,
+		original_year, country, artist_id, cover_cache FROM albums`, func(rows *sql.Rows) error {
+		var id int64
+		var r albumIdentityRow
+		if err := rows.Scan(&id, &r.query, &r.status, &r.releaseID, &r.confidence, &r.title, &r.artist, &r.compilation,
+			&r.originalYear, &r.country, &r.artistID, &r.cover); err != nil {
+			return err
+		}
+		cur.albums[id] = r
+		return nil
+	})
+	if err != nil {
+		return cur, err
+	}
+	err = eachRow(tx, `SELECT file_id, COALESCE(album_id, 0), mb_title, recording_id FROM tracks`, func(rows *sql.Rows) error {
+		var id int64
+		var t trackIdentity
+		if err := rows.Scan(&id, &t.album, &t.title, &t.recording); err != nil {
+			return err
+		}
+		cur.tracks[id] = t
+		return nil
+	})
+	if err != nil {
+		return cur, err
+	}
+	err = eachRow(tx, `SELECT album_id, genre, style, source FROM album_genres`, func(rows *sql.Rows) error {
+		var k genreRow
+		var source string
+		if err := rows.Scan(&k.album, &k.genre, &k.style, &source); err != nil {
+			return err
+		}
+		cur.genres[k] = source
+		return nil
+	})
+	if err != nil {
+		return cur, err
+	}
+	err = eachRow(tx, `SELECT raw, albums FROM unmapped_genres`, func(rows *sql.Rows) error {
+		var raw string
+		var n int
+		if err := rows.Scan(&raw, &n); err != nil {
+			return err
+		}
+		cur.unmapped[raw] = n
+		return nil
+	})
+	return cur, err
+}
+
+func eachRow(tx *sql.Tx, q string, fn func(*sql.Rows) error) error {
+	rows, err := tx.Query(q)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := fn(rows); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
 }
 
 const identified = `status IN ('auto', 'manual') AND release_id != ''`
