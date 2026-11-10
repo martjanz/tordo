@@ -17,20 +17,15 @@ const needsMeasure = `FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio 
 	AND NOT EXISTS (SELECT 1 FROM loudness l WHERE l.ref = ` + trackRef + `)`
 
 // oneJobPerRef selects (id, ref, path) of the lowest file id of each ref
-// that needs measuring, with its newest first_seen as mx. extra filters the
+// that needs measuring, with its newest first_seen as mx. inner filters the
+// files (it must keep every file of the refs it keeps); extra filters the
 // outer query.
-func oneJobPerRef(extra string) string {
+func oneJobPerRef(inner, extra string) string {
 	return `SELECT id, ref, path FROM (
 		SELECT f.id AS id, ` + trackRef + ` AS ref, f.path AS path,
 			ROW_NUMBER() OVER (PARTITION BY ` + trackRef + ` ORDER BY f.id) AS rn,
-			MAX(f.first_seen) OVER (PARTITION BY ` + trackRef + `) AS mx ` + needsMeasure + `
+			MAX(f.first_seen) OVER (PARTITION BY ` + trackRef + `) AS mx ` + needsMeasure + inner + `
 	) WHERE rn = 1 ` + extra
-}
-
-// LoudnessPending lists the tracks still to measure, one per ref (the lowest
-// file id), newest first.
-func (s *Store) LoudnessPending(limit int) ([]loudness.Job, error) {
-	return s.loudnessJobs(oneJobPerRef(`ORDER BY mx DESC, id DESC LIMIT ?`), limit)
 }
 
 // LoudnessJobs lists, among ids, the tracks still to measure (one per ref,
@@ -39,8 +34,14 @@ func (s *Store) LoudnessJobs(ids []int64) ([]loudness.Job, error) {
 	var out []loudness.Job
 	seen := map[string]bool{}
 	for _, chunk := range chunks(ids) {
-		jobs, err := s.loudnessJobs(oneJobPerRef(`AND ref IN (SELECT `+trackRef+` FROM files f WHERE f.id IN (`+
-			placeholders(len(chunk))+`)) ORDER BY id`), int64Args(chunk)...)
+		ph := placeholders(len(chunk))
+		args := int64Args(chunk)
+		// inner keeps ids and the files sharing a fingerprint with one of
+		// them, so the window reads only those.
+		jobs, err := s.loudnessJobs(oneJobPerRef(
+			` AND (f.id IN (`+ph+`) OR f.fingerprint IN (SELECT fingerprint FROM files WHERE id IN (`+ph+`) AND fingerprint != ''))`,
+			`AND ref IN (SELECT `+trackRef+` FROM files f WHERE f.id IN (`+ph+`)) ORDER BY id`),
+			append(append(args, args...), args...)...)
 		if err != nil {
 			return nil, err
 		}
@@ -69,28 +70,6 @@ func (s *Store) loudnessJobs(query string, args ...any) ([]loudness.Job, error) 
 		out = append(out, j)
 	}
 	return out, rows.Err()
-}
-
-// LoudnessPendingCount is how many tracks are still to measure.
-func (s *Store) LoudnessPendingCount() (int, error) {
-	var n int
-	err := s.db.QueryRow(`SELECT COUNT(DISTINCT ` + trackRef + `) ` + needsMeasure).Scan(&n)
-	return n, err
-}
-
-// SaveLoudness records a measure, or (lufs nil) why there is none, so the
-// track is not tried again. It does not count as a catalog change.
-func (s *Store) SaveLoudness(ref string, lufs *float64, errText string) error {
-	return s.sideWrite(false, func(tx *sql.Tx) error {
-		var v any
-		if lufs != nil {
-			v = *lufs
-		}
-		_, err := tx.Exec(`INSERT INTO loudness (ref, lufs, error, measured_at) VALUES (?1, ?2, ?3, ?4)
-			ON CONFLICT(ref) DO UPDATE SET lufs = excluded.lufs, error = excluded.error, measured_at = excluded.measured_at`,
-			ref, v, errText, now().UnixMilli())
-		return err
-	})
 }
 
 // LoudnessFacts returns what the gains of the given present tracks come

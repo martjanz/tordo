@@ -14,8 +14,9 @@ import (
 var schema string
 
 type Store struct {
-	db   *sql.DB
-	side side
+	db      *sql.DB
+	side    side
+	pending pendingList // guarded by side.mu
 }
 
 // Open opens (creating it if needed) the catalog. Journal mode DELETE instead

@@ -25,6 +25,12 @@ type side struct {
 // the side lock and the single connection: it must read and write only
 // through tx (using the store's other methods would deadlock).
 func (s *Store) sideWrite(personal bool, fn func(tx *sql.Tx) error) error {
+	return s.sideWriteThen(personal, fn, nil)
+}
+
+// sideWriteThen is sideWrite that also runs then, when not nil, once the
+// transaction committed, still holding the side lock.
+func (s *Store) sideWriteThen(personal bool, fn func(tx *sql.Tx) error, then func()) error {
 	s.side.mu.Lock()
 	defer s.side.mu.Unlock()
 	tx, err := s.db.Begin()
@@ -51,6 +57,9 @@ func (s *Store) sideWrite(personal bool, fn func(tx *sql.Tx) error) error {
 	}
 	if personal {
 		s.side.personal.Add(1)
+	}
+	if then != nil {
+		then()
 	}
 	return nil
 }
