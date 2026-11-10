@@ -200,8 +200,11 @@
           {#if upcoming.length > 0}
             <div class="upnext">
               <p class="label">A continuación</p>
-              {#each upcoming.slice(0, 3) as u (u.entry.key)}
-                <button class="up" onclick={() => jumpTo(u.pos)} disabled={!can('jumpTo')}>
+              <!-- A fourth, fading out, hints that the queue goes on (the
+                   third, on short screens, where the fourth is hidden). -->
+              {#each upcoming.slice(0, 4) as u, i (u.entry.key)}
+                <button class="up" class:tail={i === 3} class:tail-short={i === 2 && upcoming.length > 3}
+                  onclick={() => jumpTo(u.pos)} disabled={!can('jumpTo')}>
                   <span class="up-pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
                   <span class="up-text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
                   <span class="time">{duration(u.entry.durationMs)}</span>
@@ -620,9 +623,29 @@
       color: var(--muted);
     }
   }
+  .up.tail,
+  .up.tail-short {
+    --fade: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent 95%);
+  }
+  .up.tail {
+    -webkit-mask-image: var(--fade);
+    mask-image: var(--fade);
+  }
+  .up.tail:hover:not(:disabled) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
   @media (max-height: 760px) and (min-width: 900px) {
-    .upnext .up:nth-of-type(n + 3) {
+    .upnext .up.tail {
       display: none;
+    }
+    .up.tail-short {
+      -webkit-mask-image: var(--fade);
+      mask-image: var(--fade);
+    }
+    .up.tail-short:hover:not(:disabled) {
+      -webkit-mask-image: none;
+      mask-image: none;
     }
   }
   .like {
