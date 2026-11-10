@@ -2,10 +2,11 @@
   // The persistent player bar. On phones it is a mini player above the
   // tabs that opens into a full-screen sheet.
   import { itemCoverURL } from '../lib/api.js'
-  import { duration } from '../lib/format.js'
+  import { duration, quality } from '../lib/format.js'
   import {
     can,
     cycleRepeat,
+    jumpTo,
     next,
     prev,
     remote,
@@ -27,6 +28,7 @@
 
   const p = $derived(shown())
   const entry = $derived(Q.current(p.queue))
+  const upcoming = $derived(sheet ? Q.upcoming(p.queue) : [])
   const pct = $derived(p.duration > 0 ? Math.min(100, (p.time / p.duration) * 100) : 0)
   // In Rockola mode a slider sends once, when released, not on every move.
   const live = (fn) => (e) => fn(Number(e.currentTarget.value))
@@ -38,7 +40,11 @@
 
   // Space plays and pauses, unless typing or on a button.
   function onkeydown(event) {
-    if (event.key !== ' ' || event.ctrlKey || event.metaKey || event.altKey) return
+    if (event.key === 'Escape' && sheet && !adding) {
+      sheet = false
+      return
+    }
+    if (event.key !== ' '|| event.ctrlKey || event.metaKey || event.altKey) return
     const tag = event.target?.tagName
     if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(tag) || event.target?.isContentEditable) return
     event.preventDefault()
@@ -157,24 +163,54 @@
 
   {#if sheet}
     <div class="sheet" role="dialog" aria-label="Reproductor">
-      <header>
-        <button class="icon" onclick={() => (sheet = false)} aria-label="Cerrar"><Icono name="down" size={26} /></button>
-        <span class="label">{remote() ? 'Rockola · en la compu' : 'Sonando'}</span>
-        <button class="icon" onclick={() => ((queueOpen = true), (sheet = false))} aria-label="Cola"><Icono name="queue" size={22} /></button>
-      </header>
-      <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
-      <div class="big-text">
-        <div class="big-title">
-          <b>{entry.title}</b>
-          <span class="big-marks">{@render addToList('sheet', 24)}<MeGusta kind="track" ref={entry.id} size={24} /></span>
-        </div>
-        <span>{entry.artist}</span>
-        {#if entry.albumId}
-          <a href={albumHref(entry.albumId)} onclick={() => (sheet = false)}>{entry.album}</a>
-        {/if}
+      <div class="backdrop" aria-hidden="true">
+        {#key entry.key}<img src={itemCoverURL(entry, 160)} alt="" onerror={(e) => e.currentTarget.remove()} />{/key}
       </div>
-      {@render progress()}
-      {@render controls(true)}
+      <header>
+        <button class="icon" onclick={() => (sheet = false)} title="Cerrar (Esc)" aria-label="Cerrar"><Icono name="down" size={26} /></button>
+        <span class="label">{remote() ? 'Rockola · en la compu' : 'Sonando'}</span>
+        <button class="icon" onclick={() => ((queueOpen = true), (sheet = false))} title="Cola" aria-label="Cola"><Icono name="queue" size={22} /></button>
+      </header>
+      <div class="stage">
+        {#key entry.key}
+          <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
+        {/key}
+        <div class="info">
+          <div class="big-text">
+            {#key entry.key}
+              <h2 class="big-title" class:long={entry.title.length > 40}>{entry.title}</h2>
+            {/key}
+            <p class="big-artist">{entry.artist}</p>
+            <p class="big-album">
+              {#if entry.albumId}
+                <a href={albumHref(entry.albumId)} onclick={() => (sheet = false)}>{entry.album}</a>
+              {:else if entry.album}
+                <span>{entry.album}</span>
+              {/if}
+              {#if entry.codec || entry.format}<span class="badge" class:lossless={entry.lossless}>{quality(entry)}</span>{/if}
+            </p>
+            <span class="big-marks">
+              <MeGusta kind="track" ref={entry.id} size={24} />{@render addToList('sheet', 24)}
+            </span>
+          </div>
+          <div class="deck">
+            {@render progress()}
+            {@render controls(true)}
+          </div>
+          {#if upcoming.length > 0}
+            <div class="upnext">
+              <p class="label">A continuación</p>
+              {#each upcoming.slice(0, 3) as u (u.entry.key)}
+                <button class="up" onclick={() => jumpTo(u.pos)} disabled={!can('jumpTo')}>
+                  <span class="up-pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+                  <span class="up-text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+                  <span class="time">{duration(u.entry.durationMs)}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
     </div>
   {/if}
 {/if}
@@ -340,6 +376,9 @@
   .mini {
     display: none;
   }
+  /* The full player: a "now playing" screen to leave open. The cover,
+     blurred, tints the whole screen; on wide screens the details sit
+     beside the cover in big type. */
   .sheet {
     position: fixed;
     inset: 0;
@@ -347,28 +386,244 @@
     background: var(--bg);
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 12px 24px calc(32px + env(safe-area-inset-bottom));
+    padding: 12px 24px calc(24px + env(safe-area-inset-bottom));
+    overflow: hidden auto;
+    isolation: isolate;
+  }
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+  .backdrop img {
+    position: absolute;
+    inset: -15%;
+    width: 130%;
+    height: 130%;
+    object-fit: cover;
+    filter: blur(70px) saturate(1.4);
+    opacity: 0.55;
+    animation: fade 1.2s ease;
+  }
+  .backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 40%, transparent 0%, rgb(0 0 0 / 0.35) 70%),
+      linear-gradient(to bottom, rgb(21 23 27 / 0.2), rgb(21 23 27 / 0.85));
   }
   .sheet header {
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
+  .sheet header .label {
+    letter-spacing: 0.18em;
+  }
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 12px;
+  }
   .big-pic {
     width: min(100%, 52vh);
     align-self: center;
+    animation: rise 0.5s ease;
   }
-  .big-text {
+  .big-pic :global(.tapa) {
+    border-radius: 8px;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.4);
+  }
+  .info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 20px;
+    min-width: 0;
+  }
+  .big-text {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding-right: 80px; /* the marks */
   }
   .big-title {
+    margin: 0;
+    font-size: clamp(24px, 3.6vw + 8px, 64px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    text-transform: none;
+    color: var(--strong);
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    animation: rise 0.45s ease;
+  }
+  .big-title.long {
+    font-size: clamp(22px, 2.6vw + 8px, 46px);
+  }
+  .big-artist {
+    margin: 4px 0 0;
+    font-size: clamp(17px, 1.2vw + 10px, 28px);
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .big-album {
+    margin: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: clamp(14px, 0.5vw + 11px, 18px);
+    color: var(--muted);
+  }
+  .big-album a:hover {
+    text-decoration: underline;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .badge.lossless {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .big-marks {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .deck {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .upnext {
+    display: none;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .backdrop img,
+    .big-pic,
+    .big-title {
+      animation: none;
+    }
+  }
+  /* Wide screens: cover and details side by side. */
+  @media (min-width: 900px) and (min-height: 520px) {
+    .sheet {
+      padding: 16px clamp(24px, 5vw, 80px) 32px;
+    }
+    .stage {
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(32px, 5vw, 88px);
+      padding: 0;
+    }
+    .big-pic {
+      flex: none;
+      width: min(44vw, 72vh, 640px);
+      align-self: center;
+    }
+    .info {
+      flex: 1;
+      max-width: 680px;
+      gap: clamp(24px, 4vh, 44px);
+    }
+    .sheet .deck .controls {
+      justify-content: flex-start;
+      gap: 20px;
+    }
+    .upnext {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-top: 1px solid rgb(255 255 255 / 0.08);
+      padding-top: 12px;
+    }
+    .upnext .label {
+      margin: 0 0 6px;
+    }
+    .up {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 8px;
+      margin: 0 -8px;
+      border: none;
+      border-radius: var(--radius);
+      text-align: left;
+      opacity: 0.8;
+    }
+    .up:hover:not(:disabled) {
+      background: rgb(255 255 255 / 0.06);
+      opacity: 1;
+    }
+    .up:disabled {
+      opacity: 0.8;
+    }
+    .up-pic {
+      width: 36px;
+      flex: none;
+    }
+    .up-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .up-text b,
+    .up-text span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .up-text b {
+      font-weight: 500;
+      color: var(--strong);
+    }
+    .up-text span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+  }
+  @media (max-height: 760px) and (min-width: 900px) {
+    .upnext .up:nth-of-type(n + 3) {
+      display: none;
+    }
   }
   .like {
     position: relative;
@@ -378,19 +633,6 @@
   .add {
     position: relative;
     display: inline-flex;
-  }
-  .big-marks {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .big-text b {
-    font-size: 20px;
-    color: var(--strong);
-  }
-  .big-text span,
-  .big-text a {
-    color: var(--muted);
   }
   .sheet .progress {
     max-width: none;
