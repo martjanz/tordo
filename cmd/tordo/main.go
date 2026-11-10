@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -64,7 +63,7 @@ func run(dirOverride string, port int, browser bool) error {
 			log.Printf("no se pudo abrir el navegador: %v", err)
 		}
 	}
-	return http.Serve(ln, a.server.Handler())
+	return a.server.HTTPServer(a.server.Handler()).Serve(ln)
 }
 
 // setup resolves the app folder, loads config.json and opens the catalog,

@@ -75,7 +75,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 		return fmt.Errorf("no se pudo abrir el puerto %d: %w", port, err)
 	}
 	l.closeLocked()
-	l.srv = &http.Server{Handler: s.LANHandler(), ReadHeaderTimeout: 10 * time.Second}
+	l.srv = s.HTTPServer(s.LANHandler())
 	l.ln = ln
 	l.port = ln.Addr().(*net.TCPAddr).Port
 	go func(srv *http.Server) {

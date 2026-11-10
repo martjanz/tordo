@@ -76,6 +76,10 @@ type Server struct {
 	jukeboxOnce sync.Once
 	jukeboxHub  *jukebox.Hub
 	beat        time.Duration
+
+	// stall and slow are guard's limits (0: stallTimeout, slowRequest; tests
+	// shorten them).
+	stall, slow time.Duration
 }
 
 // parts are the pieces config.json decides, read once per request.
@@ -121,7 +125,7 @@ func (s *Server) Handler() http.Handler { return localOnly(s.routes()) }
 
 // routes is the mux of both listeners, built once.
 func (s *Server) routes() http.Handler {
-	s.muxOnce.Do(func() { s.mux = s.buildMux() })
+	s.muxOnce.Do(func() { s.mux = s.guard(s.buildMux()) })
 	return s.mux
 }
 
