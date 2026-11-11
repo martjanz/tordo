@@ -15,6 +15,7 @@ var schema string
 
 type Store struct {
 	db      *sql.DB
+	file    string // the catalog file, "" in memory
 	side    side
 	pending pendingList // guarded by side.mu
 }
@@ -28,7 +29,12 @@ func Open(file string, readOnly bool) (*Store, error) {
 	} else {
 		dsn += "&_pragma=journal_mode(DELETE)"
 	}
-	return openDB(dsn, !readOnly)
+	s, err := openDB(dsn, !readOnly)
+	if err != nil {
+		return nil, err
+	}
+	s.file = file
+	return s, nil
 }
 
 // OpenMemory returns an empty in-memory catalog (browse-only mode without a

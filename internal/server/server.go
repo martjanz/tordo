@@ -43,6 +43,10 @@ type Server struct {
 	Covers     *covers.Covers  // nil: no pictures
 	Static     fs.FS           // the web app; nil: the embedded build
 	ReadOnly   bool
+	// CatalogCache is the startup cache file (internal/startcache): the
+	// pages answer from it while the first catalog is read from the store,
+	// and every build refreshes it. "": none.
+	CatalogCache string
 
 	// Engine holds what config.json decides; nil (tests): the fixed fields
 	// Scanner, Identifier and Normalize, and no settings.
@@ -58,6 +62,10 @@ type Server struct {
 
 	// countStore reads the catalog's figures; nil: Store.Counts.
 	countStore func() (store.Counts, error)
+
+	// cacheEvery is how often the startup cache is written at most (0:
+	// time.Minute; tests shorten it).
+	cacheEvery time.Duration
 
 	cat         catalogState
 	counts      countsState
@@ -332,6 +340,14 @@ func (s *Server) jukebox() *jukebox.Hub {
 	return s.jukeboxHub
 }
 
+// countFigures reads the catalog's figures from the store.
+func (s *Server) countFigures() (store.Counts, error) {
+	if s.countStore != nil {
+		return s.countStore()
+	}
+	return s.Store.Counts()
+}
+
 // countsState is the last figures read for the status, and the read under way.
 type countsState struct {
 	mu     sync.Mutex
@@ -350,19 +366,18 @@ const countsWait = 150 * time.Millisecond
 func (s *Server) statusCounts() (*store.Counts, error) {
 	st := &s.counts
 	st.mu.Lock()
-	if st.flight {
+	// Until the store is read the startup cache's figures stand (none
+	// without one): counting would hold the store's only connection,
+	// reading every file row, while the first catalog waits for it.
+	if st.flight || s.cat.preparing.Load() || s.cat.provisional.Load() {
 		defer st.mu.Unlock()
 		return st.last, nil
 	}
 	st.flight = true
 	st.mu.Unlock()
-	count := s.countStore
-	if count == nil {
-		count = s.Store.Counts
-	}
 	done := make(chan error, 1)
 	go func() {
-		c, err := count()
+		c, err := s.countFigures()
 		st.mu.Lock()
 		st.flight = false
 		if err == nil {

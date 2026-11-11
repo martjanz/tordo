@@ -87,7 +87,8 @@ func setup(dirOverride string) (*app, error) {
 	}
 	a := &app{}
 	ffmpeg := stream.LookFFmpeg()
-	a.server = &server.Server{Store: st, ReadOnly: readOnly, AppDir: appDir}
+	a.server = &server.Server{Store: st, ReadOnly: readOnly, AppDir: appDir,
+		CatalogCache: filepath.Join(appDir, "cache", "catalog.gob.gz")}
 	eng := &engine.Engine{AppDir: appDir, Store: st, ReadOnly: readOnly, MB: musicbrainz.New()}
 	if readOnly {
 		log.Print("la carpeta de la app no es escribible: modo consulta")
