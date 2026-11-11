@@ -41,30 +41,44 @@ func (st *personalState) fresh(changes, version int64) *store.Personal {
 }
 
 // personal returns the user's data, reloaded when the store's change counter
-// or the personal version moved.
+// or the personal version moved; the startup cache's while the store has not
+// been read yet and the user changed nothing since.
 func (s *Server) personal() (*store.Personal, error) {
+	s.waitStartCache()
+	if s.cat.provisional.Load() {
+		if p, version := s.pers.current(); p != nil && version == s.Store.PersonalVersion() {
+			return p, nil
+		}
+	}
+	p, _, err := s.freshPersonal()
+	return p, err
+}
+
+// freshPersonal returns the user's data as the store has it now, and the
+// store's change counter it was resolved at.
+func (s *Server) freshPersonal() (*store.Personal, int64, error) {
 	changes, err := s.Store.Changes()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	version := s.Store.PersonalVersion()
 	st := &s.pers
 	if p := st.fresh(changes, version); p != nil {
-		return p, nil
+		return p, changes, nil
 	}
 	st.load.Lock()
 	defer st.load.Unlock()
 	if p := st.fresh(changes, version); p != nil {
-		return p, nil
+		return p, changes, nil
 	}
 	p, err := s.Store.Personal()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	st.mu.Lock()
 	st.p, st.changes, st.version = &p, changes, version
 	st.mu.Unlock()
-	return &p, nil
+	return &p, changes, nil
 }
 
 // readBody decodes a JSON body into v, answering 400 when it cannot.
