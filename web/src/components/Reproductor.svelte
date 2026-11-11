@@ -459,7 +459,9 @@
     margin: 0;
     font-size: clamp(24px, 3.6vw + 8px, 64px);
     font-weight: 700;
-    line-height: 1.05;
+    /* Tall enough to hold the descenders: the clamp's overflow: hidden cuts
+       whatever hangs below the last line box (the tail of a g, y, p). */
+    line-height: 1.2;
     letter-spacing: -0.025em;
     text-transform: none;
     color: var(--strong);
