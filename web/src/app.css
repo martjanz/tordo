@@ -52,8 +52,19 @@
   }
 }
 
+html {
+  /* Keep room for the scrollbar on pages that do not scroll, so the layout does not
+     shift sideways when moving between pages. */
+  scrollbar-gutter: stable;
+  /* Inherited by every scroll container. */
+  scrollbar-color: var(--line-strong) transparent;
+}
+
 * {
   box-sizing: border-box;
+  /* Not inherited, so it goes on every element: thin scrollbars, without the native
+     arrow buttons. */
+  scrollbar-width: thin;
 }
 
 body {
