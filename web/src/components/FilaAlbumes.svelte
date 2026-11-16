@@ -2,10 +2,9 @@
   // A row of Inicio: a title, its actions and the albums in one line that
   // scrolls sideways.
   import BotonEstacion from './BotonEstacion.svelte'
-  import Icono from './Icono.svelte'
   import TarjetaAlbum from './TarjetaAlbum.svelte'
 
-  let { title, href = '', station = null, onrefresh = null, albums } = $props()
+  let { title, href = '', station = null, albums } = $props()
 </script>
 
 <section>
@@ -14,11 +13,6 @@
     {#if href}<a class="all" href={href}>ver todas →</a>{/if}
     <span class="spacer"></span>
     {#if station}<BotonEstacion {station} />{/if}
-    {#if onrefresh}
-      <button class="icon" onclick={onrefresh} title="Otras filas" aria-label="Cambiar las filas">
-        <Icono name="refresh" size={16} />
-      </button>
-    {/if}
   </div>
   <div class="strip">
     {#each albums as album (album.id)}

@@ -118,6 +118,7 @@ describe('rowTitle', () => {
     [{ kind: 'nunca' }, 'Nunca escuchados'],
     [{ kind: 'hace-un-anio' }, 'Sin escuchar hace un año'],
     [{ kind: 'azar' }, 'Álbumes al azar'],
+    [{ kind: 'recientes' }, 'Agregados recientemente'],
   ])('%j', (row, want) => {
     expect(S.rowTitle(row)).toBe(want)
   })

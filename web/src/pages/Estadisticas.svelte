@@ -46,7 +46,7 @@
   const plays = (n) => count(n, 'reproducción', 'reproducciones')
 </script>
 
-<h1>Tu escucha</h1>
+<h1>Historial de escucha</h1>
 <nav class="tabs">
   {#each PERIODS as p (p.value)}
     <a href={statsHref(p.value)} class:on={period === p.value}>{p.label}</a>

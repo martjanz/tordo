@@ -3,6 +3,7 @@
   // applied.
   import { listenMode } from '../lib/app.svelte.js'
   import { count } from '../lib/format.js'
+  import Icono from './Icono.svelte'
   import { chips, FACETS, facetLabel, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
 
   // query: the applied query; facets: the server's counts per facet;
@@ -119,12 +120,18 @@
         <option value={o.value}>{o.label}</option>
       {/each}
     </select>
-    <button
-      class="dir"
-      onclick={() => onchange({ ...query, dir: query.dir === 'asc' ? 'desc' : 'asc' })}
-      aria-label={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}
-      title={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}>{query.dir === 'asc' ? '↑' : '↓'}</button
-    >
+    {#if query.order === 'azar'}
+      <!-- No direction to a shuffle: draw another one instead. -->
+      <button class="dir reshuffle" onclick={() => onchange(withOrder(query, 'azar'))} aria-label="Mezclar de nuevo"
+        title="Mezclar de nuevo"><Icono name="refresh" size={14} /></button>
+    {:else}
+      <button
+        class="dir"
+        onclick={() => onchange({ ...query, dir: query.dir === 'asc' ? 'desc' : 'asc' })}
+        aria-label={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}
+        title={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}>{query.dir === 'asc' ? '↑' : '↓'}</button
+      >
+    {/if}
   </div>
 </div>
 
@@ -242,6 +249,11 @@
   }
   .dir {
     padding: 3px 9px;
+  }
+  .reshuffle {
+    display: inline-flex;
+    align-items: center;
+    align-self: stretch;
   }
   .chips {
     display: flex;

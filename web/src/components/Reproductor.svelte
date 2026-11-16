@@ -38,6 +38,14 @@
   let queueOpen = $state(false)
   let adding = $state(null) // where the list picker is open: 'bar' or 'sheet'
 
+  // A click anywhere on the bar opens the full player, except on its
+  // controls (buttons, links, sliders) and the list picker.
+  function openFromBar(event) {
+    if (event.target.closest('button, a, input, select, textarea, label, [role="dialog"], .add')) return
+    if (window.getSelection()?.toString()) return // selecting the title, not clicking
+    sheet = true
+  }
+
   // Space plays and pauses, unless typing or on a button.
   function onkeydown(event) {
     if (event.key === 'Escape' && sheet && !adding) {
@@ -115,7 +123,10 @@
     </div>
   </div>
 {:else if entry}
-  <div class="bar">
+  <!-- The cover button is the keyboard way in; the rest of the bar is a
+       bigger target for the mouse. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="bar opens" onclick={openFromBar}>
     <div class="line" style="width: {pct}%"></div>
     <div class="now">
       <button class="open" onclick={() => (sheet = true)} aria-label="Abrir el reproductor">
@@ -237,6 +248,9 @@
     align-items: center;
     gap: 16px;
     padding: 0 var(--gutter);
+  }
+  .bar.opens {
+    cursor: pointer;
   }
   .line {
     display: none;

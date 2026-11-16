@@ -108,6 +108,8 @@ export function rowTitle(row) {
       return 'Sin escuchar hace un año'
     case 'azar':
       return 'Álbumes al azar'
+    case 'recientes':
+      return 'Agregados recientemente'
   }
   return row.value
 }

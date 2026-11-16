@@ -31,8 +31,8 @@ export const SECTIONS = [
     id: 'secciones',
     title: 'Secciones',
     items: [
-      { term: 'Inicio', href: '/', text: 'Filas de álbumes para retomar: agregados recientemente, tus estaciones, seguir escuchando, tus canciones favoritas, tus álbumes preferidos y sugerencias que cambian en cada visita.' },
-      { term: 'Explorar', href: '/explorar', text: 'Toda la colección por álbumes, artistas o pistas, con filtros combinables (década, país, género, formato, ♥, ★…) y orden.' },
+      { term: 'Inicio', href: '/', text: 'Filas para retomar: tus estaciones, seguir escuchando, tus canciones favoritas y tus álbumes preferidos, más sugerencias (como agregados recientemente) que cambian, igual que el orden, en cada visita o con el botón de actualizar.' },
+      { term: 'Explorar', href: '/explorar', text: 'Toda la colección por álbumes, artistas o pistas, con filtros combinables (década, país, género, formato, ♥, ★…) y orden, también aleatorio.' },
       { term: 'Carpetas', href: '/carpetas', text: 'La colección tal como está en el disco, con un árbol de carpetas.' },
       { term: 'Listas', href: '/listas', text: 'Tus listas de reproducción y tus ♥.' },
       { term: 'Revisar', href: '/revisar', blockedInListen: true, text: 'Mantenimiento: música sin identificar, duplicados, géneros por mapear y formatos a convertir.' },

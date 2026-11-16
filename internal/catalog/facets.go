@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"cmp"
+	"hash/fnv"
+	"math/rand/v2"
 	"net/url"
 	"regexp"
 	"slices"
@@ -59,6 +61,7 @@ const (
 	OrderAdded  = "agregado"
 	OrderCount  = "cantidad"
 	OrderPlays  = "escuchado"
+	OrderRandom = "azar" // shuffled by Query.Seed
 	Asc         = "asc"
 	Desc        = "desc"
 )
@@ -69,6 +72,9 @@ type Query struct {
 	Facets map[string]string `json:"facets"`
 	Order  string            `json:"order"`
 	Dir    string            `json:"dir"`
+	// Seed shuffles the random order (1 to 2^31, to stay exact in
+	// JavaScript); 0 with any other order.
+	Seed uint32 `json:"seed,omitempty"`
 }
 
 var (
@@ -105,11 +111,11 @@ func valid(facet, value string) bool {
 func orders(view string) []string {
 	switch view {
 	case ViewArtists:
-		return []string{OrderTitle, OrderCount, OrderAdded, OrderPlays}
+		return []string{OrderTitle, OrderCount, OrderAdded, OrderPlays, OrderRandom}
 	case ViewTracks:
-		return []string{OrderArtist, OrderYear, OrderTitle, OrderAdded, OrderPlays}
+		return []string{OrderArtist, OrderYear, OrderTitle, OrderAdded, OrderPlays, OrderRandom}
 	}
-	return []string{OrderYear, OrderTitle, OrderArtist, OrderAdded, OrderPlays}
+	return []string{OrderYear, OrderTitle, OrderArtist, OrderAdded, OrderPlays, OrderRandom}
 }
 
 // naturalDir is an order's usual direction: A to Z for names, newest or
@@ -121,9 +127,10 @@ func naturalDir(order string) string {
 	return Desc
 }
 
-// ParseQuery reads Explorar's parameters: ver, the facets, orden and dir.
-// Unknown parameters and malformed values are dropped; each tab has its
-// default order, and each order its natural direction.
+// ParseQuery reads Explorar's parameters: ver, the facets, orden, dir and
+// semilla. Unknown parameters and malformed values are dropped; each tab has
+// its default order, and each order its natural direction. The random order
+// without a valid seed gets a new one.
 func ParseQuery(v url.Values) Query {
 	q := Query{View: ViewAlbums, Facets: map[string]string{}}
 	if w := v.Get("ver"); w == ViewArtists || w == ViewTracks {
@@ -142,6 +149,13 @@ func ParseQuery(v url.Values) Query {
 	q.Dir = naturalDir(q.Order)
 	if d := v.Get("dir"); d == Asc || d == Desc {
 		q.Dir = d
+	}
+	if q.Order == OrderRandom {
+		n, err := strconv.ParseUint(v.Get("semilla"), 10, 32)
+		if err != nil || n == 0 || n > 1<<31 {
+			n = uint64(rand.Uint32N(1<<31)) + 1
+		}
+		q.Seed = uint32(n)
 	}
 	return q
 }
@@ -263,7 +277,11 @@ func (c *Catalog) ExploreFor(q Query, p *store.Personal, offset, limit int) Resu
 				found = append(found, *t)
 			}
 		}
-		sortTracks(found, q.Order, q.Dir, c.trackPlays(q, p))
+		if q.Order == OrderRandom {
+			shuffle(found, q.Seed, func(t Track) uint64 { return uint64(t.ID) })
+		} else {
+			sortTracks(found, q.Order, q.Dir, c.trackPlays(q, p))
+		}
 		r.Total, r.Tracks = len(found), page(found, offset, limit)
 	default:
 		var found []Album
@@ -278,10 +296,18 @@ func (c *Catalog) ExploreFor(q Query, p *store.Personal, offset, limit int) Resu
 		}
 		if q.View == ViewArtists {
 			artists := c.artistsOf(found)
-			sortArtists(artists, q.Order, q.Dir, c.artistPlays(q, p))
+			if q.Order == OrderRandom {
+				shuffle(artists, q.Seed, func(a Artist) uint64 { return keyHash(a.Key) })
+			} else {
+				sortArtists(artists, q.Order, q.Dir, c.artistPlays(q, p))
+			}
 			r.Total, r.Artists = len(artists), page(artists, offset, limit)
 		} else {
-			sortAlbums(found, q.Order, q.Dir, c.albumPlays(q, p))
+			if q.Order == OrderRandom {
+				shuffle(found, q.Seed, func(a Album) uint64 { return uint64(a.ID) })
+			} else {
+				sortAlbums(found, q.Order, q.Dir, c.albumPlays(q, p))
+			}
 			r.Total, r.Albums = len(found), page(found, offset, limit)
 		}
 	}
@@ -331,6 +357,29 @@ func direction(c int, dir string) int {
 		return -c
 	}
 	return c
+}
+
+// shuffle orders items by a hash of the seed and each item's id: the same
+// seed gives the same order, page after page, and an item added by a scan
+// does not move the others.
+func shuffle[T any](items []T, seed uint32, id func(T) uint64) {
+	rank := func(x T) uint64 { return mix(uint64(seed)<<32 ^ id(x)) }
+	slices.SortStableFunc(items, func(a, b T) int { return cmp.Compare(rank(a), rank(b)) })
+}
+
+// mix is splitmix64's finalizer: nearby inputs give unrelated outputs.
+func mix(x uint64) uint64 {
+	x += 0x9e3779b97f4a7c15
+	x = (x ^ x>>30) * 0xbf58476d1ce4e5b9
+	x = (x ^ x>>27) * 0x94d049bb133111eb
+	return x ^ x>>31
+}
+
+// keyHash turns a string id into a number for shuffle.
+func keyHash(key string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(key))
+	return h.Sum64()
 }
 
 // sortAlbums orders albums; albums without a year go last when sorting by

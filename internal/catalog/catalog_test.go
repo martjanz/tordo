@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 
 	"tordo/internal/store"
@@ -258,5 +259,53 @@ func TestFormatKey(t *testing.T) {
 		if got := FormatKey(c.format, c.codec); got != c.want {
 			t.Errorf("FormatKey(%q, %q) = %q", c.format, c.codec, got)
 		}
+	}
+}
+
+func TestExploreRandom(t *testing.T) {
+	c := build()
+	for _, view := range []string{ViewAlbums, ViewArtists, ViewTracks} {
+		// No seed: one is drawn and echoed, so the next pages can ask for it.
+		q := ParseQuery(url.Values{"ver": {view}, "orden": {"azar"}})
+		if q.Order != OrderRandom || q.Seed == 0 || q.Seed > 1<<31 {
+			t.Fatalf("%s: %+v", view, q)
+		}
+		ids := func(r Result) []string {
+			var out []string
+			for _, a := range r.Albums {
+				out = append(out, a.Title)
+			}
+			for _, a := range r.Artists {
+				out = append(out, a.Key)
+			}
+			for _, tr := range r.Tracks {
+				out = append(out, tr.Path+tr.Title)
+			}
+			return out
+		}
+		seeded := func(seed string) url.Values { return url.Values{"ver": {view}, "orden": {"azar"}, "semilla": {seed}} }
+		whole := ids(c.Explore(ParseQuery(seeded("7")), 0, 100))
+		if !reflect.DeepEqual(ids(c.Explore(ParseQuery(seeded("7")), 0, 100)), whole) {
+			t.Fatalf("%s: not deterministic", view)
+		}
+		// Pages follow the same order.
+		paged := append(ids(c.Explore(ParseQuery(seeded("7")), 0, 1)), ids(c.Explore(ParseQuery(seeded("7")), 1, 100))...)
+		if !reflect.DeepEqual(paged, whole) {
+			t.Fatalf("%s: pages %q, whole %q", view, paged, whole)
+		}
+		orders := map[string]bool{}
+		for seed := 1; seed <= 30; seed++ {
+			orders[strings.Join(ids(c.Explore(ParseQuery(seeded(strconv.Itoa(seed))), 0, 100)), "|")] = true
+		}
+		if len(orders) < 2 {
+			t.Fatalf("%s: one order for every seed", view)
+		}
+	}
+	// The seed only goes with the random order; a bad one is redrawn.
+	if q := ParseQuery(url.Values{"orden": {"titulo"}, "semilla": {"7"}}); q.Seed != 0 {
+		t.Fatalf("seed without azar: %+v", q)
+	}
+	if q := ParseQuery(url.Values{"orden": {"azar"}, "semilla": {"x"}}); q.Seed == 0 {
+		t.Fatalf("bad seed: %+v", q)
 	}
 }
