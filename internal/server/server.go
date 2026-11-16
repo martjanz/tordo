@@ -98,6 +98,7 @@ type parts struct {
 	lan        config.LAN
 	scan       func() // starts a scan in the background
 	listenMode bool   // config.json: curation routes answer 403
+	language   string // config.json: "es", "en", "pt-BR" or "" (the browser decides)
 }
 
 func (s *Server) parts() parts {
@@ -118,7 +119,7 @@ func (s *Server) parts() parts {
 	if rt == nil {
 		return parts{normalize: true}
 	}
-	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan, listenMode: rt.Config.ListenMode}
+	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan, listenMode: rt.Config.ListenMode, language: rt.Config.LanguageOrAuto()}
 	if rt.Identifier != nil {
 		p.identifier = rt.Identifier
 	}
@@ -418,7 +419,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		loud = s.Loudness.Status()
 	}
 	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
-		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts, "preparing": s.cat.preparing.Load(),
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "language": p.language, "counts": counts, "preparing": s.cat.preparing.Load(),
 		"jukebox": map[string]bool{"speaker": s.jukebox().Speaking()}})
 }
 

@@ -485,3 +485,12 @@ func TestSamePartsNilAndEmptyAreEqual(t *testing.T) {
 		t.Fatal("a token change is the same parts")
 	}
 }
+
+func TestSamePartsIgnoresLanguage(t *testing.T) {
+	a := config.Config{Roots: []string{"../m"}, Ignore: []string{}}
+	b := a
+	b.Language = "en"
+	if !sameParts(a, b) || !sameParts(b, a) {
+		t.Fatal("a language change is not the same parts")
+	}
+}

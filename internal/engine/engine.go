@@ -251,12 +251,13 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 }
 
 // sameParts reports whether a and b differ at most in what no part of the
-// runtime depends on (normalization, LAN, listen mode, rescan interval).
+// runtime depends on (normalization, LAN, listen mode, rescan interval, language).
 func sameParts(a, b config.Config) bool {
 	a.Normalize, b.Normalize = nil, nil
 	a.RescanMinutes, b.RescanMinutes = nil, nil
 	a.LAN, b.LAN = config.LAN{}, config.LAN{}
 	a.ListenMode, b.ListenMode = false, false
+	a.Language, b.Language = "", ""
 	// nil and empty lists are the same; the lists are taken out so DeepEqual
 	// judges whatever else the config holds.
 	same := slices.Equal(a.Roots, b.Roots) && slices.Equal(a.Ignore, b.Ignore)

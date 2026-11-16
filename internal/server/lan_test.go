@@ -528,3 +528,23 @@ func TestLANGateCoversEveryRoute(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthLanguage(t *testing.T) {
+	s := lanServer(t)
+	for _, lang := range []string{"pt-BR", ""} {
+		cfg := s.Engine.Current().Config
+		cfg.Language = lang
+		s.Engine.Use(&engine.Runtime{Config: cfg})
+		for name, rec := range map[string]*httptest.ResponseRecorder{
+			"mac": mac(s.LANHandler(), "GET", "/api/auth", ""), "phone": phone(s.LANHandler(), "GET", "/api/auth", ""),
+		} {
+			var a struct {
+				Language *string `json:"language"`
+			}
+			decode(t, rec, &a)
+			if a.Language == nil || *a.Language != lang {
+				t.Fatalf("%s: auth language = %v, want %q (%s)", name, a.Language, lang, rec.Body)
+			}
+		}
+	}
+}

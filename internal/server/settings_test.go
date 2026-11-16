@@ -302,3 +302,30 @@ func TestSettingsLocalOnly(t *testing.T) {
 		t.Fatalf("local request refused: %d", rec.Code)
 	}
 }
+
+func TestPutConfigLanguage(t *testing.T) {
+	s := settingsServer(t, false)
+	if rec := putConfig(t, s, `{"roots":["../musica"],"normalize":true,"lan":{"port":4747}}`); rec.Code != http.StatusOK {
+		t.Fatalf("setup: %d %s", rec.Code, rec.Body)
+	}
+	for i := 0; i < 500 && s.parts().scanner.Status().Finished.IsZero(); i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	before := s.parts().scanner
+	finished := before.Status().Finished
+	var v configView
+	decode(t, putConfig(t, s, `{"language":"en"}`), &v)
+	if v.Language != "en" || saved(t, s).Language != "en" {
+		t.Fatalf("view %+v, saved %+v", v, saved(t, s))
+	}
+	if s.parts().scanner != before || before.Status().Running || !before.Status().Finished.Equal(finished) {
+		t.Fatal("changing the language restarted the runtime or started a scan")
+	}
+	if rec := putConfig(t, s, `{"language":"fr"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("fr: %d %s", rec.Code, rec.Body)
+	}
+	decode(t, putConfig(t, s, `{"language":""}`), &v)
+	if v.Language != "" || saved(t, s).Language != "" {
+		t.Fatalf("empty language kept: %+v", v)
+	}
+}

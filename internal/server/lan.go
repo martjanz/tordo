@@ -352,7 +352,7 @@ func (s *Server) authState(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	writeJSON(w, map[string]any{"local": local, "session": has, "device": se.Device, "pinRequired": !local && !has})
+	writeJSON(w, map[string]any{"local": local, "session": has, "device": se.Device, "pinRequired": !local && !has, "language": s.parts().language})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {

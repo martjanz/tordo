@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -125,5 +126,23 @@ func TestPrepareTellsWhenTheFirstCatalogIsBuilt(t *testing.T) {
 	}
 	if s.cat.current() == nil {
 		t.Fatal("ready without a catalog")
+	}
+}
+
+func TestStatusLanguage(t *testing.T) {
+	for _, c := range []struct{ cfg, want string }{{"pt-BR", "pt-BR"}, {"", ""}} {
+		s := settingsServer(t, false)
+		if c.cfg != "" {
+			if rec := putConfig(t, s, `{"roots":["../musica"],"language":"`+c.cfg+`"}`); rec.Code != http.StatusOK {
+				t.Fatalf("put: %d %s", rec.Code, rec.Body)
+			}
+		}
+		var a struct {
+			Language *string `json:"language"`
+		}
+		decode(t, do(t, s.Handler(), "GET", "/api/status", ""), &a)
+		if a.Language == nil || *a.Language != c.want {
+			t.Fatalf("status language = %v, want %q", a.Language, c.want)
+		}
 	}
 }
