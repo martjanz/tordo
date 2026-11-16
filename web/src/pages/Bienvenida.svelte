@@ -151,15 +151,6 @@
     resize: vertical;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
     font-size: var(--fs-sm);
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    padding: 6px 8px;
-  }
-  .check {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
   }
   small {
     display: block;

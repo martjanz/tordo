@@ -45,3 +45,53 @@ describe('type scale', () => {
     expect(smallest.filter((n) => !(n >= 12))).toEqual([])
   })
 })
+
+// Form controls look the same everywhere: app.css gives text fields, selects,
+// textareas and checkboxes their dark look, and components only size and place
+// them. The player's range sliders are drawn by Reproductor itself.
+
+// Each CSS rule in a component's <style>: [selector, body].
+function rules(text) {
+  const style = text.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? ''
+  return [...style.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1].trim(), m[2]])
+}
+
+// A selector that targets an input, select or textarea element.
+const control = /(?:^|[\s,>+~(])(?:input|select|textarea)\b/
+const look = /(?:^|;|\s)(?:background(?:-color)?|border(?:-color|-style|-width)?|border-radius|appearance|accent-color)\s*:/
+
+describe('form controls', () => {
+  it('app.css styles text fields, selects and textareas', () => {
+    for (const sel of ["[type='search']", "[type='password']", "[type='number']", 'select', 'textarea']) {
+      expect(appCss).toContain(sel)
+    }
+    expect(appCss).toMatch(/::placeholder\s*\{[^}]*var\(--faint\)/)
+  })
+
+  it('selects draw their own chevron', () => {
+    expect(appCss).toMatch(/select\s*\{[^}]*appearance:\s*none/)
+    expect(appCss).toMatch(/select\s*\{[^}]*background-image:\s*url\("data:image\/svg\+xml/)
+  })
+
+  it('checkboxes and radios take the accent', () => {
+    expect(appCss).toMatch(/\[type='checkbox'\][^{]*\{[^}]*accent-color:\s*var\(--accent\)/)
+    expect(appCss).toMatch(/\[type='radio'\]/)
+  })
+
+  it('components do not restyle how a control looks', () => {
+    const found = files.flatMap((f) =>
+      rules(f.text)
+        .filter(([sel, body]) => control.test(sel) && !sel.includes("[type='range']") && look.test(body))
+        .map(([sel]) => `${f.name}: ${sel}`),
+    )
+    expect(found).toEqual([])
+  })
+})
+
+describe('checkbox rows', () => {
+  it('app.css owns the .check row, not each component', () => {
+    expect(appCss).toMatch(/\.check\s*\{/)
+    const found = files.flatMap((f) => rules(f.text).filter(([sel]) => /(?:^|[\s,])\.check\b/.test(sel)).map(([sel]) => `${f.name}: ${sel}`))
+    expect(found).toEqual([])
+  })
+})

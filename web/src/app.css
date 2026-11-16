@@ -74,7 +74,8 @@ a:hover {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -120,6 +121,70 @@ button.icon:hover:not(:disabled) {
 
 button.icon.on {
   color: var(--accent);
+}
+
+/* Text fields, selects and textareas: the same height, border and focus as a
+   button, on the surface color. Components only size and place them. */
+input:where(:not([type]), [type='text'], [type='search'], [type='password'], [type='number'], [type='email'], [type='url']),
+select,
+textarea {
+  background-color: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+}
+
+input:where(:not([type]), [type='text'], [type='search'], [type='password'], [type='number'], [type='email'], [type='url']):hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+
+textarea {
+  padding: 6px 10px;
+  line-height: 1.4;
+}
+
+/* Like the facet buttons: no native dropdown, a chevron drawn in --muted. */
+select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239ba3ac' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  cursor: pointer;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: default;
 }
 
 :focus-visible {
@@ -197,4 +262,20 @@ h2 {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-4) 0;
+}
+
+/* A checkbox and its text, which may wrap or carry a <small> line below. */
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.check > input {
+  margin-top: calc((1lh - 16px) / 2); /* centered on the first line */
+}
+
+.check small {
+  display: block;
+  color: var(--faint);
 }

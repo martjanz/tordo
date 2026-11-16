@@ -247,6 +247,9 @@
   .total {
     color: var(--faint);
   }
+  .right select {
+    padding-block: 3px; /* as tall as the facet buttons */
+  }
   .dir {
     padding: 3px 9px;
   }
