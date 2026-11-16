@@ -1,27 +1,29 @@
 <script>
-  // A list of tracks: a click plays from that track. Disc headers when the
-  // tracks span several discs; the artist when it is not the album's (with
-  // a link to their page when there is one); the album with showAlbum.
+  // A list of tracks: a click plays from that track. Disc headers with
+  // discHeaders (one album's track list) when it spans several discs; the
+  // artist when it is not the album's (with a link to their page when there
+  // is one); the album with showAlbum.
   // Tracks the server cannot deliver (playable false) are dimmed.
   import { count, duration, quality } from '../lib/format.js'
   import { enqueue } from '../lib/playback.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
   import { isLiked } from '../lib/marks.js'
   import { mine } from '../lib/mine.svelte.js'
+  import { discHeaders } from '../lib/discs.js'
   import Icono from './Icono.svelte'
   import MeGusta from './MeGusta.svelte'
   import MenuPista from './MenuPista.svelte'
 
-  let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false, showPlays = false } = $props()
+  let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false, showPlays = false, discHeaders: withDiscs = false } = $props()
 
-  const discs = $derived(new Set(tracks.map((t) => t.disc || 1)).size)
+  const headers = $derived(discHeaders(tracks, withDiscs))
   const otherArtist = (t) => t.artist && t.artist !== albumArtist
 </script>
 
 <ol class="pistas">
   {#each tracks as t, i (t.id)}
-    {#if discs > 1 && (i === 0 || (tracks[i - 1].disc || 1) !== (t.disc || 1))}
-      <li class="disc label">Disco {t.disc || 1}</li>
+    {#if headers[i]}
+      <li class="disc label">Disco {headers[i]}</li>
     {/if}
     <li class="row" class:unplayable={t.playable === false}>
       <!-- The whole row plays the track; the links on top of it stay links. -->

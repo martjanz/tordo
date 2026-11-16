@@ -85,7 +85,7 @@
       <Acciones what={{ album: album.id }} station={albumStation(album)} />
     </div>
   </div>
-  <ListaPistas tracks={album.tracks} albumArtist={album.artist} onplay={(t) => play({ album: album.id }, { startId: t.id })} />
+  <ListaPistas tracks={album.tracks} albumArtist={album.artist} discHeaders onplay={(t) => play({ album: album.id }, { startId: t.id })} />
 
   {#if album.versions?.length && !listenMode()}
     <section class="versions">
