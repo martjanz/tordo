@@ -29,6 +29,13 @@ describe('groupLine', () => {
 })
 
 describe('KINDS', () => {
+  it('has the help and empty texts of every kind, and the kinds the router accepts', () => {
+    for (const k of KINDS) {
+      expect(k.help, k.kind).toBeTruthy()
+      expect(k.empty, k.kind).toBeTruthy()
+    }
+    expect(KINDS.map((k) => k.kind)).toEqual(['exact', 'formats', 'suspected'])
+  })
   it('lists the kinds with the key of their count', () => {
     expect(KINDS.map((k) => [k.kind, k.count])).toEqual([
       ['exact', 'exact'],

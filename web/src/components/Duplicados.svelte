@@ -12,16 +12,7 @@
   let { kind = 'exact', onload } = $props()
 
   const PAGE = 100
-  const HELP = {
-    exactas: 'El mismo audio en varios archivos, aunque los tags difieran.',
-    formatos: 'La misma grabación del mismo álbum en archivos distintos. MEJOR marca la de más calidad.',
-    sospechas: 'Mismo artista, título y duración en álbumes distintos. Suele ser legítimo (un tema en su disco y en un compilado).',
-  }
-  const EMPTY = {
-    exactas: 'No hay copias idénticas.',
-    formatos: 'No hay temas repetidos en varios formatos.',
-    sospechas: 'No hay sospechas de duplicado.',
-  }
+  const current = $derived(KINDS.find((k) => k.kind === kind))
 
   let answer = $state(null)
   let error = $state('')
@@ -62,10 +53,10 @@
   {#if kind === 'exact'}
     <p class="note">{size(answer.recoverable)} recuperables en total</p>
   {/if}
-  <p class="help">{HELP[kind]}</p>
+  <p class="help">{current?.help}</p>
 
   {#if groups.length === 0}
-    <p class="empty">{EMPTY[kind]}</p>
+    <p class="empty">{current?.empty}</p>
   {:else}
     {#each groups.slice(0, shown) as g, i (i)}
       <section class="group">
