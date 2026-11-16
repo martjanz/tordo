@@ -235,7 +235,7 @@
     margin-top: 6px;
     resize: vertical;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     background: var(--surface);
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);

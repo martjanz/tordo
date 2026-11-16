@@ -66,7 +66,7 @@
     padding: 0;
     color: var(--muted);
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .link:hover:not(:disabled) {
     color: var(--strong);

@@ -46,7 +46,7 @@
     font-weight: 500;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .play {

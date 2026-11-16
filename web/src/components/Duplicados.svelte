@@ -102,7 +102,7 @@
   .note {
     margin: 0 0 8px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .help {
     margin: 8px 0 14px;
@@ -118,7 +118,7 @@
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .kinds a.on {
     border-color: var(--accent);
@@ -144,7 +144,7 @@
   }
   .line {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   ul {
     list-style: none;
@@ -158,13 +158,13 @@
     gap: 4px 12px;
     padding: 6px 0;
     border-top: 1px solid var(--line);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .best {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     padding: 0 7px;
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: var(--accent);
     color: var(--on-accent);
   }

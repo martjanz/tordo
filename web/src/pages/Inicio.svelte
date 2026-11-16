@@ -142,7 +142,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: var(--fs-md);
     color: var(--muted);
   }
   .stations {

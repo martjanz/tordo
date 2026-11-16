@@ -100,7 +100,7 @@
   .sections {
     display: flex;
     gap: 20px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
@@ -112,7 +112,7 @@
     padding-right: 20px;
     border-right: 1px solid var(--line-strong);
     color: var(--strong);
-    font-size: 18px;
+    font-size: var(--fs-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
   }
@@ -130,7 +130,7 @@
     flex: 1;
   }
   .modo {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -141,7 +141,7 @@
   }
   .chip {
     font: inherit;
-    font-size: 11px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -161,7 +161,7 @@
     color: var(--muted);
   }
   .help {
-    font-size: 16px;
+    font-size: var(--fs-md);
     font-weight: 700;
     width: 18px;
     justify-content: center;
@@ -201,7 +201,7 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      font-size: 11px;
+      font-size: var(--fs-xs);
       color: var(--faint);
     }
     .tabs a.active {

@@ -38,7 +38,7 @@
   }
   .detail {
     margin: 8px 0 0;
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .spinner {
     width: 18px;
