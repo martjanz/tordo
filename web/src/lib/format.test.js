@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { codecName, count, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -18,6 +18,25 @@ describe('count', () => {
     expect(count(1, 'pista', 'pistas')).toBe('1 pista')
     expect(count(12, 'pista', 'pistas')).toBe('12 pistas')
     expect(count(0, 'álbum', 'álbumes')).toBe('0 álbumes')
+  })
+})
+
+describe('dominantQuality', () => {
+  const flac = { codec: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100 }
+  const hires = { codec: 'flac', lossless: true, bitDepth: 24, sampleRate: 96000 }
+  const mp3 = { codec: 'mp3', bitrate: 320 }
+  it('is the format most tracks share', () => {
+    expect(dominantQuality([flac, flac, flac])).toBe('FLAC 16/44,1')
+    expect(dominantQuality([flac, hires, flac])).toBe('FLAC 16/44,1')
+  })
+  it('is none when no format holds a majority', () => {
+    expect(dominantQuality([flac, mp3])).toBe('')
+    expect(dominantQuality([flac, flac, hires, mp3])).toBe('')
+    expect(dominantQuality([])).toBe('')
+    expect(dominantQuality(undefined)).toBe('')
+  })
+  it('is the only one for one track', () => {
+    expect(dominantQuality([mp3])).toBe('MP3 320')
   })
 })
 
