@@ -138,7 +138,7 @@
     min-width: 0;
   }
   .artist {
-    font-size: 17px;
+    font-size: var(--fs-lg);
     color: var(--text);
     margin: 0 0 6px;
   }
@@ -147,7 +147,7 @@
     text-decoration: underline;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin: 0 0 2px;
   }
@@ -158,7 +158,7 @@
     margin: 6px 0;
   }
   .chip {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     padding: 1px 9px;
     border: 1px solid var(--line-strong);
     border-radius: 12px;
@@ -191,7 +191,7 @@
     gap: 2px 14px;
     padding: 6px 0;
     border-bottom: 1px solid var(--line);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .vtitle {

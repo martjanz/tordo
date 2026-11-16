@@ -38,6 +38,14 @@
   let queueOpen = $state(false)
   let adding = $state(null) // where the list picker is open: 'bar' or 'sheet'
 
+  // A click anywhere on the bar opens the full player, except on its
+  // controls (buttons, links, sliders) and the list picker.
+  function openFromBar(event) {
+    if (event.target.closest('button, a, input, select, textarea, label, [role="dialog"], .add')) return
+    if (window.getSelection()?.toString()) return // selecting the title, not clicking
+    sheet = true
+  }
+
   // Space plays and pauses, unless typing or on a button.
   function onkeydown(event) {
     if (event.key === 'Escape' && sheet && !adding) {
@@ -115,11 +123,14 @@
     </div>
   </div>
 {:else if entry}
-  <div class="bar">
+  <!-- The cover button is the keyboard way in; the rest of the bar is a
+       bigger target for the mouse. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="bar opens" onclick={openFromBar}>
     <div class="line" style="width: {pct}%"></div>
     <div class="now">
       <button class="open" onclick={() => (sheet = true)} aria-label="Abrir el reproductor">
-        <span class="pic"><Tapa srcs={[itemCoverURL(entry, 160)]} /></span>
+        <span class="pic"><Tapa small srcs={[itemCoverURL(entry, 160)]} /></span>
       </button>
       <span class="text">
         {#if remote()}<span class="rockola-tag">Rockola · en la compu</span>{/if}
@@ -205,7 +216,7 @@
               {#each upcoming.slice(0, 4) as u, i (u.entry.key)}
                 <button class="up" class:tail={i === 3} class:tail-short={i === 2 && upcoming.length > 3}
                   onclick={() => jumpTo(u.pos)} disabled={!can('jumpTo')}>
-                  <span class="up-pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+                  <span class="up-pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
                   <span class="up-text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
                   <span class="time">{duration(u.entry.durationMs)}</span>
                 </button>
@@ -237,6 +248,9 @@
     align-items: center;
     gap: 16px;
     padding: 0 var(--gutter);
+  }
+  .bar.opens {
+    cursor: pointer;
   }
   .line {
     display: none;
@@ -275,7 +289,7 @@
     font-weight: 500;
   }
   .rockola-tag {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -284,7 +298,7 @@
     text-overflow: ellipsis;
   }
   .blocked {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     color: var(--warn);
     white-space: nowrap;
     overflow: hidden;
@@ -294,7 +308,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .artist {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .center {
@@ -325,7 +339,7 @@
     position: absolute;
     right: 0;
     bottom: 0;
-    font-size: 9px;
+    font-size: var(--fs-xs);
     font-weight: 700;
   }
   .progress {
@@ -336,7 +350,7 @@
     max-width: 560px;
   }
   .time {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     color: var(--faint);
     font-variant-numeric: tabular-nums;
     min-width: 36px;
@@ -438,7 +452,6 @@
     animation: rise 0.5s ease;
   }
   .big-pic :global(.tapa) {
-    border-radius: 8px;
     box-shadow: 0 24px 64px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.4);
   }
   .info {
@@ -457,7 +470,7 @@
   }
   .big-title {
     margin: 0;
-    font-size: clamp(24px, 3.6vw + 8px, 64px);
+    font-size: var(--fs-hero);
     font-weight: 700;
     /* Tall enough to hold the descenders: the clamp's overflow: hidden cuts
        whatever hangs below the last line box (the tail of a g, y, p). */
@@ -475,11 +488,11 @@
     animation: rise 0.45s ease;
   }
   .big-title.long {
-    font-size: clamp(22px, 2.6vw + 8px, 46px);
+    font-size: var(--fs-hero-long);
   }
   .big-artist {
     margin: 4px 0 0;
-    font-size: clamp(17px, 1.2vw + 10px, 28px);
+    font-size: var(--fs-hero-sub);
     font-weight: 500;
     color: var(--text);
     overflow: hidden;
@@ -492,19 +505,19 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 6px 12px;
-    font-size: clamp(14px, 0.5vw + 11px, 18px);
+    font-size: var(--fs-hero-meta);
     color: var(--muted);
   }
   .big-album a:hover {
     text-decoration: underline;
   }
   .badge {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     letter-spacing: 0.06em;
     padding: 2px 7px;
     border: 1px solid var(--line-strong);
-    border-radius: 3px;
+    border-radius: var(--radius);
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
@@ -621,7 +634,7 @@
       color: var(--strong);
     }
     .up-text span {
-      font-size: 13px;
+      font-size: var(--fs-sm);
       color: var(--muted);
     }
   }

@@ -42,12 +42,14 @@ export const ORDERS = {
     { value: 'artista', label: 'Artista' },
     { value: 'agregado', label: 'Agregado' },
     { value: 'escuchado', label: 'Más escuchado' },
+    { value: 'azar', label: 'Aleatorio' },
   ],
   artistas: [
     { value: 'titulo', label: 'Nombre' },
     { value: 'cantidad', label: 'Cantidad de álbumes' },
     { value: 'agregado', label: 'Agregado' },
     { value: 'escuchado', label: 'Más escuchado' },
+    { value: 'azar', label: 'Aleatorio' },
   ],
   pistas: [
     { value: 'artista', label: 'Artista' },
@@ -55,6 +57,7 @@ export const ORDERS = {
     { value: 'titulo', label: 'Título' },
     { value: 'agregado', label: 'Agregado' },
     { value: 'escuchado', label: 'Más escuchado' },
+    { value: 'azar', label: 'Aleatorio' },
   ],
 }
 
@@ -89,12 +92,15 @@ export function parse(search) {
   const orders = ORDERS[view]
   const order = orders.some((o) => o.value === params.get('orden')) ? params.get('orden') : orders[0].value
   const dir = ['asc', 'desc'].includes(params.get('dir')) ? params.get('dir') : defaultDir(order)
-  return { view, facets, order, dir }
+  const q = { view, facets, order, dir }
+  // The random order's seed; without one the server draws it.
+  if (order === 'azar' && params.get('semilla')) q.seed = params.get('semilla')
+  return q
 }
 
 // toSearch writes a query back, in a stable order and leaving defaults out,
 // so that equal queries give equal URLs.
-export function toSearch({ view, facets, order, dir }) {
+export function toSearch({ view, facets, order, dir, seed }) {
   const params = new URLSearchParams()
   view = viewOf(view)
   if (view !== 'albumes') params.set('ver', view)
@@ -104,6 +110,7 @@ export function toSearch({ view, facets, order, dir }) {
   const natural = ORDERS[view][0].value
   if (order && order !== natural) params.set('orden', order)
   if (dir && dir !== defaultDir(order || natural)) params.set('dir', dir)
+  if (order === 'azar' && seed) params.set('semilla', String(seed))
   const s = params.toString()
   return s ? `?${s}` : ''
 }
@@ -128,13 +135,16 @@ export function withFacet(query, name, value) {
 // withView switches tabs, keeping the facets, with the tab's default order.
 export function withView(query, view) {
   view = viewOf(view)
-  const order = ORDERS[view][0].value
-  return { ...query, view, order, dir: defaultDir(order) }
+  return withOrder({ ...query, view }, ORDERS[view][0].value)
 }
 
 // withOrder changes the order, resetting the direction to its natural one.
+// The random order gets a new seed each time: choosing it again reshuffles.
 export function withOrder(query, order) {
-  return { ...query, order, dir: defaultDir(order) }
+  const { seed, ...rest } = query
+  const q = { ...rest, order, dir: defaultDir(order) }
+  if (order === 'azar') q.seed = String(Math.floor(Math.random() * 2 ** 31) + 1)
+  return q
 }
 
 // valueLabel is how a facet value reads in menus and chips. counted is the

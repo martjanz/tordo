@@ -35,7 +35,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	}{c.Home(p, seed), stations})
 }
 
-// stats answers "Tu escucha": ?periodo= (semana, mes, anio, siempre; default
+// stats answers "Historial de escucha": ?periodo= (semana, mes, anio, siempre; default
 // mes) and ?limite= of each ranking.
 func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	period := r.URL.Query().Get("periodo")

@@ -41,11 +41,26 @@ func TestHome(t *testing.T) {
 	if got, want := albumTitles(h.LikedTracks), []string{"Signos", "Clics modernos"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("likedTracks = %v want %v", got, want)
 	}
-	// Too few albums for the threshold: only the random row.
+	// Too few albums for the threshold: only the random and recent rows. The
+	// recent row keeps the newest-first order.
 	for seed := uint64(1); seed <= 20; seed++ {
 		h := c.Home(p, seed)
-		if len(h.Rotating) != 1 || h.Rotating[0].Kind != RowRandom || len(h.Rotating[0].Albums) != 5 || len(h.Rotating[0].Facets) != 0 {
+		if len(h.Rotating) != 2 {
 			t.Fatalf("seed %d: %+v", seed, h.Rotating)
+		}
+		for _, r := range h.Rotating {
+			if len(r.Albums) != 5 || len(r.Facets) != 0 {
+				t.Fatalf("seed %d: %+v", seed, r)
+			}
+			switch r.Kind {
+			case RowRandom:
+			case RowRecent:
+				if !reflect.DeepEqual(albumTitles(r.Albums), albumTitles(h.Recent)) {
+					t.Fatalf("seed %d: recent row %v", seed, albumTitles(r.Albums))
+				}
+			default:
+				t.Fatalf("seed %d: kind %s", seed, r.Kind)
+			}
 		}
 	}
 
@@ -92,7 +107,7 @@ func TestHome(t *testing.T) {
 			t.Fatalf("seed %d: not deterministic", seed)
 		}
 	}
-	for _, k := range []string{RowDecade, RowGenre, RowCollection, RowNever, RowRandom} {
+	for _, k := range []string{RowDecade, RowGenre, RowCollection, RowNever, RowRandom, RowRecent} {
 		if !seen[k] {
 			t.Errorf("kind %s never drawn", k)
 		}

@@ -60,7 +60,7 @@
     min-width: 220px;
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     padding: 4px;
     display: flex;
     flex-direction: column;
@@ -71,7 +71,7 @@
     background: none;
     text-align: left;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
   }
   .pop > button:hover {
     background: var(--line);

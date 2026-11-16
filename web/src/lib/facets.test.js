@@ -18,6 +18,29 @@ describe('parse and toSearch', () => {
   })
 })
 
+describe('the random order', () => {
+  it('carries its seed in the URL, and only with that order', () => {
+    expect(parse('?orden=azar&semilla=42')).toEqual({ view: 'albumes', facets: {}, order: 'azar', dir: 'desc', seed: '42' })
+    expect(toSearch(parse('?orden=azar&semilla=42'))).toBe('?orden=azar&semilla=42')
+    expect(toSearch(parse('?orden=azar'))).toBe('?orden=azar')
+    expect(toSearch(parse('?orden=titulo&semilla=42'))).toBe('?orden=titulo')
+    // The server echoes it as a number.
+    expect(toSearch({ view: 'pistas', facets: {}, order: 'azar', dir: 'desc', seed: 42 })).toBe('?ver=pistas&orden=azar&semilla=42')
+  })
+  it('is on every tab', () => {
+    for (const view of ['albumes', 'artistas', 'pistas']) expect(parse(`?ver=${view}&orden=azar`).order).toBe('azar')
+  })
+  it('draws a new seed when chosen, and drops it for another order or tab', () => {
+    const a = withOrder(parse(''), 'azar')
+    expect(Number(a.seed)).toBeGreaterThan(0)
+    expect(Number(a.seed)).toBeLessThanOrEqual(2 ** 31)
+    const seeds = new Set(Array.from({ length: 10 }, () => withOrder(a, 'azar').seed))
+    expect(seeds.size).toBeGreaterThan(1)
+    expect(withOrder(a, 'titulo')).not.toHaveProperty('seed')
+    expect(withView(a, 'pistas')).not.toHaveProperty('seed')
+  })
+})
+
 describe('changing the query', () => {
   const base = parse('?decada=1980&anio=1986&genero=Rock&estilo=Pop+Rock')
   it('keeps years inside the decade and styles with their genre', () => {

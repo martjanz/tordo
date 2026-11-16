@@ -1,6 +1,7 @@
 <script>
-  // Inicio: rows of albums and stations. Fixed rows first, then three
-  // rotating ones drawn with a seed (a new one per visit, or on demand).
+  // Inicio: rows of albums and stations. The stations and the personal rows
+  // always, plus three rotating ones, all in an order drawn with a seed (a
+  // new one per visit, or on demand).
   import { untrack } from 'svelte'
   import Cargando from '../components/Cargando.svelte'
   import FilaAlbumes from '../components/FilaAlbumes.svelte'
@@ -12,6 +13,7 @@
   import { can, playStation } from '../lib/playback.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
   import { FAVORITE_TRACKS, LIBRARY, LIKED, PREFERRED_ALBUMS, rowTitle, station } from '../lib/stations.js'
+  import { homeSections } from '../lib/home.js'
   import { scanMessage } from '../lib/status.js'
 
   const newSeed = () => Math.floor(Math.random() * 2 ** 31)
@@ -36,7 +38,8 @@
     untrack(load)
   })
 
-  // A new seed redraws the rotating rows; the page stays where it is.
+  // A new seed redraws the rotating rows and the order, as a new visit
+  // would; the page stays where it is.
   function refresh() {
     seed = newSeed()
     load()
@@ -58,16 +61,23 @@
       Object.keys(mine.marks.collections).length > 0,
   )
   const stations = $derived([LIBRARY, ...(anyLike ? [LIKED] : []), ...(data?.stations ?? [])])
-  const rotating = $derived((data?.rotating ?? []).filter((r) => r.albums?.length))
-  const empty = $derived(
-    data && !data.recent?.length && !data.continue?.length && !data.likedTracks?.length && !data.liked?.length && !rotating.length,
-  )
+  // Ordered when the rows arrive, so a refresh reshuffles with them, not
+  // the old rows ahead of time.
+  const sections = $derived(data ? homeSections(data, seed) : [])
+  const empty = $derived(data && sections.length === 1)
   const scanning = $derived(!!app.status?.scan?.running)
 </script>
 
 <div class="head">
   <h1>Inicio</h1>
-  <a class="stats" href={statsHref('mes')}><Icono name="chart" size={16} /> Tu escucha →</a>
+  <span class="tools">
+    <a class="stats" href={statsHref('mes')}><Icono name="chart" size={16} /> Historial de escucha →</a>
+    {#if data && !empty}
+      <button class="icon" onclick={refresh} title="Otras filas" aria-label="Cambiar las filas">
+        <Icono name="refresh" size={16} />
+      </button>
+    {/if}
+  </span>
 </div>
 
 {#if data}
@@ -79,37 +89,33 @@
       <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
     {/if}
   {:else}
-    {#if data.recent?.length}
-      <FilaAlbumes title="Agregados recientemente" href="/explorar?orden=agregado" albums={data.recent} />
-    {/if}
-
-    <section class="stations">
-      <h2>Tus estaciones</h2>
-      <div class="strip">
-        {#each stations as st (st.id ?? st.name)}
-          <div class="cell">
-            <TarjetaEstacion station={st} onplay={can('playStation') ? playStation : null} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
+    {#each sections as s (s.key)}
+      {#if s.key === 'stations'}
+        <section class="stations">
+          <h2>Tus estaciones</h2>
+          <div class="strip">
+            {#each stations as st (st.id ?? st.name)}
+              <div class="cell">
+                <TarjetaEstacion station={st} onplay={can('playStation') ? playStation : null} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
+              </div>
+            {/each}
           </div>
-        {/each}
-      </div>
-    </section>
-
-    {#if data.continue?.length}
-      <FilaAlbumes title="Seguir escuchando" href="/explorar?orden=escuchado" albums={data.continue} />
-    {/if}
-    {#if data.likedTracks?.length}
-      <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ megusta: 'si' }, 'pistas')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
-    {/if}
-    {#if data.liked?.length}
-      <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ megusta: 'si' })} station={PREFERRED_ALBUMS} albums={data.liked} />
-    {/if}
-    {#each rotating as row, i (row.kind + ':' + row.value)}
-      <FilaAlbumes
-        title={rowTitle(row)}
-        href={exploreHref(row.facets)}
-        station={station(rowTitle(row), { view: 'albumes', facets: row.facets })}
-        onrefresh={i === 0 ? refresh : null}
-        albums={row.albums} />
+        </section>
+      {:else if s.key === 'continue'}
+        <FilaAlbumes title="Seguir escuchando" href="/explorar?orden=escuchado" albums={data.continue} />
+      {:else if s.key === 'likedTracks'}
+        <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ megusta: 'si' }, 'pistas')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
+      {:else if s.key === 'liked'}
+        <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ megusta: 'si' })} station={PREFERRED_ALBUMS} albums={data.liked} />
+      {:else if s.row.kind === 'recientes'}
+        <FilaAlbumes title={rowTitle(s.row)} href="/explorar?orden=agregado" albums={s.row.albums} />
+      {:else}
+        <FilaAlbumes
+          title={rowTitle(s.row)}
+          href={exploreHref(s.row.facets)}
+          station={station(rowTitle(s.row), { view: 'albumes', facets: s.row.facets })}
+          albums={s.row.albums} />
+      {/if}
     {/each}
   {/if}
 {:else}
@@ -127,11 +133,16 @@
   .head h1 {
     margin: 0;
   }
+  .tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
   .stats {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: var(--fs-md);
     color: var(--muted);
   }
   .stations {

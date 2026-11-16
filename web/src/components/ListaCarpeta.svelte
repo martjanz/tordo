@@ -224,7 +224,7 @@
     min-width: 0;
     min-height: 44px;
     color: var(--accent);
-    font-size: 15px;
+    font-size: var(--fs-md);
   }
   .back :global(svg) {
     transform: rotate(180deg);
@@ -237,7 +237,7 @@
   }
   h1 {
     margin: 0;
-    font-size: 16px;
+    font-size: var(--fs-md);
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -261,7 +261,7 @@
     flex-direction: column;
     background: var(--surface-2);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     padding: 4px;
     box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
   }
@@ -272,8 +272,8 @@
     display: flex;
     align-items: center;
     padding: 0 12px;
-    border-radius: 6px;
-    font-size: 15px;
+    border-radius: var(--radius);
+    font-size: var(--fs-md);
     color: var(--strong);
     cursor: pointer;
   }
@@ -304,7 +304,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 15px;
+    font-size: var(--fs-md);
     color: var(--strong);
     cursor: pointer;
   }
@@ -337,14 +337,14 @@
   }
   .sub {
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--fs-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .num {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     font-variant-numeric: tabular-nums;
   }
   .dim {
@@ -353,7 +353,7 @@
   }
   .note {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     margin: 8px 0;
   }
 </style>

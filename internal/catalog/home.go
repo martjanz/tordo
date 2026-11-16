@@ -28,20 +28,21 @@ const (
 	RowNever      = "nunca"
 	RowStale      = "hace-un-anio"
 	RowRandom     = "azar"
+	RowRecent     = "recientes" // the newest albums, in order
 )
 
 // HomeRow is a rotating row: a facet value and some of its albums.
 type HomeRow struct {
 	Kind   string            `json:"kind"`
-	Value  string            `json:"value"`  // "1980", "BR", "Rock", a folder path; "" for nunca, hace-un-anio, azar
+	Value  string            `json:"value"`  // "1980", "BR", "Rock", a folder path; "" for nunca, hace-un-anio, azar, recientes
 	Label  string            `json:"label"`  // the value's label when it is not the value (a collection's name)
-	Facets map[string]string `json:"facets"` // Explorar's, for "ver todas" and the row's station (view albumes); {} for azar
+	Facets map[string]string `json:"facets"` // Explorar's, for "ver todas" and the row's station (view albumes); {} for azar, recientes
 	Albums []Album           `json:"albums"`
 }
 
 // Home is Inicio's rows (saved stations are the server's to add).
 type Home struct {
-	Recent   []Album `json:"recent"`   // newest first
+	Recent   []Album `json:"recent"`   // newest first (also drawn as a rotating row)
 	Continue []Album `json:"continue"` // by their latest play
 	Liked    []Album `json:"liked"`    // the albums marked Preferido, most recently first
 	// LikedTracks are the albums holding favourite (♥) tracks, by the most
@@ -91,9 +92,18 @@ func (c *Catalog) Home(p *store.Personal, seed uint64) Home {
 		}
 	}
 
-	kinds := []string{RowDecade, RowCountry, RowGenre, RowCollection, RowNever, RowStale, RowRandom}
+	kinds := []string{RowDecade, RowCountry, RowGenre, RowCollection, RowNever, RowStale, RowRandom, RowRecent}
 	r.Shuffle(len(kinds), func(i, j int) { kinds[i], kinds[j] = kinds[j], kinds[i] })
 	for _, kind := range kinds {
+		if kind == RowRecent {
+			if len(h.Recent) > 0 {
+				h.Rotating = append(h.Rotating, HomeRow{Kind: RowRecent, Facets: map[string]string{}, Albums: slices.Clone(h.Recent)})
+			}
+			if len(h.Rotating) == rotatingRows {
+				break
+			}
+			continue
+		}
 		cands := c.candidates(kind, p, l)
 		if len(cands) == 0 {
 			continue

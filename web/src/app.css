@@ -13,15 +13,36 @@
   --warn: #e0a040;
   --ok: #5cb85c;
   --down: #e05050;
-  --radius: 4px;
-  --gutter: 16px;
+  /* Type scale: every font size in the app comes from here. */
+  --fs-xs: 12px; /* labels, badges, times */
+  --fs-sm: 13px; /* secondary text */
+  --fs-md: 15px; /* body */
+  --fs-lg: 18px; /* section headings */
+  --fs-xl: 24px;
+  --fs-2xl: 32px; /* page titles */
+  /* The Sonando view's big text, which grows with the screen. */
+  --fs-hero: clamp(24px, 3.6vw + 8px, 64px);
+  --fs-hero-long: clamp(22px, 2.6vw + 8px, 46px);
+  --fs-hero-sub: clamp(17px, 1.2vw + 10px, 28px);
+  --fs-hero-meta: clamp(14px, 0.5vw + 11px, 18px);
+  /* Spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius: 4px; /* small controls */
+  --radius-lg: 8px; /* covers, cards, menus */
+  --gutter: var(--space-4);
   --nav-h: 55px; /* the sticky bar at the top (Nav.svelte), without its margin */
   --player-h: 72px;
   --tabs-h: 0px; /* the bottom tabs, on phones */
   color-scheme: dark;
   font-family: 'Inter Variable', system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: var(--fs-md);
+  line-height: 1.5;
 }
 
 @media (max-width: 640px) {
@@ -109,27 +130,36 @@ button.icon.on {
 main {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--gutter) 48px;
+  padding: 0 var(--gutter) var(--space-7);
 }
 
 h1 {
-  font-size: 26px;
+  font-size: var(--fs-2xl);
+  font-weight: 700;
   line-height: 1.2;
+  letter-spacing: -0.025em;
   color: var(--strong);
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
 }
 
+@media (max-width: 640px) {
+  h1 {
+    font-size: var(--fs-xl);
+  }
+}
+
+/* A section heading. Small uppercase text is for true labels (.label). */
 h2 {
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--faint);
-  font-weight: 600;
-  margin: 32px 0 12px;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--strong);
+  margin: var(--space-6) 0 var(--space-3);
 }
 
 .label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -137,14 +167,14 @@ h2 {
 
 .path {
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--faint);
   word-break: break-all;
 }
 
 .empty {
   color: var(--muted);
-  padding: 48px 0;
+  padding: var(--space-7) 0;
   text-align: center;
 }
 
@@ -152,19 +182,19 @@ h2 {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px 16px;
+  gap: var(--space-5) var(--space-4);
 }
 
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 16px 12px;
+    gap: var(--space-4) var(--space-3);
   }
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
 }

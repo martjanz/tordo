@@ -78,7 +78,7 @@
     margin: 0 0 14px;
   }
   .chip {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     padding: 1px 9px;
     border: 1px solid var(--line-strong);
     border-radius: 12px;
@@ -110,14 +110,14 @@
     min-width: 0;
   }
   .fmt {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     padding: 0 7px;
     border: 1px solid var(--line-strong);
-    border-radius: 3px;
+    border-radius: var(--radius);
     color: var(--text);
   }
   .meta {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
 </style>

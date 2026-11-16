@@ -112,7 +112,7 @@
     padding: 12px;
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -121,7 +121,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .buttons {

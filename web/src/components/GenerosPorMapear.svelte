@@ -124,7 +124,7 @@
   }
   .n {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     flex: 1;
   }
   select {
