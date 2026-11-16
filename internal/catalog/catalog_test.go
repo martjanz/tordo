@@ -51,7 +51,7 @@ func fixture() store.Snapshot {
 		{store.AlbumView{ID: 4, Title: "Bocanada", Artist: "Charly García", TagArtist: "Charly García", Year: 1999,
 			Status: store.StatusUnmatched, Dir: root + "/Charly García/Bocanada"},
 			[]store.SnapTrack{tr(401, "Bocanada", "Charly García", "mp3", "mp3", false)}},
-		{store.AlbumView{ID: 5, Title: "Rock nacional", Artist: "Varios artistas", Compilation: true, Year: 1995,
+		{store.AlbumView{ID: 5, Title: "Rock nacional", Artist: "Various Artists", Compilation: true, Year: 1995,
 			Dir: root + "/Compilados/Rock nacional", Picture: true},
 			[]store.SnapTrack{tr(501, "Persiana americana", "Soda Stereo", "asf", "wmav2", false),
 				tr(502, "Rasguña las piedras", "Sui Generis", "asf", "wmav2", false)}},
@@ -107,7 +107,7 @@ func TestArtistKeys(t *testing.T) {
 	if key(3) != "charly-garcia" || key(4) != "charly-garcia" {
 		t.Fatalf("Charly García: %q and %q", key(3), key(4))
 	}
-	if al, _ := c.Album(5); al.ArtistKey != "" || al.Artist != "Varios artistas" || !al.Compilation {
+	if al, _ := c.Album(5); al.ArtistKey != "" || al.Artist != "Various Artists" || !al.Compilation {
 		t.Fatalf("compilation = %+v", al)
 	}
 	if len(c.Artists) != 2 {

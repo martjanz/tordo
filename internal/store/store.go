@@ -51,14 +51,14 @@ func OpenMemory() (*Store, error) {
 // Version 7 (M6) added sessions.host (the Rockola's anfitriones). grouping_stamp came
 // later without a new version: it is created on the next writable open, and a
 // read-only one never regroups.
-const schemaVersion = 7
+const schemaVersion = 8
 
 // derivedVersion is the last version that changed the derived tables.
 const derivedVersion = 2
 
 // ErrOldCatalog means a catalog from an older version was opened read-only,
 // so it could not be updated.
-var ErrOldCatalog = errors.New("el catálogo es de una versión anterior: abrí tordo una vez con la carpeta escribible para actualizarlo")
+var ErrOldCatalog = errors.New("the catalog is from an older version: open tordo once with a writable folder to update it")
 
 func openDB(dsn string, writable bool) (*Store, error) {
 	db, err := sql.Open("sqlite", dsn)
@@ -104,8 +104,65 @@ func migrate(db *sql.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
+	if v >= 5 && v < 8 {
+		if err := upgradeVocabulary(db); err != nil {
+			return err
+		}
+	}
 	_, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, schemaVersion))
 	return err
+}
+
+// upgradeVocabulary is the v8 step: saved stations move to the English
+// vocabulary and the Various Artists marker changes its text. The grouping
+// stamp goes so the next scan regroups. It all happens in one transaction.
+func upgradeVocabulary(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	type row struct {
+		id  int64
+		def []byte
+	}
+	rows, err := tx.Query(`SELECT id, def FROM stations`)
+	if err != nil {
+		return err
+	}
+	var changed []row
+	for rows.Next() {
+		var r row
+		var def string
+		if err := rows.Scan(&r.id, &def); err != nil {
+			rows.Close()
+			return err
+		}
+		if up, ok := upgradeStationDef([]byte(def)); ok {
+			r.def = up
+			changed = append(changed, r)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, r := range changed {
+		if _, err := tx.Exec(`UPDATE stations SET def = ? WHERE id = ?`, string(r.def), r.id); err != nil {
+			return err
+		}
+	}
+	for _, q := range []string{
+		`UPDATE albums SET artist = 'Various Artists' WHERE artist = 'Varios artistas'`,
+		`UPDATE albums SET mb_artist = 'Various Artists' WHERE mb_artist = 'Varios artistas'`,
+		`DELETE FROM grouping_stamp`,
+	} {
+		if _, err := tx.Exec(q); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func checkVersion(db *sql.DB) error {

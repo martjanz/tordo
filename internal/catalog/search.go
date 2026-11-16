@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"tordo/internal/grouping"
 	"tordo/internal/search"
 	"tordo/internal/store"
 )
@@ -35,8 +36,11 @@ func (c *Catalog) SearchDocs() []search.Doc {
 		docs = append(docs, search.Doc{Key: keyArtist + a.Key, Name: a.Name, Context: strings.Join(a.names, " ")})
 	}
 	for _, a := range c.Albums {
-		docs = append(docs, search.Doc{Key: keyAlbum + strconv.FormatInt(a.ID, 10), Name: a.Title,
-			Context: a.Artist + " " + a.tagged})
+		ctx := a.Artist + " " + a.tagged
+		if a.Artist == grouping.Various {
+			ctx += " Varios artistas Vários artistas"
+		}
+		docs = append(docs, search.Doc{Key: keyAlbum + strconv.FormatInt(a.ID, 10), Name: a.Title, Context: ctx})
 	}
 	for _, t := range c.Tracks {
 		ctx := t.Artist + " " + t.Album

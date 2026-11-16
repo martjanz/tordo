@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -83,7 +84,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = Open(file, false) // v3 to v7 only adds tables
+	s, err = Open(file, false) // v3 to v8 only adds tables
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +92,7 @@ func TestOpenAddsUserTables(t *testing.T) {
 	var version, albums int
 	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
 	s.db.QueryRow(`SELECT COUNT(*) FROM albums WHERE key = 'k2'`).Scan(&albums)
-	if version != 7 || albums != 1 {
+	if version != 8 || albums != 1 {
 		t.Fatalf("version %d, kept albums %d", version, albums)
 	}
 	for _, name := range []string{"marks", "plays", "playlists", "playlist_items", "loudness", "stations", "sessions"} {
@@ -143,7 +144,7 @@ func TestOpenMigratesV6Sessions(t *testing.T) {
 	}
 	db.Close()
 
-	// Reopen -> user_version 7
+	// Reopen -> user_version 8
 	s, err := Open(file, false)
 	if err != nil {
 		t.Fatal(err)
@@ -151,8 +152,8 @@ func TestOpenMigratesV6Sessions(t *testing.T) {
 	defer s.Close()
 
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 7 {
-		t.Fatalf("version = %d, want 7, err %v", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 8 {
+		t.Fatalf("version = %d, want 8, err %v", version, err)
 	}
 
 	// Old row reads with Host == false
@@ -199,7 +200,65 @@ func TestOpenMigratesV6SessionsAlreadyHavingHost(t *testing.T) {
 	}
 	defer s.Close()
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 7 {
-		t.Fatalf("version = %d, want 7, err %v", version, err)
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 8 {
+		t.Fatalf("version = %d, want 8, err %v", version, err)
+	}
+}
+
+func TestMigrateV7ToV8(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "tordo.db")
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldDef := `{"name":"x","source":{"view":"pistas","facets":{"megusta":"si"}},"mode":"albumes"}`
+	bad := `not json`
+	for _, def := range []string{oldDef, bad} {
+		if _, err := s.db.Exec(`INSERT INTO stations (name, def, created_at, updated_at) VALUES ('s', ?, 1, 1)`, def); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.db.Exec(`INSERT INTO albums (key, dir, title, artist, year, compilation, discs, tracks, duration_ms, position,
+		cover_path, cover_file_id, genres, mb_artist) VALUES ('k', 'd', 't', 'Varios artistas', 0, 1, 1, 1, 0, 0, '', 0, '[]', 'Varios artistas')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO grouping_stamp (hash) VALUES ('h'); PRAGMA user_version = 7`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	defs := func(s *Store) (string, string) {
+		var a, b string
+		s.db.QueryRow(`SELECT def FROM stations WHERE id = 1`).Scan(&a)
+		s.db.QueryRow(`SELECT def FROM stations WHERE id = 2`).Scan(&b)
+		return a, b
+	}
+	s, err = Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	a, b := defs(s)
+	sameJSON(t, json.RawMessage(a), `{"name":"x","source":{"view":"tracks","facets":{"liked":"yes"}},"mode":"albums"}`)
+	if b != bad {
+		t.Fatalf("malformed def = %q", b)
+	}
+	var artist, mb string
+	var stamps, version int
+	s.db.QueryRow(`SELECT artist, mb_artist FROM albums`).Scan(&artist, &mb)
+	s.db.QueryRow(`SELECT COUNT(*) FROM grouping_stamp`).Scan(&stamps)
+	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
+	if artist != "Various Artists" || mb != "Various Artists" || stamps != 0 || version != 8 {
+		t.Fatalf("artist %q mb %q stamps %d version %d", artist, mb, stamps, version)
+	}
+	s.Close()
+
+	s, err = Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if a2, b2 := defs(s); a2 != a || b2 != b {
+		t.Fatalf("second open changed defs: %q %q", a2, b2)
 	}
 }
