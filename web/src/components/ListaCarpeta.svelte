@@ -6,6 +6,7 @@
   import { loadLevel, revealPath, tree } from '../lib/carpetas.svelte.js'
   import { entries, playableIds } from '../lib/folders.js'
   import { duration, folderName, size } from '../lib/format.js'
+  import { formatNumber } from '../lib/i18n/index.svelte.js'
   import { matchRows, shortPath } from '../lib/tree.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
@@ -149,7 +150,7 @@
               <span class="name">{m.node.label}</span>
               <span class="sub">{shortPath(m.parent || m.node.path, rootPath)}</span>
             </span>
-            <span class="num">{m.node.tracks.toLocaleString('es')}</span>
+            <span class="num">{formatNumber(m.node.tracks)}</span>
             <Icono name="chevron_right" size={16} />
           </a>
         </li>
@@ -169,7 +170,7 @@
           <a class="row" href={folderHref(node.path)}>
             <Icono name={node.album ? 'disc' : 'folder'} size={18} />
             <span class="name">{node.label}</span>
-            <span class="num">{node.tracks.toLocaleString('es')}</span>
+            <span class="num">{formatNumber(node.tracks)}</span>
             <Icono name="chevron_right" size={16} />
           </a>
         </li>

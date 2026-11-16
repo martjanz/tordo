@@ -1,4 +1,5 @@
-// How numbers, durations and formats read in the app (Spanish).
+// How numbers, durations and formats read in the app, in the current language.
+import { formatNumber, locale, t } from './i18n/index.svelte.js'
 
 // duration is a track's length: "3:07", "1:02:03".
 export function duration(ms) {
@@ -12,14 +13,14 @@ export function duration(ms) {
 // length is a long total: "48 min", "1 h 12 min".
 export function length(ms) {
   const min = Math.round((ms ?? 0) / 60000)
-  if (min < 60) return `${min} min`
+  if (min < 60) return t('time.minutes', { n: min })
   const h = Math.floor(min / 60)
-  return min % 60 ? `${h} h ${min % 60} min` : `${h} h`
+  return min % 60 ? t('time.hoursMinutes', { h, m: min % 60 }) : t('time.hours', { n: h })
 }
 
-// count reads "1 pista", "12 pistas" (thousands with a dot: "1.234 pistas").
+// count reads "1 pista", "12 pistas" (thousands as the language groups them).
 export function count(n, one, many) {
-  return `${n.toLocaleString('es')} ${n === 1 ? one : many}`
+  return `${formatNumber(n)} ${n === 1 ? one : many}`
 }
 
 const CODECS = {
@@ -50,7 +51,7 @@ export function quality(t) {
   const name = codecName(t)
   if (t.lossless) {
     if (!t.bitDepth || !t.sampleRate) return name
-    const khz = (t.sampleRate / 1000).toLocaleString('es', { maximumFractionDigits: 1 })
+    const khz = formatNumber(t.sampleRate / 1000, { maximumFractionDigits: 1 })
     return `${name} ${t.bitDepth}/${khz}`
   }
   return t.bitrate ? `${name} ${t.bitrate}` : name
@@ -61,19 +62,25 @@ export function folderName(path) {
   return (path ?? '').split('/').filter((p) => p && p !== '..').pop() ?? ''
 }
 
-const regions = (() => {
-  try {
-    return new Intl.DisplayNames(['es'], { type: 'region' })
-  } catch {
-    return null
-  }
-})()
+const regionNames = new Map()
 
-// country names an ISO 3166-1 code in Spanish: "AR" → "Argentina".
+// regionsFor caches the region names of a locale (null when unsupported).
+function regionsFor(l) {
+  if (!regionNames.has(l)) {
+    try {
+      regionNames.set(l, new Intl.DisplayNames([l], { type: 'region' }))
+    } catch {
+      regionNames.set(l, null)
+    }
+  }
+  return regionNames.get(l)
+}
+
+// country names an ISO 3166-1 code in the current language: "AR" → "Argentina".
 export function country(code) {
   if (!code) return ''
   try {
-    return regions?.of(code) ?? code
+    return regionsFor(locale())?.of(code) ?? code
   } catch {
     return code
   }
@@ -93,15 +100,15 @@ export function years(first, last) {
 }
 
 // since reads how long ago a moment (unix ms) was: "recién", "hace 25 min",
-// "hace 5 h", "ayer", "hace 3 días".
+// "hace 5 h", "ayer", "hace 3 días" (in the current language).
 export function since(ms, now = Date.now()) {
   const min = Math.floor((now - ms) / 60000)
-  if (min < 1) return 'recién'
-  if (min < 60) return `hace ${min} min`
+  if (min < 1) return t('since.now')
+  if (min < 60) return t('since.minutes', { n: min })
   const h = Math.floor(min / 60)
-  if (h < 24) return `hace ${h} h`
+  if (h < 24) return t('since.hours', { n: h })
   const days = Math.floor(h / 24)
-  return days === 1 ? 'ayer' : `hace ${days} días`
+  return days === 1 ? t('since.yesterday') : t('since.days', { n: days })
 }
 
 // size reads a byte count as the Finder does (decimal units): "84 KB",
@@ -120,6 +127,6 @@ export function size(bytes) {
   }
   const rounded = round(value)
   const decimals = rounded < 10 ? 1 : 0
-  const text = rounded.toLocaleString('es', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const text = formatNumber(rounded, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   return `${text} ${units[unit]}`
 }

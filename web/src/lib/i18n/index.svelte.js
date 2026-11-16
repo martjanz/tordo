@@ -71,8 +71,9 @@ export function applyLanguage(setting) {
 }
 
 // previewLanguage shows a setting that is not saved yet (the assistant). It
-// leaves the last applied setting alone, so the next status poll puts the
-// saved one back unless it was saved.
+// leaves the last applied setting alone, and applyLanguage skips a setting
+// equal to it, so a later poll with the unchanged saved setting does not
+// revert the preview: it lasts until a different setting is applied.
 export function previewLanguage(setting) {
   setLocale(resolveLocale(setting, browserLanguages()))
   try {
@@ -92,6 +93,13 @@ export function numberLocale() {
 
 export function formatNumber(n, options) {
   return new Intl.NumberFormat(numberLocale(), options).format(n)
+}
+
+const pluralRules = new Map()
+
+function pluralFor(l, n) {
+  if (!pluralRules.has(l)) pluralRules.set(l, new Intl.PluralRules(l))
+  return pluralRules.get(l).select(n)
 }
 
 const isPlural = (v) => v !== null && typeof v === 'object' && 'other' in v
@@ -118,14 +126,14 @@ export function t(key, params) {
   if (value === undefined) return key
   if (typeof value !== 'string') {
     let form = 'other'
-    if (params && typeof params.n === 'number') {
-      form = new Intl.PluralRules(current).select(params.n)
+    if (params && typeof params === 'object' && typeof params.n === 'number') {
+      form = pluralFor(current, params.n)
     }
     value = typeof value[form] === 'string' ? value[form] : value.other
   }
-  if (!params) return value
+  if (params === null || typeof params !== 'object') return value
   return value.replace(/\{(\w+)\}/g, (whole, name) => {
-    if (!(name in params)) return whole
+    if (!Object.hasOwn(params, name)) return whole
     const v = params[name]
     return name === 'n' && typeof v === 'number' ? formatNumber(v) : String(v)
   })

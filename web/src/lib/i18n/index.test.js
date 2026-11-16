@@ -93,9 +93,13 @@ describe('t', () => {
     expect(text(msg('a.b'))).toBe('deep')
     expect(text(msg('greet', { name: 'X' }))).toBe('X ok')
   })
-  it('does not throw on odd params', () => {
+  it('copes with odd params', () => {
     setLocale('en')
     expect(t('tracks')).toBe('{n} tracks')
+    expect(t('tracks', null)).toBe('{n} tracks')
+    expect(t('tracks', { n: 'x' })).toBe('x tracks')
+    expect(t('greet', {})).toBe('{name} ok')
+    expect(t('greet', { other: 1 })).toBe('{name} ok')
   })
 })
 

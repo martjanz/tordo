@@ -5,6 +5,7 @@
   import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
   import { count, duration, length, size } from '../lib/format.js'
+  import { formatNumber } from '../lib/i18n/index.svelte.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { folderStation } from '../lib/stations.js'
@@ -126,7 +127,7 @@
             </div>
           </td>
           <td class="bar-col"><div class="bar" style="width: {bar(f.sizeBytes, folder.sizeBytes)}%"></div></td>
-          <td class="num">{f.tracks.toLocaleString('es')}</td>
+          <td class="num">{formatNumber(f.tracks)}</td>
           <td class="num">{f.durationMs ? length(f.durationMs) : ''}</td>
           <td>{f.format}</td>
           <td class="num">{size(f.sizeBytes)}</td>

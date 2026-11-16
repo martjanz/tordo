@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { KINDS, fileQuality, groupLine } from './dupes.js'
 
 describe('fileQuality', () => {
@@ -34,5 +35,13 @@ describe('KINDS', () => {
       ['formatos', 'formats'],
       ['sospechas', 'suspect'],
     ])
+  })
+})
+
+describe('fileQuality in English', () => {
+  afterEach(() => setLocale('es'))
+  it('uses the English decimal point', () => {
+    setLocale('en')
+    expect(fileQuality({ format: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('FLAC 16 bits / 44.1 kHz')
   })
 })

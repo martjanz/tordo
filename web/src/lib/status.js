@@ -1,4 +1,5 @@
 // Reading /api/status: {readOnly, scan, identify (from M2), counts}.
+import { formatNumber } from './i18n/index.svelte.js'
 
 // busy reports whether a scan or an identification run is going on.
 export function busy(st) {
@@ -145,7 +146,7 @@ function scanPhase(scan) {
   return toRead === 0 ? 'walk' : read >= toRead ? 'group' : 'read'
 }
 
-const num = (v) => (v ?? 0).toLocaleString('es-AR')
+const num = (v) => formatNumber(v ?? 0)
 
 // percent rounds down: 100 % only once everything is done.
 const percent = (done = 0, total = 0) => (total > 0 ? Math.floor((done * 100) / total) : 0)

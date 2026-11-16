@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { codecName, count, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
@@ -85,4 +86,38 @@ describe('since', () => {
     [now - 3 * 86_400_000, 'hace 3 días'],
     [now + 5_000, 'recién'],
   ])('%d', (ms, want) => expect(since(ms, now)).toBe(want))
+})
+
+describe('other languages', () => {
+  afterEach(() => setLocale('es'))
+  const now = Date.UTC(2026, 9, 2, 12, 0, 0)
+
+  it('formats in English', () => {
+    setLocale('en')
+    expect(size(7_200_000)).toBe('7.2 MB')
+    expect(since(now - 3 * 86_400_000, now)).toBe('3 days ago')
+    expect(since(now, now)).toBe('just now')
+    expect(since(now - 25 * 60_000, now)).toBe('25 min ago')
+    expect(since(now - 5 * 3600_000, now)).toBe('5 h ago')
+    expect(since(now - 86_400_000, now)).toBe('yesterday')
+    expect(country('AR')).toBe('Argentina')
+    expect(country('DE')).toBe('Germany')
+    expect(length(72 * 60000)).toBe('1 h 12 min')
+    expect(length(120 * 60000)).toBe('2 h')
+    expect(quality({ format: 'wav', codec: 'pcm', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('WAV 16/44.1')
+  })
+  it('formats in Spanish', () => {
+    setLocale('es')
+    expect(size(7_200_000)).toBe('7,2 MB')
+    expect(count(1234, 'pista', 'pistas')).toBe('1.234 pistas')
+    expect(country('DE')).toBe('Alemania')
+  })
+  it('formats in Portuguese', () => {
+    setLocale('pt-BR')
+    expect(country('DE')).toBe('Alemanha')
+    expect(size(7_200_000)).toBe('7,2 MB')
+    expect(since(now - 3 * 86_400_000, now)).toBe('há 3 dias')
+    expect(since(now, now)).toBe('agora')
+    expect(since(now - 86_400_000, now)).toBe('ontem')
+  })
 })

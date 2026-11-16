@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
   import { since } from '../lib/format.js'
+  import { numberLocale } from '../lib/i18n/index.svelte.js'
 
   // The devices that entered with the PIN (the list is read when it opens
   // and after closing one).
@@ -46,7 +47,7 @@
     await load()
   }
 
-  const date = (ms) => new Date(ms).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })
+  const date = (ms) => new Date(ms).toLocaleString(numberLocale(), { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
 <h3>Dispositivos</h3>

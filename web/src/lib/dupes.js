@@ -1,5 +1,6 @@
 // How the duplicates of Revisar read.
 import { formatName, size } from './format.js'
+import { formatNumber } from './i18n/index.svelte.js'
 
 export const KINDS = [
   { kind: 'exactas', label: 'Copias idénticas', count: 'exact' },
@@ -12,7 +13,7 @@ export const KINDS = [
 export function fileQuality(f) {
   const name = formatName(f.format)
   if (f.lossless) {
-    const khz = f.sampleRate ? `${(f.sampleRate / 1000).toLocaleString('es', { maximumFractionDigits: 1 })} kHz` : ''
+    const khz = f.sampleRate ? `${formatNumber(f.sampleRate / 1000, { maximumFractionDigits: 1 })} kHz` : ''
     const parts = [f.bitDepth ? `${f.bitDepth} bits` : '', khz].filter(Boolean)
     return [name, parts.join(' / ')].filter(Boolean).join(' ')
   }
