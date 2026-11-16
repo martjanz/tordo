@@ -126,11 +126,6 @@
 {/if}
 
 <style>
-  .check {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
-  }
   .fields {
     margin: 12px 0 0 26px;
   }
