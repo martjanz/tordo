@@ -80,11 +80,11 @@
     gap: 14px;
   }
   h1 {
-    font-size: 20px;
+    font-size: var(--fs-lg);
     margin: 0;
   }
   input {
-    font-size: 24px;
+    font-size: var(--fs-xl);
     letter-spacing: 0.3em;
     text-align: center;
     padding: 14px 12px;
@@ -92,7 +92,7 @@
   }
   button {
     min-height: 52px;
-    font-size: 17px;
+    font-size: var(--fs-lg);
   }
   .warn {
     color: var(--warn);

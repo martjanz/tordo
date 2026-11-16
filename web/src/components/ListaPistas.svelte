@@ -119,7 +119,7 @@
     color: var(--strong);
   }
   .artist {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .artist a:hover {
@@ -130,17 +130,17 @@
     color: var(--faint);
   }
   .quality {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
     white-space: nowrap;
   }
   .plays {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--muted);
     white-space: nowrap;
   }
   .time {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     font-variant-numeric: tabular-nums;
     min-width: 40px;

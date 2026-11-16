@@ -78,7 +78,7 @@
 <style>
   h3 {
     margin: 24px 0 8px;
-    font-size: 15px;
+    font-size: var(--fs-md);
   }
   ul {
     list-style: none;
@@ -106,14 +106,14 @@
   }
   .help {
     margin-bottom: 8px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .host {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-left: auto;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     white-space: nowrap;
   }

@@ -47,7 +47,7 @@
     justify-content: center;
     background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
     color: var(--accent);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
   }
   .title,
   .sub {
@@ -60,7 +60,7 @@
     font-weight: 500;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .menu {

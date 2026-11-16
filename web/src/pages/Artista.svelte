@@ -121,7 +121,7 @@
     flex-wrap: wrap;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin: 0 0 2px;
   }
@@ -140,7 +140,7 @@
     font-weight: 500;
   }
   .appearance span {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--faint);
   }
   @media (max-width: 640px) {

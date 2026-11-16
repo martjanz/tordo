@@ -38,7 +38,7 @@
     align-self: center;
   }
   .all {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .spacer {

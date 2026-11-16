@@ -88,7 +88,7 @@
 
 <style>
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .folders {
@@ -107,7 +107,7 @@
     color: var(--strong);
   }
   .folders span {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--faint);
   }
 </style>

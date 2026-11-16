@@ -147,7 +147,7 @@
     font-weight: 500;
   }
   .meta {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -156,7 +156,7 @@
   .folder,
   .best {
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
   .buttons {
     display: flex;
@@ -165,7 +165,7 @@
     flex: none;
   }
   .search {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .panel {

@@ -209,7 +209,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .new {
@@ -225,6 +225,7 @@
     justify-content: center;
     gap: 6px;
     border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
     color: var(--muted);
   }
   .tabs {

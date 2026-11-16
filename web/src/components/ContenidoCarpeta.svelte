@@ -189,7 +189,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin-bottom: 12px;
   }
@@ -209,12 +209,12 @@
     flex: none;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin: 0;
   }
   .album-link {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--accent);
   }
   .tools {
@@ -225,13 +225,13 @@
     margin-top: 12px;
   }
   .small {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: var(--fs-md);
   }
   th,
   td {
@@ -241,7 +241,7 @@
     border-bottom: 1px solid var(--line);
   }
   th {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     color: var(--faint);
   }

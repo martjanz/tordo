@@ -1,9 +1,9 @@
 <script>
   // A square picture: one cover, or a mosaic of four, with a placeholder
-  // when there is none.
+  // when there is none. A small one (a thumbnail in a row) has tighter corners.
   import Icono from './Icono.svelte'
 
-  let { srcs = [], alt = '', icon = 'disc', round = false } = $props()
+  let { srcs = [], alt = '', icon = 'disc', round = false, small = false } = $props()
 
   // A picture that fails to load is dropped: a mosaic missing one shows
   // the first picture left, and one cover failing tries the next.
@@ -12,7 +12,7 @@
   const shown = $derived(ok.length >= 4 ? ok : ok.slice(0, 1))
 </script>
 
-<div class="tapa" class:round class:mosaic={shown.length === 4} role="img" aria-label={alt}>
+<div class="tapa" class:round class:small class:mosaic={shown.length === 4} role="img" aria-label={alt}>
   {#if shown.length === 0}
     <span class="none"><Icono name={icon} size={32} /></span>
   {:else}
@@ -27,13 +27,16 @@
     aspect-ratio: 1;
     width: 100%;
     background: var(--surface-2);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     overflow: hidden;
     display: grid;
   }
   .mosaic {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
+  }
+  .small {
+    border-radius: var(--radius);
   }
   .round {
     border-radius: 50%;

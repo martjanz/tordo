@@ -63,7 +63,7 @@
     {#if now}
       <p class="label">Sonando</p>
       <div class="row current">
-        <span class="pic"><Tapa srcs={[itemCoverURL(now, 160)]} /></span>
+        <span class="pic"><Tapa small srcs={[itemCoverURL(now, 160)]} /></span>
         <span class="text"><b>{now.title}</b><span>{now.artist}</span></span>
         <span class="time">{duration(now.durationMs)}</span>
       </div>
@@ -81,13 +81,13 @@
           {/if}
           {#if can('jumpTo')}
             <button class="play" onclick={() => jumpTo(u.pos)}>
-              <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+              <span class="pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
               <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
               <span class="time">{duration(u.entry.durationMs)}</span>
             </button>
           {:else}
             <div class="play">
-              <span class="pic"><Tapa srcs={[itemCoverURL(u.entry, 160)]} /></span>
+              <span class="pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
               <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
               <span class="time">{duration(u.entry.durationMs)}</span>
             </div>
@@ -134,7 +134,7 @@
   h3 {
     flex: 1;
     margin: 0;
-    font-size: 16px;
+    font-size: var(--fs-md);
     color: var(--strong);
   }
   .scroll {
@@ -166,7 +166,7 @@
     color: var(--strong);
   }
   .rules {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin: 2px 0 8px;
   }
@@ -238,17 +238,17 @@
     color: var(--accent);
   }
   .text span {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .time {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
     font-variant-numeric: tabular-nums;
   }
   .more {
     color: var(--faint);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     padding: 8px;
   }
   .empty {
