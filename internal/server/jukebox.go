@@ -19,7 +19,7 @@ import (
 func speakerOnly(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !localRequest(r) {
-			http.Error(w, "El audio solo se activa en la computadora que corre Tordo.", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeAudioLocal, "audio can only be turned on at the computer running Tordo", nil)
 			return
 		}
 		h(w, r)
@@ -103,12 +103,12 @@ func (s *Server) jukeboxSpeaker(w http.ResponseWriter, r *http.Request) {
 func (s *Server) jukeboxEvents(w http.ResponseWriter, r *http.Request) {
 	session, role, ok := requestRole(r)
 	if !ok {
-		http.Error(w, "prohibido", http.StatusForbidden)
+		writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 		return
 	}
 	c, err := s.jukebox().AttachRemote(session, role)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		fail(w, err)
 		return
 	}
 	defer s.jukebox().DetachRemote(c)
@@ -121,11 +121,11 @@ func (s *Server) jukeboxState(w http.ResponseWriter, r *http.Request) {
 		State json.RawMessage `json:"state"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&in); err != nil || len(in.State) == 0 {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	if err := s.jukebox().Publish(in.Token, in.State); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		fail(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -138,7 +138,7 @@ func (s *Server) jukeboxNotice(w http.ResponseWriter, r *http.Request) {
 		Text   string `json:"text"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in); err != nil {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	text := strings.TrimSpace(in.Text)
@@ -146,11 +146,11 @@ func (s *Server) jukeboxNotice(w http.ResponseWriter, r *http.Request) {
 		text = string([]rune(text)[:300])
 	}
 	if text == "" {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	if err := s.jukebox().Notice(in.Token, in.Remote, text); err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		fail(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -159,7 +159,7 @@ func (s *Server) jukeboxNotice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) jukeboxCommand(w http.ResponseWriter, r *http.Request) {
 	session, role, ok := requestRole(r)
 	if !ok {
-		http.Error(w, "prohibido", http.StatusForbidden)
+		writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 		return
 	}
 	var in struct {
@@ -168,32 +168,14 @@ func (s *Server) jukeboxCommand(w http.ResponseWriter, r *http.Request) {
 		Args    json.RawMessage `json:"args"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
-	err := s.jukebox().Command(in.Remote, session, role, in.Command, in.Args)
-	status := http.StatusAccepted
-	switch {
-	case err == nil:
-	case errors.Is(err, jukebox.ErrUnknownCommand):
-		status = http.StatusBadRequest
-	case errors.Is(err, jukebox.ErrForbidden):
-		status = http.StatusForbidden
-	case errors.Is(err, jukebox.ErrUnknownRemote):
-		status = http.StatusNotFound
-	case errors.Is(err, jukebox.ErrNoSpeaker):
-		status = http.StatusConflict
-	case errors.Is(err, jukebox.ErrBusy):
-		status = http.StatusServiceUnavailable
-	default:
+	if err := s.jukebox().Command(in.Remote, session, role, in.Command, in.Args); err != nil {
 		fail(w, err)
 		return
 	}
-	if err != nil {
-		http.Error(w, err.Error(), status)
-		return
-	}
-	w.WriteHeader(status)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s *Server) setSessionHost(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +187,7 @@ func (s *Server) setSessionHost(w http.ResponseWriter, r *http.Request) {
 		Host *bool `json:"host"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in); err != nil || in.Host == nil {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	found, err := s.Store.SetSessionHost(id, *in.Host)
@@ -214,7 +196,7 @@ func (s *Server) setSessionHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		http.NotFound(w, r)
+		writeError(w, http.StatusNotFound, codeNotFound, "not found", nil)
 		return
 	}
 	role := jukebox.Guest

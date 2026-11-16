@@ -72,7 +72,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 	// IPv6 address.
 	ln, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		return fmt.Errorf("no se pudo abrir el puerto %d: %w", port, err)
+		return fmt.Errorf("could not open port %d: %w", port, err)
 	}
 	l.closeLocked()
 	l.srv = s.HTTPServer(s.LANHandler())
@@ -255,11 +255,11 @@ func (s *Server) LANHandler() http.Handler {
 	mux := s.routes()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !lanHost(r.Host, s.currentHostName()) {
-			http.Error(w, "prohibido", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 			return
 		}
 		if !localNetworkAddr(r.RemoteAddr) {
-			http.Error(w, "prohibido", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 			return
 		}
 		if !sameSiteOnly(w, r) {
@@ -280,7 +280,7 @@ func (s *Server) LANHandler() http.Handler {
 		}
 		if !ok {
 			http.SetCookie(w, clearCookie())
-			http.Error(w, "ingresá el PIN", http.StatusUnauthorized)
+			writeError(w, http.StatusUnauthorized, codePINRequired, "PIN required", nil)
 			return
 		}
 		c, _ := r.Cookie(sessionCookie) // present: requestSession found a session by it
@@ -357,11 +357,11 @@ func (s *Server) authState(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if localRequest(r) {
-		http.Error(w, "desde esta computadora no hace falta el PIN", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codePINNotNeeded, "no PIN is needed from this computer", nil)
 		return
 	}
 	if s.readOnly() {
-		http.Error(w, "modo consulta: no se puede iniciar sesión", http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: cannot sign in", nil)
 		return
 	}
 	var in struct {
@@ -369,7 +369,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		Device string `json:"device"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in); err != nil {
-		http.Error(w, "pedido inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	s.loginMu.Lock()
@@ -379,18 +379,18 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	// check the old PIN and then create a session that survives the change.
 	lan := s.parts().lan
 	if !lan.Enabled || lan.PinHash == "" {
-		http.Error(w, "el acceso desde la red está apagado", http.StatusForbidden)
+		writeError(w, http.StatusForbidden, codeLANDisabled, "network access is off", nil)
 		return
 	}
 	if wait := s.limiter.Wait(); wait > 0 {
 		secs := int((wait + time.Second - 1) / time.Second)
 		w.Header().Set("Retry-After", strconv.Itoa(secs))
-		http.Error(w, fmt.Sprintf("Demasiados intentos. Probá de nuevo en %d s.", secs), http.StatusTooManyRequests)
+		writeError(w, http.StatusTooManyRequests, codeTooManyAttempts, fmt.Sprintf("too many attempts, try again in %d s", secs), map[string]any{"seconds": secs})
 		return
 	}
 	if !auth.VerifyPIN(lan.PinHash, in.PIN) {
 		s.limiter.Fail()
-		http.Error(w, "PIN incorrecto", http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, codePINWrong, "wrong PIN", nil)
 		return
 	}
 	s.limiter.Reset()
@@ -448,7 +448,7 @@ func (s *Server) closeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		http.NotFound(w, r)
+		writeError(w, http.StatusNotFound, codeNotFound, "not found", nil)
 		return
 	}
 	s.jukebox().DropSession(id)
@@ -464,7 +464,7 @@ func (s *Server) lanQR(w http.ResponseWriter, r *http.Request) {
 		listed = listed || known == u
 	}
 	if !listed {
-		http.Error(w, "esa dirección no es una de las de la red", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeUnknownAddress, "not one of the network addresses", nil)
 		return
 	}
 	code, err := qr.Encode(u)

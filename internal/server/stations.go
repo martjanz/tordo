@@ -13,7 +13,6 @@ import (
 	"tordo/internal/store"
 )
 
-const stationGone = "estación no encontrada"
 
 // savedStation is a saved station as listed: its stored name and what it plays.
 type savedStation struct {
@@ -43,14 +42,6 @@ func stationDef(st catalog.Station) (string, []byte, error) {
 	st.Name = ""
 	def, err := json.Marshal(st)
 	return name, def, err
-}
-
-func stationErr(w http.ResponseWriter, err error) {
-	if errors.Is(err, store.ErrStationName) {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	answer(w, err)
 }
 
 // stationsState keeps the saved stations listed while the user's data
@@ -110,7 +101,7 @@ func (s *Server) createStation(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := s.Store.CreateStation(name, def)
 	if err != nil {
-		stationErr(w, err)
+		fail(w, err)
 		return
 	}
 	ss, ok, err := s.Store.Station(id)
@@ -140,10 +131,10 @@ func (s *Server) updateStation(w http.ResponseWriter, r *http.Request) {
 	}
 	found, err := s.Store.UpdateStation(id, name, def)
 	if err != nil {
-		stationErr(w, err)
+		fail(w, err)
 		return
 	}
-	written(w, found, nil, stationGone)
+	written(w, found, nil, errStationNotFound)
 }
 
 func (s *Server) deleteStation(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +146,7 @@ func (s *Server) deleteStation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	found, err := s.Store.DeleteStation(id)
-	written(w, found, err, stationGone)
+	written(w, found, err, errStationNotFound)
 }
 
 // stationNext answers GET /api/station/next?def=<station JSON>&recent=1,2:
@@ -166,7 +157,7 @@ func (s *Server) stationNext(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	var st catalog.Station
 	if err := json.Unmarshal([]byte(q.Get("def")), &st); err != nil {
-		http.Error(w, "estación inválida", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidStation, "invalid station", nil)
 		return
 	}
 	st = st.Clean()
@@ -178,7 +169,7 @@ func (s *Server) stationNext(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !ok {
-			http.Error(w, playlistGone, http.StatusNotFound)
+			writeError(w, http.StatusNotFound, codePlaylistNotFound, "playlist not found", nil)
 			return
 		}
 		for _, it := range items {

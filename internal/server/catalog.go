@@ -317,7 +317,7 @@ func (s *Server) artist(w http.ResponseWriter, r *http.Request) {
 	}
 	p, ok := c.ArtistPage(r.PathValue("key"))
 	if !ok {
-		http.Error(w, "artista no encontrado", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeArtistNotFound, "artist not found", nil)
 		return
 	}
 	pers, err := s.personal()
@@ -376,7 +376,7 @@ func (s *Server) writeAlbum(w http.ResponseWriter, id int64) {
 		return
 	}
 	if !ok {
-		http.Error(w, "álbum no encontrado", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeAlbumNotFound, "album not found", nil)
 		return
 	}
 	cands, err := s.Store.AlbumCandidates(id)

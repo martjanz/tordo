@@ -353,7 +353,7 @@ func TestUpdateLAN(t *testing.T) {
 	bad.LAN.Port = 6000
 	err := e.Apply(bad)
 	var ve *ValidationError
-	if !errors.As(err, &ve) || ve.Error() != "no se pudo abrir el puerto 6000: prueba" {
+	if !errors.As(err, &ve) || ve.Error() != "could not open port 6000: prueba" {
 		t.Fatalf("err %v", err)
 	}
 	if saved, _, _ := config.Load(e.AppDir); !reflect.DeepEqual(saved, other) {

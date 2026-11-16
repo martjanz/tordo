@@ -21,13 +21,13 @@ const (
 )
 
 var (
-	ErrNoSpeaker      = errors.New("La rockola no está disponible: activá el audio en la compu.")
-	ErrNotSpeaker     = errors.New("este navegador ya no es el parlante")
-	ErrUnknownCommand = errors.New("orden desconocida")
-	ErrForbidden      = errors.New("Solo el anfitrión puede hacer esto.")
-	ErrUnknownRemote  = errors.New("control desconocido")
-	ErrTooMany        = errors.New("Demasiados controles conectados a la rockola.")
-	ErrBusy           = errors.New("La compu no responde: probá de nuevo.")
+	ErrNoSpeaker      = errors.New("jukebox is not available: no speaker")
+	ErrNotSpeaker     = errors.New("this browser is no longer the speaker")
+	ErrUnknownCommand = errors.New("unknown command")
+	ErrForbidden      = errors.New("only the host can do this")
+	ErrUnknownRemote  = errors.New("unknown remote")
+	ErrTooMany        = errors.New("too many remotes connected to the jukebox")
+	ErrBusy           = errors.New("the speaker is not responding")
 )
 
 // MaxRemotes is how many remotes may be connected at once.

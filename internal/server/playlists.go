@@ -56,7 +56,7 @@ func (s *Server) trackIDs(w what) ([]int64, error) {
 // writable answers 409 in browse-only mode and tells whether to go on.
 func (s *Server) writable(w http.ResponseWriter) bool {
 	if s.ReadOnly {
-		http.Error(w, readOnlyMsg, http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: changes cannot be saved", nil)
 		return false
 	}
 	return true
@@ -65,13 +65,12 @@ func (s *Server) writable(w http.ResponseWriter) bool {
 func playlistID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 		return 0, false
 	}
 	return id, true
 }
 
-const playlistGone = "lista no encontrada"
 
 func (s *Server) playlists(w http.ResponseWriter, r *http.Request) {
 	ps, err := s.Store.Playlists()
@@ -80,16 +79,6 @@ func (s *Server) playlists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, ps)
-}
-
-// playlistErr answers the errors the store reports for bad playlist input.
-func playlistErr(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrPlaylistName), errors.Is(err, store.ErrPlaylistFull), errors.Is(err, store.ErrPlaylistOrder):
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	default:
-		answer(w, err)
-	}
 }
 
 func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
@@ -108,19 +97,19 @@ func (s *Server) createPlaylist(w http.ResponseWriter, r *http.Request) {
 	if b.Add != nil {
 		var err error
 		if ids, err = s.trackIDs(*b.Add); err != nil {
-			playlistErr(w, err)
+			fail(w, err)
 			return
 		}
 	}
 	id, err := s.Store.CreatePlaylist(b.Name)
 	if err != nil {
-		playlistErr(w, err)
+		fail(w, err)
 		return
 	}
 	if len(ids) > 0 {
 		if _, _, err := s.Store.AddToPlaylist(id, ids); err != nil {
 			s.Store.DeletePlaylist(id) // do not leave a half-made list behind
-			playlistErr(w, err)
+			fail(w, err)
 			return
 		}
 	}
@@ -143,7 +132,7 @@ func (s *Server) playlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		http.Error(w, playlistGone, http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codePlaylistNotFound, "playlist not found", nil)
 		return
 	}
 	c, err := s.catalog()
@@ -186,10 +175,10 @@ func (s *Server) renamePlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	found, err := s.Store.RenamePlaylist(id, b.Name)
 	if err != nil {
-		playlistErr(w, err)
+		fail(w, err)
 		return
 	}
-	written(w, found, nil, playlistGone)
+	written(w, found, nil, errPlaylistNotFound)
 }
 
 func (s *Server) deletePlaylist(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +190,7 @@ func (s *Server) deletePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	found, err := s.Store.DeletePlaylist(id)
-	written(w, found, err, playlistGone)
+	written(w, found, err, errPlaylistNotFound)
 }
 
 func (s *Server) addToPlaylist(w http.ResponseWriter, r *http.Request) {
@@ -218,16 +207,16 @@ func (s *Server) addToPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	ids, err := s.trackIDs(b)
 	if err != nil {
-		playlistErr(w, err)
+		fail(w, err)
 		return
 	}
 	added, exists, err := s.Store.AddToPlaylist(id, ids)
 	if err != nil {
-		playlistErr(w, err)
+		fail(w, err)
 		return
 	}
 	if !exists {
-		http.Error(w, playlistGone, http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codePlaylistNotFound, "playlist not found", nil)
 		return
 	}
 	writeJSON(w, map[string]int{"added": added})
@@ -243,11 +232,11 @@ func (s *Server) removeFromPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := strconv.ParseInt(r.PathValue("item"), 10, 64)
 	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 		return
 	}
 	found, err := s.Store.RemoveFromPlaylist(id, item)
-	written(w, found, err, "pista no encontrada en la lista")
+	written(w, found, err, errPlaylistTrackNotFound)
 }
 
 func (s *Server) reorderPlaylist(w http.ResponseWriter, r *http.Request) {
@@ -266,8 +255,8 @@ func (s *Server) reorderPlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	found, err := s.Store.ReorderPlaylist(id, b.Items)
 	if err != nil {
-		playlistErr(w, err)
+		fail(w, err)
 		return
 	}
-	written(w, found, nil, playlistGone)
+	written(w, found, nil, errPlaylistNotFound)
 }

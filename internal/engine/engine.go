@@ -24,7 +24,16 @@ import (
 
 // ErrReadOnly means the app directory cannot be written: the configuration
 // cannot change.
-var ErrReadOnly = errors.New("modo consulta: la configuración no se puede modificar")
+var ErrReadOnly = errors.New("browse-only mode: settings cannot be changed")
+
+// PortError is a LAN port that could not be opened.
+type PortError struct {
+	Port int
+	Err  error
+}
+
+func (e *PortError) Error() string { return fmt.Sprintf("could not open port %d: %v", e.Port, e.Err) }
+func (e *PortError) Unwrap() error { return e.Err }
 
 // ValidationError marks a rejected configuration (not an I/O failure): Update
 // callers use it to tell "the request was invalid" from "saving failed".
@@ -210,7 +219,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 		// already on that port.
 		if changed || cfg.LAN.Enabled {
 			if err := e.LAN(cfg.LAN); err != nil {
-				return &ValidationError{fmt.Errorf("no se pudo abrir el puerto %d: %w", cfg.LAN.PortOrDefault(), err)}
+				return &ValidationError{&PortError{Port: cfg.LAN.PortOrDefault(), Err: err}}
 			}
 			lanMoved = changed
 		}

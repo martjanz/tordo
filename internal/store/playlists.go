@@ -36,9 +36,9 @@ type Playlist struct {
 }
 
 var (
-	ErrPlaylistName  = errors.New("escribí un nombre para la lista")
-	ErrPlaylistFull  = errors.New("la lista llegó al máximo de pistas")
-	ErrPlaylistOrder = errors.New("el orden no coincide con las pistas de la lista")
+	ErrPlaylistName  = errors.New("playlist name is required")
+	ErrPlaylistFull  = errors.New("playlist is full")
+	ErrPlaylistOrder = errors.New("order does not match the playlist tracks")
 )
 
 // MaxPlaylist is the most entries a playlist holds (a variable so tests can

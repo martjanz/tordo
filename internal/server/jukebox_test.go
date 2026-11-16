@@ -146,14 +146,17 @@ func (g *jukeboxRig) post(t *testing.T, base, path, body string, headers ...stri
 	return resp
 }
 
-func wantStatus(t *testing.T, resp *http.Response, code int, text string) {
+func wantStatus(t *testing.T, resp *http.Response, code int, errCode string) {
 	t.Helper()
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != code {
 		t.Fatalf("status %d (%s), want %d", resp.StatusCode, b, code)
 	}
-	if text != "" && !strings.Contains(string(b), text) {
-		t.Fatalf("body %q, want %q", b, text)
+	if errCode != "" {
+		var e struct{ Code string }
+		if json.Unmarshal(b, &e) != nil || e.Code != errCode {
+			t.Fatalf("body %q, want code %q", b, errCode)
+		}
 	}
 }
 
@@ -248,7 +251,7 @@ func TestJukeboxGuestLimits(t *testing.T) {
 		return g.post(t, g.lan.URL, "/api/jukebox/command",
 			fmt.Sprintf(`{"remote":%q,"command":%q}`, remote, command), withCookie(c)...)
 	}
-	wantStatus(t, send("next"), http.StatusForbidden, "Solo el anfitrión puede hacer esto.")
+	wantStatus(t, send("next"), http.StatusForbidden, "host_only")
 	wantStatus(t, send("enqueue"), http.StatusAccepted, "")
 
 	put := mac(g.h, "PUT", fmt.Sprintf("/api/sessions/%d/host", id), `{"host":true}`, "Content-Type", "application/json")
@@ -279,8 +282,7 @@ func TestJukeboxNoSpeaker(t *testing.T) {
 	remote := field(t, wantEvent(t, rem, "hello"), "remote")
 	wantEvent(t, rem, "speaker-off")
 	body := fmt.Sprintf(`{"remote":%q,"command":"next"}`, remote)
-	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", body), http.StatusConflict,
-		"La rockola no está disponible: activá el audio en la compu.")
+	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", body), http.StatusConflict, "no_speaker")
 }
 
 func TestJukeboxSpeakerLocalOnly(t *testing.T) {
@@ -335,7 +337,7 @@ func TestJukeboxTooManyRemotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	wantStatus(t, resp, http.StatusServiceUnavailable, "Demasiados controles")
+	wantStatus(t, resp, http.StatusServiceUnavailable, "too_many_remotes")
 }
 
 func TestJukeboxDropsOnSignOut(t *testing.T) {

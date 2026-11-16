@@ -151,15 +151,9 @@ func TestPutConfigLAN(t *testing.T) {
 	}
 	put := func(b string) *httptest.ResponseRecorder { return putConfig(t, s, b) }
 
-	if rec := put(body(true, 4747, `null`)); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "elegí un PIN") {
-		t.Fatalf("no PIN: %d %s", rec.Code, rec.Body)
-	}
-	if rec := put(body(true, 4747, `"12"`)); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), auth.ErrPINFormat.Error()) {
-		t.Fatalf("short PIN: %d %s", rec.Code, rec.Body)
-	}
-	if rec := put(body(false, 80, `null`)); rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "entre 1024 y 65535") {
-		t.Fatalf("port 80: %d %s", rec.Code, rec.Body)
-	}
+	wantError(t, put(body(true, 4747, `null`)), http.StatusBadRequest, codePINNeededForLAN)
+	wantError(t, put(body(true, 4747, `"12"`)), http.StatusBadRequest, codePINFormat)
+	wantError(t, put(body(false, 80, `null`)), http.StatusBadRequest, codeInvalidPort)
 	if _, missing, _ := config.Load(s.AppDir); !missing {
 		t.Fatal("a rejected request wrote config.json")
 	}
@@ -264,10 +258,7 @@ func TestEngineBackedScanAndBrowseOnlyParts(t *testing.T) {
 	s := settingsServer(t, false)
 	// Nothing is scanned or identified before the assistant saves.
 	for _, p := range []string{"/api/scan", "/api/identify"} {
-		if rec := do(t, s.Handler(), "POST", p, "{}", "Content-Type", "application/json"); rec.Code != http.StatusConflict ||
-			!strings.Contains(rec.Body.String(), "completá primero el asistente") {
-			t.Fatalf("%s while setup is pending: %d %s", p, rec.Code, rec.Body)
-		}
+		wantError(t, do(t, s.Handler(), "POST", p, "{}", "Content-Type", "application/json"), http.StatusConflict, codeSetupPending)
 	}
 	if rec := putConfig(t, s, `{"roots":["../musica"],"normalize":true,"lan":{"port":4747}}`); rec.Code != http.StatusOK {
 		t.Fatalf("setup: %d %s", rec.Code, rec.Body)
@@ -293,8 +284,9 @@ func TestSettingsLocalOnly(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/config", nil)
 	rec := httptest.NewRecorder()
 	h(rec, req)
-	if rec.Code != http.StatusForbidden || called || !strings.Contains(rec.Body.String(), "Los ajustes solo se cambian en la computadora que corre Tordo.") {
-		t.Fatalf("not local: %d %s (called %v)", rec.Code, rec.Body, called)
+	wantError(t, rec, http.StatusForbidden, codeSettingsLocal)
+	if called {
+		t.Fatal("the handler ran for a request that is not local")
 	}
 	rec = httptest.NewRecorder()
 	h(rec, withLocal(req))

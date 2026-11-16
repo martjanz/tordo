@@ -204,8 +204,8 @@ func TestLoginLimiter(t *testing.T) {
 	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "30" {
 		t.Fatalf("locked: %d %q", rec.Code, rec.Header().Get("Retry-After"))
 	}
-	if !strings.Contains(rec.Body.String(), "30 s") {
-		t.Fatalf("body = %q", rec.Body)
+	if e := wantError(t, rec, http.StatusTooManyRequests, codeTooManyAttempts); e.Params["seconds"] != float64(30) {
+		t.Fatalf("params = %v", e.Params)
 	}
 	clock = clock.Add(30 * time.Second)
 	if rec := login(h, testPIN, ""); rec.Code != http.StatusOK {
@@ -493,9 +493,7 @@ func TestSessionExpiresAfter90IdleDays(t *testing.T) {
 		t.Fatalf("auth of an expired session: %+v", a)
 	}
 	rec := phone(h, "GET", "/api/status", "", withCookie(c2)...)
-	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "ingresá el PIN") {
-		t.Fatalf("expired: %d %s", rec.Code, rec.Body)
-	}
+	wantError(t, rec, http.StatusUnauthorized, codePINRequired)
 	if cc := cookieOf(rec); cc == nil || cc.MaxAge >= 0 {
 		t.Fatalf("cookie not cleared: %+v", cc)
 	}

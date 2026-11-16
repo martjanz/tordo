@@ -22,7 +22,7 @@ import (
 	"tordo/internal/store"
 )
 
-var ErrBusy = errors.New("ya hay un escaneo en curso")
+var ErrBusy = errors.New("a scan is already running")
 
 type Status struct {
 	Running bool  `json:"running"`

@@ -44,7 +44,7 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	}
 	days, ok := periods[period]
 	if !ok {
-		http.Error(w, "período inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidPeriod, "invalid period", nil)
 		return
 	}
 	var since time.Time

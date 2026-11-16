@@ -20,7 +20,7 @@ const (
 var now = time.Now
 
 // ErrBadRating is returned for a rating outside 0 to 5.
-var ErrBadRating = errors.New("el puntaje va de 0 a 5")
+var ErrBadRating = errors.New("rating must be 0 to 5")
 
 // Mark is a liked or rated track or album.
 type Mark struct {
