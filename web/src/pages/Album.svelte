@@ -67,7 +67,7 @@
         {#if album.artistKey}<a href={artistHref(album.artistKey)}>{album.artist}</a>{:else}{album.artist}{/if}
       </p>
       <p class="sub">
-        {summary}{#if album.country}{' · '}<a href={exploreHref({ pais: album.country })}>{country(album.country)}</a>{/if}
+        {summary}{#if album.country}{' · '}<a href={exploreHref({ country: album.country })}>{country(album.country)}</a>{/if}
       </p>
       {#if album.genres.length}
         <p class="genres">
@@ -98,11 +98,11 @@
             {#if v.year}<span>{v.year}</span>{/if}
             <span>{v.formats.map(formatName).join(' · ')}</span>
             <span>{count(v.shared, 'tema', 'temas')} en común</span>
-            {#if v.kind === 'exacta'}<span class="exact">copia idéntica</span>{/if}
+            {#if v.kind === 'exact'}<span class="exact">copia idéntica</span>{/if}
           </li>
         {/each}
       </ul>
-      <a class="sub" href={duplicatesHref(album.versions.some((v) => v.kind === 'exacta') ? 'exactas' : 'formatos')}>Ver duplicados →</a>
+      <a class="sub" href={duplicatesHref(album.versions.some((v) => v.kind === 'exact') ? 'exact' : 'formats')}>Ver duplicados →</a>
     </section>
   {/if}
 

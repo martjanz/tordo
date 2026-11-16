@@ -16,9 +16,9 @@
 
   const main = FACETS.filter((f) => !f.more)
   // "Estado" only holds maintenance states (unidentified, duplicates).
-  const more = $derived(FACETS.filter((f) => f.more && !(listenMode() && f.name === 'estado')))
+  const more = $derived(FACETS.filter((f) => f.more && !(listenMode() && f.name === 'state')))
   const applied = $derived(chips(query, facets))
-  const NESTED = { decada: { name: 'anio', label: 'Años' }, genero: { name: 'estilo', label: 'Estilos' } }
+  const NESTED = { decade: { name: 'year', label: 'Años' }, genre: { name: 'style', label: 'Estilos' } }
 
   function toggle(name) {
     open = open === name ? null : name
@@ -43,9 +43,9 @@
 
   // What the total counts: artists, tracks, or albums.
   const totalLabel = $derived(
-    query.view === 'artistas'
+    query.view === 'artists'
       ? count(total, 'artista', 'artistas')
-      : query.view === 'pistas'
+      : query.view === 'tracks'
         ? count(total, 'pista', 'pistas')
         : count(total, 'álbum', 'álbumes'),
   )
@@ -120,9 +120,9 @@
         <option value={o.value}>{o.label}</option>
       {/each}
     </select>
-    {#if query.order === 'azar'}
+    {#if query.order === 'random'}
       <!-- No direction to a shuffle: draw another one instead. -->
-      <button class="dir reshuffle" onclick={() => onchange(withOrder(query, 'azar'))} aria-label="Mezclar de nuevo"
+      <button class="dir reshuffle" onclick={() => onchange(withOrder(query, 'random'))} aria-label="Mezclar de nuevo"
         title="Mezclar de nuevo"><Icono name="refresh" size={14} /></button>
     {:else}
       <button

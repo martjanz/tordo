@@ -2,99 +2,99 @@
 import { country, formatName } from './format.js'
 
 export const VIEWS = [
-  { value: 'albumes', label: 'Álbumes' },
-  { value: 'artistas', label: 'Artistas' },
-  { value: 'pistas', label: 'Pistas' },
+  { value: 'albums', label: 'Álbumes' },
+  { value: 'artists', label: 'Artistas' },
+  { value: 'tracks', label: 'Pistas' },
 ]
 
 // FACETS lists the facets of the bar, in order. The year lives inside the
 // decade menu and the style inside the genre menu; `more` facets go in the
 // "Más" menu.
 export const FACETS = [
-  { name: 'decada', label: 'Década' },
-  { name: 'artista', label: 'Artista' },
-  { name: 'pais', label: 'País' },
-  { name: 'genero', label: 'Género' },
-  { name: 'coleccion', label: 'Colección' },
-  { name: 'megusta', label: 'Me gusta' },
-  { name: 'puntaje', label: 'Puntaje' },
-  { name: 'escucha', label: 'Escucha' },
-  { name: 'carpeta', label: 'Carpeta', more: true },
-  { name: 'calidad', label: 'Calidad', more: true },
-  { name: 'formato', label: 'Formato', more: true },
-  { name: 'estado', label: 'Estado', more: true },
+  { name: 'decade', label: 'Década' },
+  { name: 'artist', label: 'Artista' },
+  { name: 'country', label: 'País' },
+  { name: 'genre', label: 'Género' },
+  { name: 'collection', label: 'Colección' },
+  { name: 'liked', label: 'Me gusta' },
+  { name: 'rating', label: 'Puntaje' },
+  { name: 'listened', label: 'Escucha' },
+  { name: 'folder', label: 'Carpeta', more: true },
+  { name: 'quality', label: 'Calidad', more: true },
+  { name: 'format', label: 'Formato', more: true },
+  { name: 'state', label: 'Estado', more: true },
 ]
 
-// facetLabel is a facet's name in the bar. On the albums tab the "megusta"
+// facetLabel is a facet's name in the bar. On the albums tab the "liked"
 // facet (same URL) reads Preferidos: albums are a shortlist, not favourites.
 export function facetLabel(facet, view) {
-  return facet.name === 'megusta' && view === 'albumes' ? 'Preferidos' : facet.label
+  return facet.name === 'liked' && view === 'albums' ? 'Preferidos' : facet.label
 }
 
 // NAMES are the facets in URL order, the year and style included.
-export const NAMES = ['decada', 'anio', 'artista', 'pais', 'genero', 'estilo', 'coleccion', 'carpeta', 'calidad', 'formato', 'estado', 'megusta', 'puntaje', 'escucha']
+export const NAMES = ['decade', 'year', 'artist', 'country', 'genre', 'style', 'collection', 'folder', 'quality', 'format', 'state', 'liked', 'rating', 'listened']
 
 // ORDERS lists each tab's orders, its default first (as the server).
 export const ORDERS = {
-  albumes: [
-    { value: 'anio', label: 'Año' },
-    { value: 'titulo', label: 'Título' },
-    { value: 'artista', label: 'Artista' },
-    { value: 'agregado', label: 'Agregado' },
-    { value: 'escuchado', label: 'Más escuchado' },
-    { value: 'azar', label: 'Aleatorio' },
+  albums: [
+    { value: 'year', label: 'Año' },
+    { value: 'title', label: 'Título' },
+    { value: 'artist', label: 'Artista' },
+    { value: 'added', label: 'Agregado' },
+    { value: 'plays', label: 'Más escuchado' },
+    { value: 'random', label: 'Aleatorio' },
   ],
-  artistas: [
-    { value: 'titulo', label: 'Nombre' },
-    { value: 'cantidad', label: 'Cantidad de álbumes' },
-    { value: 'agregado', label: 'Agregado' },
-    { value: 'escuchado', label: 'Más escuchado' },
-    { value: 'azar', label: 'Aleatorio' },
+  artists: [
+    { value: 'title', label: 'Nombre' },
+    { value: 'count', label: 'Cantidad de álbumes' },
+    { value: 'added', label: 'Agregado' },
+    { value: 'plays', label: 'Más escuchado' },
+    { value: 'random', label: 'Aleatorio' },
   ],
-  pistas: [
-    { value: 'artista', label: 'Artista' },
-    { value: 'anio', label: 'Año' },
-    { value: 'titulo', label: 'Título' },
-    { value: 'agregado', label: 'Agregado' },
-    { value: 'escuchado', label: 'Más escuchado' },
-    { value: 'azar', label: 'Aleatorio' },
+  tracks: [
+    { value: 'artist', label: 'Artista' },
+    { value: 'year', label: 'Año' },
+    { value: 'title', label: 'Título' },
+    { value: 'added', label: 'Agregado' },
+    { value: 'plays', label: 'Más escuchado' },
+    { value: 'random', label: 'Aleatorio' },
   ],
 }
 
 export const LABELS = {
-  calidad: { 'sin-perdida': 'Sin pérdida', 'con-perdida': 'Con pérdida' },
-  estado: { 'sin-identificar': 'Sin identificar', 'no-reproducible': 'No reproducible', 'con-duplicados': 'Con duplicados' },
-  megusta: { si: 'Me gusta' },
-  escucha: { nunca: 'Nunca escuchado', 'hace-un-anio': 'Sin escuchar hace un año' },
-  puntaje: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
+  quality: { lossless: 'Sin pérdida', lossy: 'Con pérdida' },
+  state: { unidentified: 'Sin identificar', unplayable: 'No reproducible', duplicated: 'Con duplicados' },
+  liked: { yes: 'Me gusta' },
+  listened: { never: 'Nunca escuchado', 'year-ago': 'Sin escuchar hace un año' },
+  rating: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
 }
 
 // defaultDir is the natural direction of an order: A to Z for names,
 // newest or largest first otherwise.
 export function defaultDir(order) {
-  return order === 'titulo' || order === 'artista' ? 'asc' : 'desc'
+  return order === 'title' || order === 'artist' ? 'asc' : 'desc'
 }
 
 function viewOf(v) {
-  return ORDERS[v] ? v : 'albumes'
+  return ORDERS[v] ? v : 'albums'
 }
 
-// parse reads a query string ("?decada=1970&orden=titulo"). Unknown
+// parse reads a query string ("?decade=1970&order=title"). Unknown
 // parameters are dropped; the server validates the values.
 export function parse(search) {
   const params = new URLSearchParams(search)
-  const view = viewOf(params.get('ver'))
+  const view = viewOf(params.get('view'))
   const facets = {}
   for (const name of NAMES) {
     const v = params.get(name)
     if (v) facets[name] = v
   }
   const orders = ORDERS[view]
-  const order = orders.some((o) => o.value === params.get('orden')) ? params.get('orden') : orders[0].value
+  const order = orders.some((o) => o.value === params.get('order')) ? params.get('order') : orders[0].value
   const dir = ['asc', 'desc'].includes(params.get('dir')) ? params.get('dir') : defaultDir(order)
   const q = { view, facets, order, dir }
   // The random order's seed; without one the server draws it.
-  if (order === 'azar' && params.get('semilla')) q.seed = params.get('semilla')
+  if (order === 'random' && params.get('seed')) q.seed = params.get('seed')
   return q
 }
 
@@ -103,14 +103,14 @@ export function parse(search) {
 export function toSearch({ view, facets, order, dir, seed }) {
   const params = new URLSearchParams()
   view = viewOf(view)
-  if (view !== 'albumes') params.set('ver', view)
+  if (view !== 'albums') params.set('view', view)
   for (const name of NAMES) {
     if (facets[name]) params.set(name, facets[name])
   }
   const natural = ORDERS[view][0].value
-  if (order && order !== natural) params.set('orden', order)
+  if (order && order !== natural) params.set('order', order)
   if (dir && dir !== defaultDir(order || natural)) params.set('dir', dir)
-  if (order === 'azar' && seed) params.set('semilla', String(seed))
+  if (order === 'random' && seed) params.set('seed', String(seed))
   const s = params.toString()
   return s ? `?${s}` : ''
 }
@@ -122,13 +122,13 @@ export function withFacet(query, name, value) {
   const facets = { ...query.facets }
   if (value == null || value === '') delete facets[name]
   else facets[name] = String(value)
-  if (name === 'decada' && facets.anio && (!facets.decada || !facets.anio.startsWith(facets.decada.slice(0, 3)))) {
-    delete facets.anio
+  if (name === 'decade' && facets.year && (!facets.decade || !facets.year.startsWith(facets.decade.slice(0, 3)))) {
+    delete facets.year
   }
-  if (name === 'anio' && value && !facets.decada) {
-    facets.decada = String(Math.floor(Number(value) / 10) * 10)
+  if (name === 'year' && value && !facets.decade) {
+    facets.decade = String(Math.floor(Number(value) / 10) * 10)
   }
-  if (name === 'genero') delete facets.estilo
+  if (name === 'genre') delete facets.style
   return { ...query, facets }
 }
 
@@ -143,7 +143,7 @@ export function withView(query, view) {
 export function withOrder(query, order) {
   const { seed, ...rest } = query
   const q = { ...rest, order, dir: defaultDir(order) }
-  if (order === 'azar') q.seed = String(Math.floor(Math.random() * 2 ** 31) + 1)
+  if (order === 'random') q.seed = String(Math.floor(Math.random() * 2 ** 31) + 1)
   return q
 }
 
@@ -151,18 +151,18 @@ export function withOrder(query, order) {
 // server's {value, label, count} when known; view is Explorar's tab.
 export function valueLabel(name, value, counted, view) {
   switch (name) {
-    case 'decada':
+    case 'decade':
       return `${value}s`
-    case 'pais':
+    case 'country':
       return country(value)
-    case 'formato':
+    case 'format':
       return formatName(value)
-    case 'megusta':
-      return view === 'albumes' ? 'Preferidos' : LABELS.megusta[value] ?? value
-    case 'calidad':
-    case 'estado':
-    case 'puntaje':
-    case 'escucha':
+    case 'liked':
+      return view === 'albums' ? 'Preferidos' : LABELS.liked[value] ?? value
+    case 'quality':
+    case 'state':
+    case 'rating':
+    case 'listened':
       return LABELS[name][value] ?? value
   }
   return counted?.label || value
@@ -183,9 +183,9 @@ export function chips(query, counts = {}) {
 // inside lists the values of a facet nested in a chosen one: the years of
 // the chosen decade, the styles of the chosen genre.
 export function inside(name, query, counts = {}) {
-  if (name === 'decada' && query.facets.decada) {
-    return (counts.anio ?? []).filter((v) => v.value.startsWith(query.facets.decada.slice(0, 3)))
+  if (name === 'decade' && query.facets.decade) {
+    return (counts.year ?? []).filter((v) => v.value.startsWith(query.facets.decade.slice(0, 3)))
   }
-  if (name === 'genero' && query.facets.genero) return counts.estilo ?? []
+  if (name === 'genre' && query.facets.genre) return counts.style ?? []
   return []
 }

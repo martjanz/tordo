@@ -12,10 +12,10 @@
   let { period } = $props()
 
   const PERIODS = [
-    { value: 'semana', label: 'Última semana' },
-    { value: 'mes', label: 'Último mes' },
-    { value: 'anio', label: 'Último año' },
-    { value: 'siempre', label: 'Siempre' },
+    { value: 'week', label: 'Última semana' },
+    { value: 'month', label: 'Último mes' },
+    { value: 'year', label: 'Último año' },
+    { value: 'all', label: 'Siempre' },
   ]
 
   let data = $state(null)
@@ -102,7 +102,7 @@
         <ol class="rank">
           {#each countries as c (c.value)}
             <li>
-              <a href={exploreHref({ pais: c.value })}>{country(c.value)}</a>
+              <a href={exploreHref({ country: c.value })}>{country(c.value)}</a>
               <span class="n">{plays(c.plays)}</span>
             </li>
           {/each}
@@ -116,7 +116,7 @@
         <ol class="rank">
           {#each genres as g (g.value)}
             <li>
-              <a href={exploreHref({ genero: g.value })}>{g.value}</a>
+              <a href={exploreHref({ genre: g.value })}>{g.value}</a>
               <span class="n">{plays(g.plays)}</span>
             </li>
           {/each}
@@ -130,11 +130,11 @@
       <h2>Por escuchar</h2>
       <ul class="rank">
         {#if data.never}
-          <li><a href={exploreHref({ escucha: 'nunca' })}>{count(data.never, 'álbum nunca escuchado', 'álbumes nunca escuchados')} →</a></li>
+          <li><a href={exploreHref({ listened: 'never' })}>{count(data.never, 'álbum nunca escuchado', 'álbumes nunca escuchados')} →</a></li>
         {/if}
         {#if data.stale}
           <li>
-            <a href={exploreHref({ escucha: 'hace-un-anio' })}>{count(data.stale, 'álbum sin escuchar', 'álbumes sin escuchar')} hace más de un año →</a>
+            <a href={exploreHref({ listened: 'year-ago' })}>{count(data.stale, 'álbum sin escuchar', 'álbumes sin escuchar')} hace más de un año →</a>
           </li>
         {/if}
       </ul>

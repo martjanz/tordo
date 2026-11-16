@@ -120,7 +120,7 @@ export function panel(st, lost = false) {
   if (c.identified > 0) out.facts.push({ label: 'Identificados', value: num(c.identified) })
   if (c.unidentified > 0) {
     const fact = { label: 'Sin identificar', value: num(c.unidentified) }
-    out.facts.push(pageBlocked('revisar', st) ? fact : { ...fact, href: '/revisar' })
+    out.facts.push(pageBlocked('revisar', st) ? fact : { ...fact, href: '/review' })
   }
   if (c.unreadable > 0) out.facts.push({ label: 'Ilegibles', value: num(c.unreadable) })
 

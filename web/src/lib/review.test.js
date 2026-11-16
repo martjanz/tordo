@@ -20,10 +20,10 @@ describe('review', () => {
       { genre: 'Latin', source: 'tag' },
     ]
     expect(genreLinks(gs)).toEqual([
-      { label: 'Rock', facets: { genero: 'Rock' } },
-      { label: 'Latin', facets: { genero: 'Latin' } },
-      { label: 'Pop Rock', facets: { genero: 'Rock', estilo: 'Pop Rock' } },
-      { label: 'New Wave', facets: { genero: 'Rock', estilo: 'New Wave' } },
+      { label: 'Rock', facets: { genre: 'Rock' } },
+      { label: 'Latin', facets: { genre: 'Latin' } },
+      { label: 'Pop Rock', facets: { genre: 'Rock', style: 'Pop Rock' } },
+      { label: 'New Wave', facets: { genre: 'Rock', style: 'New Wave' } },
     ])
     expect(genreLinks(undefined)).toEqual([])
   })

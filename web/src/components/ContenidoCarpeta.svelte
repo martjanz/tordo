@@ -60,7 +60,7 @@
     <h1>Carpetas</h1>
   {:else}
     <nav class="trail" aria-label="Ubicación">
-      <a href="/carpetas">Carpetas</a>
+      <a href="/folders">Carpetas</a>
       {#each folder.trail ?? [] as c, i (c.path)}
         <span>/</span>
         {#if i < folder.trail.length - 1}<a href={folderHref(c.path)}>{c.name}</a>{:else}<span class="here">{c.name}</span>{/if}

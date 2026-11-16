@@ -113,7 +113,7 @@
 
 <div class="ajustes">
   <h1>Ajustes</h1>
-  <p class="ayuda"><a href="/ayuda">Ayuda: atajos, secciones y conceptos</a></p>
+  <p class="ayuda"><a href="/help">Ayuda: atajos, secciones y conceptos</a></p>
   {#if forbidden}
     <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
     {#if !auth.local}

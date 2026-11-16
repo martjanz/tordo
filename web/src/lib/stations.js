@@ -3,9 +3,9 @@
 import { country } from './format.js'
 import { NAMES, valueLabel } from './facets.js'
 
-export const DEFAULT_RULES = { mode: 'pistas', artistGap: 3, avoidDays: 7 }
+export const DEFAULT_RULES = { mode: 'tracks', artistGap: 3, avoidDays: 7 }
 export const LOW_WATER = 3 // ask for more when fewer than this remain after the current track
-export const RECENT = 100 // ids sent as recientes
+export const RECENT = 100 // ids sent as recent
 export const KEEP_PLAYED = 100 // played entries kept while a station plays
 
 export function station(name, source, rules = DEFAULT_RULES) {
@@ -14,9 +14,9 @@ export function station(name, source, rules = DEFAULT_RULES) {
 
 export const LIKED = { name: 'Tus me gusta', source: { liked: true } }
 // Favourite (♥) tracks and Preferidos albums, as stations from Explorar's
-// "megusta" facet: the track mark on pistas, the album mark on albumes.
-export const FAVORITE_TRACKS = { name: 'Tus canciones favoritas', source: { view: 'pistas', facets: { megusta: 'si' } } }
-export const PREFERRED_ALBUMS = { name: 'Álbumes preferidos', source: { view: 'albumes', facets: { megusta: 'si' } } }
+// "liked" facet: the track mark on tracks, the album mark on albums.
+export const FAVORITE_TRACKS = { name: 'Tus canciones favoritas', source: { view: 'tracks', facets: { liked: 'yes' } } }
+export const PREFERRED_ALBUMS = { name: 'Álbumes preferidos', source: { view: 'albums', facets: { liked: 'yes' } } }
 export const LIBRARY = { name: 'Toda la colección', source: {} }
 
 // decadeName: "1980" → "Los 80", "2000" → "Los 2000".
@@ -32,7 +32,7 @@ export function exploreStation(query, counts = {}) {
   const labels = NAMES.filter((n) => facets[n]).map((n) =>
     valueLabel(n, facets[n], (counts[n] ?? []).find((v) => v.value === facets[n]), query.view),
   )
-  const view = query.view === 'pistas' ? 'pistas' : 'albumes'
+  const view = query.view === 'tracks' ? 'tracks' : 'albums'
   return { name: labels.length ? labels.join(' · ') : LIBRARY.name, source: { view, facets } }
 }
 
@@ -42,21 +42,21 @@ export function exploreStation(query, counts = {}) {
 export function albumStation(album) {
   const genres = album.genres ?? []
   const style = genres.find((g) => g.style)?.style
-  if (style) return { name: style, source: { view: 'pistas', facets: { estilo: style } } }
+  if (style) return { name: style, source: { view: 'tracks', facets: { style } } }
   const genre = genres.find((g) => g.genre)?.genre
-  if (genre) return { name: genre, source: { view: 'pistas', facets: { genero: genre } } }
+  if (genre) return { name: genre, source: { view: 'tracks', facets: { genre } } }
   if (album.artistKey) {
-    return { name: album.artist || album.artistKey, source: { view: 'pistas', facets: { artista: album.artistKey } } }
+    return { name: album.artist || album.artistKey, source: { view: 'tracks', facets: { artist: album.artistKey } } }
   }
   if (album.year > 0) {
     const decade = String(Math.floor(album.year / 10) * 10)
-    return { name: decadeName(decade), source: { view: 'pistas', facets: { decada: decade } } }
+    return { name: decadeName(decade), source: { view: 'tracks', facets: { decade } } }
   }
   return null
 }
 
 export function artistStation(artist) {
-  return { name: artist.name, source: { view: 'pistas', facets: { artista: artist.key } } }
+  return { name: artist.name, source: { view: 'tracks', facets: { artist: artist.key } } }
 }
 
 export function folderStation(folder) {
@@ -87,7 +87,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 
 // summary reads a station's rules; rules at 0 are left out.
 export function summary(st) {
-  const parts = [st.mode === 'albumes' ? 'Álbumes' : 'Pistas']
+  const parts = [st.mode === 'albums' ? 'Álbumes' : 'Pistas']
   if (st.artistGap > 0) parts.push(`sin repetir artista en ${st.artistGap}`)
   if (st.avoidDays > 0) parts.push(`evita lo escuchado en ${plural(st.avoidDays, 'día', 'días')}`)
   return parts.join(' · ')
@@ -96,19 +96,19 @@ export function summary(st) {
 // rowTitle is the title of one of Inicio's rotating rows.
 export function rowTitle(row) {
   switch (row.kind) {
-    case 'decada':
+    case 'decade':
       return decadeName(row.value)
-    case 'pais':
+    case 'country':
       return country(row.value)
-    case 'coleccion':
+    case 'collection':
       return row.label || row.value
-    case 'nunca':
+    case 'never':
       return 'Nunca escuchados'
-    case 'hace-un-anio':
+    case 'year-ago':
       return 'Sin escuchar hace un año'
-    case 'azar':
+    case 'random':
       return 'Álbumes al azar'
-    case 'recientes':
+    case 'recent':
       return 'Agregados recientemente'
   }
   return row.value

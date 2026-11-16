@@ -32,11 +32,11 @@ export const SECTIONS = [
     title: 'Secciones',
     items: [
       { term: 'Inicio', href: '/', text: 'Filas para retomar: tus estaciones, seguir escuchando, tus canciones favoritas y tus álbumes preferidos, más sugerencias (como agregados recientemente) que cambian, igual que el orden, en cada visita o con el botón de actualizar.' },
-      { term: 'Explorar', href: '/explorar', text: 'Toda la colección por álbumes, artistas o pistas, con filtros combinables (década, país, género, formato, ♥, ★…) y orden, también aleatorio.' },
-      { term: 'Carpetas', href: '/carpetas', text: 'La colección tal como está en el disco, con un árbol de carpetas.' },
-      { term: 'Listas', href: '/listas', text: 'Tus listas de reproducción y tus ♥.' },
-      { term: 'Revisar', href: '/revisar', blockedInListen: true, text: 'Mantenimiento: música sin identificar, duplicados, géneros por mapear y formatos a convertir.' },
-      { term: 'Ajustes', href: '/ajustes', text: 'Carpetas de música, token de Discogs, volumen, audio de esta compu, modo escucha y red local.' },
+      { term: 'Explorar', href: '/explore', text: 'Toda la colección por álbumes, artistas o pistas, con filtros combinables (década, país, género, formato, ♥, ★…) y orden, también aleatorio.' },
+      { term: 'Carpetas', href: '/folders', text: 'La colección tal como está en el disco, con un árbol de carpetas.' },
+      { term: 'Listas', href: '/lists', text: 'Tus listas de reproducción y tus ♥.' },
+      { term: 'Revisar', href: '/review', blockedInListen: true, text: 'Mantenimiento: música sin identificar, duplicados, géneros por mapear y formatos a convertir.' },
+      { term: 'Ajustes', href: '/settings', text: 'Carpetas de música, token de Discogs, volumen, audio de esta compu, modo escucha y red local.' },
     ],
   },
   {
@@ -45,10 +45,10 @@ export const SECTIONS = [
     items: [
       { term: 'Estaciones', text: 'Una cola sin fin con música parecida a lo que elegiste (un artista, un país, un género, una carpeta, tus ♥ y tus álbumes preferidos…). Tordo la alimenta de a diez pistas, varía los artistas y da más peso a lo que te gusta. Podés guardar una estación y la ves en Inicio.' },
       { term: '♥, marcador y ★', text: 'El ♥ marca tus canciones favoritas (y los artistas y colecciones que te gustan); el marcador marca álbumes preferidos, una lista corta a la que volver; la ★ puntúa pistas y álbumes de 1 a 5. Sirven para filtrar en Explorar (en Álbumes, «Preferidos»), para armar estaciones y pesan en ellas.' },
-      { term: 'Duplicados', href: '/revisar/duplicados', blockedInListen: true, text: 'Tordo los muestra, nunca los borra. Exactas: el mismo audio en dos o más rutas (muestra el espacio recuperable). Formatos: la misma grabación en varios formatos dentro de un álbum, con la marca MEJOR en la de mayor calidad. Sospechas: mismo artista y título en álbumes distintos; es informativo y suele ser legítimo (un tema del disco y de un compilado).' },
-      { term: 'Modo escucha', href: '/ajustes', text: 'Una opción de Ajustes que oculta Revisar y la curaduría y bloquea identificaciones, escaneos y cambios de géneros. Los ♥, las ★, las listas y las estaciones siguen funcionando. Es útil para dejar la música a otras personas.' },
-      { term: 'Rockola', href: '/ajustes', text: 'En la compu que corre Tordo, activá «Usar el audio de esta compu» en Ajustes → Reproducción y dejá esa pestaña abierta: suena ahí. Desde un teléfono de la red, el botón 🎵 Rockola de la barra de arriba hace que el reproductor maneje la compu en lugar del teléfono. Si recargás esa pestaña, un clic en «Reactivar audio» vuelve a dar sonido.' },
-      { term: 'Anfitriones e invitados', href: '/ajustes#red', text: 'La compu siempre es anfitriona; los demás dispositivos son invitados salvo que los marques como «Anfitrión de la rockola» en Ajustes → Red local. Los anfitriones controlan todo. Los invitados solo aportan: ▶ agrega a la cola (y empieza a sonar si la cola estaba vacía o terminada), pueden pausar y quitar solo lo que agregaron.' },
+      { term: 'Duplicados', href: '/review/duplicates', blockedInListen: true, text: 'Tordo los muestra, nunca los borra. Exactas: el mismo audio en dos o más rutas (muestra el espacio recuperable). Formatos: la misma grabación en varios formatos dentro de un álbum, con la marca MEJOR en la de mayor calidad. Sospechas: mismo artista y título en álbumes distintos; es informativo y suele ser legítimo (un tema del disco y de un compilado).' },
+      { term: 'Modo escucha', href: '/settings', text: 'Una opción de Ajustes que oculta Revisar y la curaduría y bloquea identificaciones, escaneos y cambios de géneros. Los ♥, las ★, las listas y las estaciones siguen funcionando. Es útil para dejar la música a otras personas.' },
+      { term: 'Rockola', href: '/settings', text: 'En la compu que corre Tordo, activá «Usar el audio de esta compu» en Ajustes → Reproducción y dejá esa pestaña abierta: suena ahí. Desde un teléfono de la red, el botón 🎵 Rockola de la barra de arriba hace que el reproductor maneje la compu en lugar del teléfono. Si recargás esa pestaña, un clic en «Reactivar audio» vuelve a dar sonido.' },
+      { term: 'Anfitriones e invitados', href: '/settings#red', text: 'La compu siempre es anfitriona; los demás dispositivos son invitados salvo que los marques como «Anfitrión de la rockola» en Ajustes → Red local. Los anfitriones controlan todo. Los invitados solo aportan: ▶ agrega a la cola (y empieza a sonar si la cola estaba vacía o terminada), pueden pausar y quitar solo lo que agregaron.' },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const SECTIONS = [
     items: [
       { term: 'Tus archivos', text: 'Tordo nunca escribe, mueve, renombra ni borra tus archivos de audio. Solo escribe en su propia carpeta: tordo.db (el catálogo), config.json (los ajustes) y cache/.' },
       { term: 'Portabilidad', text: 'El catálogo guarda rutas relativas a la carpeta de Tordo, así que podés mover la carpeta entera (por ejemplo a otro disco) y todo sigue andando.' },
-      { term: 'Desde otros dispositivos', href: '/ajustes#red', text: 'Si activás la red local en Ajustes, podés entrar desde un teléfono o una tablet de la misma red. Cada dispositivo pide el PIN que elegiste; cambiarlo cierra todas las sesiones. Para que suene en los parlantes de la compu, usá la Rockola.' },
+      { term: 'Desde otros dispositivos', href: '/settings#red', text: 'Si activás la red local en Ajustes, podés entrar desde un teléfono o una tablet de la misma red. Cada dispositivo pide el PIN que elegiste; cambiarlo cierra todas las sesiones. Para que suene en los parlantes de la compu, usá la Rockola.' },
       { term: 'Ajustes', text: 'Solo se cambian desde la computadora que corre Tordo; desde otro dispositivo se pueden escuchar y consultar, pero no configurar.' },
     ],
   },

@@ -89,7 +89,7 @@
     if (!confirm(`¿Eliminar la lista «${list.name}»? Las pistas no se tocan.`)) return
     try {
       await api.deletePlaylist(id)
-      navigate('/listas')
+      navigate('/lists')
     } catch (e) {
       notify(e.message)
     }

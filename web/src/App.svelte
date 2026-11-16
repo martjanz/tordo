@@ -29,7 +29,7 @@
 
   // Until the first-use settings are saved, every page is the assistant.
   $effect(() => {
-    if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/bienvenida', { replace: true })
+    if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/welcome', { replace: true })
   })
 
   // Listen mode closes Revisar: a direct visit goes back to Inicio.
@@ -90,7 +90,7 @@
   function onkeydown(event) {
     if (!ready || !isHelpKey(event)) return
     event.preventDefault()
-    navigate('/ayuda')
+    navigate('/help')
   }
 </script>
 

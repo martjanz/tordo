@@ -3,9 +3,9 @@ import { formatName, size } from './format.js'
 import { formatNumber } from './i18n/index.svelte.js'
 
 export const KINDS = [
-  { kind: 'exactas', label: 'Copias idénticas', count: 'exact' },
-  { kind: 'formatos', label: 'Mismo tema en varios formatos', count: 'formats' },
-  { kind: 'sospechas', label: 'Sospechas', count: 'suspect' },
+  { kind: 'exact', label: 'Copias idénticas', count: 'exact' },
+  { kind: 'formats', label: 'Mismo tema en varios formatos', count: 'formats' },
+  { kind: 'suspected', label: 'Sospechas', count: 'suspect' },
 ]
 
 // fileQuality reads a file's format: "FLAC 24 bits / 96 kHz", "MP3 320 kbps".
@@ -24,6 +24,6 @@ export function fileQuality(f) {
 // deleting the copies would recover when they are exact.
 export function groupLine(g) {
   const parts = [`${g.files.length} archivos`, size(g.sizeBytes)]
-  if (g.kind === 'exacta') parts.push(`${size(g.recoverable)} recuperables`)
+  if (g.kind === 'exact') parts.push(`${size(g.recoverable)} recuperables`)
   return parts.join(' · ')
 }

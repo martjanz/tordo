@@ -5,17 +5,17 @@
   import GenerosPorMapear from '../components/GenerosPorMapear.svelte'
   import SinIdentificar from '../components/SinIdentificar.svelte'
 
-  let { tab, kind = 'exactas' } = $props()
+  let { tab, kind = 'exact' } = $props()
 
   let counts = $state({})
 </script>
 
 <h1>Revisar</h1>
 <nav class="tabs">
-  <a href="/revisar" class:on={tab === 'sin-identificar'}>Sin identificar{counts.unidentified != null ? ` (${counts.unidentified})` : ''}</a>
-  <a href="/revisar/generos" class:on={tab === 'generos'}>Géneros por mapear{counts.genres != null ? ` (${counts.genres})` : ''}</a>
-  <a href="/revisar/duplicados" class:on={tab === 'duplicados'}>Duplicados{counts.duplicates != null ? ` (${counts.duplicates})` : ''}</a>
-  <a href="/revisar/formatos" class:on={tab === 'formatos'}>Formatos a convertir{counts.convert != null ? ` (${counts.convert})` : ''}</a>
+  <a href="/review" class:on={tab === 'sin-identificar'}>Sin identificar{counts.unidentified != null ? ` (${counts.unidentified})` : ''}</a>
+  <a href="/review/genres" class:on={tab === 'generos'}>Géneros por mapear{counts.genres != null ? ` (${counts.genres})` : ''}</a>
+  <a href="/review/duplicates" class:on={tab === 'duplicados'}>Duplicados{counts.duplicates != null ? ` (${counts.duplicates})` : ''}</a>
+  <a href="/review/formats" class:on={tab === 'formatos'}>Formatos a convertir{counts.convert != null ? ` (${counts.convert})` : ''}</a>
 </nav>
 
 {#if tab === 'duplicados'}

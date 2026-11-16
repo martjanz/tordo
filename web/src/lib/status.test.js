@@ -131,7 +131,7 @@ describe('panel', () => {
       { label: 'Discos', value: '1.200' },
       { label: 'Pistas', value: '15.000' },
       { label: 'Identificados', value: '1.100' },
-      { label: 'Sin identificar', value: '90', href: '/revisar' },
+      { label: 'Sin identificar', value: '90', href: '/review' },
       { label: 'Ilegibles', value: '3' },
     ])
     // Listen mode closes Revisar: no link there.

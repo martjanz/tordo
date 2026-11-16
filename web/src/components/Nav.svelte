@@ -19,10 +19,10 @@
   // The sections of the app.
   const SECTIONS = [
     { page: 'inicio', href: '/', label: 'Inicio', icon: 'home' },
-    { page: 'explorar', href: '/explorar', label: 'Explorar', icon: 'explore' },
-    { page: 'carpetas', href: '/carpetas', label: 'Carpetas', icon: 'folder' },
-    { page: 'listas', href: '/listas', label: 'Listas', icon: 'lists' },
-    { page: 'revisar', href: '/revisar', label: 'Revisar', icon: 'review' },
+    { page: 'explorar', href: '/explore', label: 'Explorar', icon: 'explore' },
+    { page: 'carpetas', href: '/folders', label: 'Carpetas', icon: 'folder' },
+    { page: 'listas', href: '/lists', label: 'Listas', icon: 'lists' },
+    { page: 'revisar', href: '/review', label: 'Revisar', icon: 'review' },
   ]
   const sections = $derived(SECTIONS.filter((s) => !(s.page === 'revisar' && listenMode())))
 </script>
@@ -43,15 +43,15 @@
         {/each}
       </span>
       <span class="spacer"></span>
-      {#if listenMode()}<a class="modo" href="/ajustes" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
+      {#if listenMode()}<a class="modo" href="/settings" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
       <Busqueda />
       {#if speaker.on}
         {#if player.blocked}
           <button class="chip" type="button" onclick={reactivate}>Reactivar audio</button>
         {:else if !speaker.connected}
-          <a class="chip" href="/ajustes">🔊 Reconectando…</a>
+          <a class="chip" href="/settings">🔊 Reconectando…</a>
         {:else}
-          <a class="chip" href="/ajustes">🔊 Audio de esta compu</a>
+          <a class="chip" href="/settings">🔊 Audio de esta compu</a>
         {/if}
       {/if}
       {#if !speaker.on && (rockolaAvailable() || rockola.on)}
@@ -59,8 +59,8 @@
           title="Elegí qué suena en la compu" onclick={() => setRockola(!rockola.on)}>🎵 Rockola</button>
       {/if}
       <Estado />
-      <a class="gear help" href="/ayuda" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
-      <a class="gear" href="/ajustes" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
+      <a class="gear help" href="/help" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
+      <a class="gear" href="/settings" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
         <Icono name="settings" size={18} />
       </a>
     {/if}

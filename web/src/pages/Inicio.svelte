@@ -71,7 +71,7 @@
 <div class="head">
   <h1>Inicio</h1>
   <span class="tools">
-    <a class="stats" href={statsHref('mes')}><Icono name="chart" size={16} /> Historial de escucha →</a>
+    <a class="stats" href={statsHref('month')}><Icono name="chart" size={16} /> Historial de escucha →</a>
     {#if data && !empty}
       <button class="icon" onclick={refresh} title="Otras filas" aria-label="Cambiar las filas">
         <Icono name="refresh" size={16} />
@@ -102,18 +102,18 @@
           </div>
         </section>
       {:else if s.key === 'continue'}
-        <FilaAlbumes title="Seguir escuchando" href="/explorar?orden=escuchado" albums={data.continue} />
+        <FilaAlbumes title="Seguir escuchando" href="/explore?order=plays" albums={data.continue} />
       {:else if s.key === 'likedTracks'}
-        <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ megusta: 'si' }, 'pistas')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
+        <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ liked: 'yes' }, 'tracks')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
       {:else if s.key === 'liked'}
-        <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ megusta: 'si' })} station={PREFERRED_ALBUMS} albums={data.liked} />
-      {:else if s.row.kind === 'recientes'}
-        <FilaAlbumes title={rowTitle(s.row)} href="/explorar?orden=agregado" albums={s.row.albums} />
+        <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ liked: 'yes' })} station={PREFERRED_ALBUMS} albums={data.liked} />
+      {:else if s.row.kind === 'recent'}
+        <FilaAlbumes title={rowTitle(s.row)} href="/explore?order=added" albums={s.row.albums} />
       {:else}
         <FilaAlbumes
           title={rowTitle(s.row)}
           href={exploreHref(s.row.facets)}
-          station={station(rowTitle(s.row), { view: 'albumes', facets: s.row.facets })}
+          station={station(rowTitle(s.row), { view: 'albums', facets: s.row.facets })}
           albums={s.row.albums} />
       {/if}
     {/each}

@@ -7,13 +7,13 @@ const withStation = (n, pos) => ({ ...Q.jump(Q.replace(Q.empty(), items(n)), pos
 
 describe('station', () => {
   it('joins a source and rules', () => {
-    expect(S.station('X', { liked: true })).toEqual({ name: 'X', source: { liked: true }, mode: 'pistas', artistGap: 3, avoidDays: 7 })
-    expect(S.station('X', {}, { mode: 'albumes', artistGap: 0, avoidDays: 0 })).toEqual({ name: 'X', source: {}, mode: 'albumes', artistGap: 0, avoidDays: 0 })
+    expect(S.station('X', { liked: true })).toEqual({ name: 'X', source: { liked: true }, mode: 'tracks', artistGap: 3, avoidDays: 7 })
+    expect(S.station('X', {}, { mode: 'albums', artistGap: 0, avoidDays: 0 })).toEqual({ name: 'X', source: {}, mode: 'albums', artistGap: 0, avoidDays: 0 })
   })
   it('has the built-ins', () => {
     expect(S.LIKED).toEqual({ name: 'Tus me gusta', source: { liked: true } })
-    expect(S.FAVORITE_TRACKS).toEqual({ name: 'Tus canciones favoritas', source: { view: 'pistas', facets: { megusta: 'si' } } })
-    expect(S.PREFERRED_ALBUMS).toEqual({ name: 'Álbumes preferidos', source: { view: 'albumes', facets: { megusta: 'si' } } })
+    expect(S.FAVORITE_TRACKS).toEqual({ name: 'Tus canciones favoritas', source: { view: 'tracks', facets: { liked: 'yes' } } })
+    expect(S.PREFERRED_ALBUMS).toEqual({ name: 'Álbumes preferidos', source: { view: 'albums', facets: { liked: 'yes' } } })
     expect(S.LIBRARY).toEqual({ name: 'Toda la colección', source: {} })
     expect([S.LOW_WATER, S.RECENT, S.KEEP_PLAYED]).toEqual([3, 100, 100])
   })
@@ -21,23 +21,23 @@ describe('station', () => {
 
 describe('exploreStation', () => {
   it('names the station after the applied facets', () => {
-    const st = S.exploreStation({ view: 'artistas', facets: { pais: 'AR', genero: 'Rock' } })
-    expect(st).toEqual({ name: 'Argentina · Rock', source: { view: 'albumes', facets: { pais: 'AR', genero: 'Rock' } } })
+    const st = S.exploreStation({ view: 'artists', facets: { country: 'AR', genre: 'Rock' } })
+    expect(st).toEqual({ name: 'Argentina · Rock', source: { view: 'albums', facets: { country: 'AR', genre: 'Rock' } } })
   })
   it('keeps the view and uses facet labels', () => {
-    const st = S.exploreStation({ view: 'pistas', facets: { decada: '1980', megusta: 'si' } })
+    const st = S.exploreStation({ view: 'tracks', facets: { decade: '1980', liked: 'yes' } })
     expect(st.name).toBe('1980s · Me gusta')
-    expect(st.source).toEqual({ view: 'pistas', facets: { decada: '1980', megusta: 'si' } })
+    expect(st.source).toEqual({ view: 'tracks', facets: { decade: '1980', liked: 'yes' } })
   })
-  it('names the megusta facet after the tab', () => {
-    expect(S.exploreStation({ view: 'albumes', facets: { megusta: 'si' } }).name).toBe('Preferidos')
+  it('names the liked facet after the tab', () => {
+    expect(S.exploreStation({ view: 'albums', facets: { liked: 'yes' } }).name).toBe('Preferidos')
   })
   it('is the whole collection without facets', () => {
-    expect(S.exploreStation({ view: 'albumes', facets: {} })).toEqual({ name: 'Toda la colección', source: { view: 'albumes', facets: {} } })
+    expect(S.exploreStation({ view: 'albums', facets: {} })).toEqual({ name: 'Toda la colección', source: { view: 'albums', facets: {} } })
   })
   it('uses the counts for labels when given', () => {
-    const counts = { artista: [{ value: 'soda-stereo', label: 'Soda Stereo', count: 3 }] }
-    expect(S.exploreStation({ view: 'albumes', facets: { artista: 'soda-stereo' } }, counts).name).toBe('Soda Stereo')
+    const counts = { artist: [{ value: 'soda-stereo', label: 'Soda Stereo', count: 3 }] }
+    expect(S.exploreStation({ view: 'albums', facets: { artist: 'soda-stereo' } }, counts).name).toBe('Soda Stereo')
   })
 })
 
@@ -45,23 +45,23 @@ describe('albumStation', () => {
   it('prefers the style', () => {
     expect(S.albumStation({ genres: [{ genre: 'Rock', style: 'Pop Rock' }] })).toEqual({
       name: 'Pop Rock',
-      source: { view: 'pistas', facets: { estilo: 'Pop Rock' } },
+      source: { view: 'tracks', facets: { style: 'Pop Rock' } },
     })
   })
   it('then the genre', () => {
     expect(S.albumStation({ genres: [{ genre: 'Jazz' }], artistKey: 'x', year: 1990 })).toEqual({
       name: 'Jazz',
-      source: { view: 'pistas', facets: { genero: 'Jazz' } },
+      source: { view: 'tracks', facets: { genre: 'Jazz' } },
     })
   })
   it('then the artist', () => {
     expect(S.albumStation({ artist: 'Soda Stereo', artistKey: 'soda-stereo', year: 1990 })).toEqual({
       name: 'Soda Stereo',
-      source: { view: 'pistas', facets: { artista: 'soda-stereo' } },
+      source: { view: 'tracks', facets: { artist: 'soda-stereo' } },
     })
   })
   it('then the decade', () => {
-    expect(S.albumStation({ year: 1986 })).toEqual({ name: 'Los 80', source: { view: 'pistas', facets: { decada: '1980' } } })
+    expect(S.albumStation({ year: 1986 })).toEqual({ name: 'Los 80', source: { view: 'tracks', facets: { decade: '1980' } } })
   })
   it('is null with nothing', () => {
     expect(S.albumStation({})).toBe(null)
@@ -71,7 +71,7 @@ describe('albumStation', () => {
 
 describe('other sources', () => {
   it('artist, folder, playlist', () => {
-    expect(S.artistStation({ key: 'k', name: 'Ka' })).toEqual({ name: 'Ka', source: { view: 'pistas', facets: { artista: 'k' } } })
+    expect(S.artistStation({ key: 'k', name: 'Ka' })).toEqual({ name: 'Ka', source: { view: 'tracks', facets: { artist: 'k' } } })
     expect(S.folderStation({ name: 'Rock', path: '../m/Rock' })).toEqual({ name: 'Rock', source: { folder: '../m/Rock' } })
     expect(S.playlistStation({ id: 3, name: 'Mi lista' })).toEqual({ name: 'Mi lista', source: { playlist: 3 } })
   })
@@ -97,28 +97,28 @@ describe('recentIds', () => {
 describe('summary', () => {
   it('reads the rules', () => {
     expect(S.summary(S.station('X', {}))).toBe('Pistas · sin repetir artista en 3 · evita lo escuchado en 7 días')
-    expect(S.summary({ mode: 'albumes', artistGap: 0, avoidDays: 0 })).toBe('Álbumes')
-    expect(S.summary({ mode: 'pistas', artistGap: 1, avoidDays: 1 })).toBe('Pistas · sin repetir artista en 1 · evita lo escuchado en 1 día')
-    expect(S.summary({ mode: 'pistas', artistGap: 0, avoidDays: 30 })).toBe('Pistas · evita lo escuchado en 30 días')
+    expect(S.summary({ mode: 'albums', artistGap: 0, avoidDays: 0 })).toBe('Álbumes')
+    expect(S.summary({ mode: 'tracks', artistGap: 1, avoidDays: 1 })).toBe('Pistas · sin repetir artista en 1 · evita lo escuchado en 1 día')
+    expect(S.summary({ mode: 'tracks', artistGap: 0, avoidDays: 30 })).toBe('Pistas · evita lo escuchado en 30 días')
   })
 })
 
 describe('rowTitle', () => {
   it.each([
-    [{ kind: 'decada', value: '1980' }, 'Los 80'],
-    [{ kind: 'decada', value: '1990' }, 'Los 90'],
-    [{ kind: 'decada', value: '2000' }, 'Los 2000'],
-    [{ kind: 'decada', value: '2010' }, 'Los 2010'],
-    [{ kind: 'decada', value: '1960' }, 'Los 60'],
-    [{ kind: 'decada', value: '1900' }, 'Los 1900'],
-    [{ kind: 'pais', value: 'AR', label: 'AR' }, 'Argentina'],
-    [{ kind: 'genero', value: 'Rock' }, 'Rock'],
-    [{ kind: 'estilo', value: 'Pop Rock' }, 'Pop Rock'],
-    [{ kind: 'coleccion', value: 'x', label: 'Latinoamérica 600' }, 'Latinoamérica 600'],
-    [{ kind: 'nunca' }, 'Nunca escuchados'],
-    [{ kind: 'hace-un-anio' }, 'Sin escuchar hace un año'],
-    [{ kind: 'azar' }, 'Álbumes al azar'],
-    [{ kind: 'recientes' }, 'Agregados recientemente'],
+    [{ kind: 'decade', value: '1980' }, 'Los 80'],
+    [{ kind: 'decade', value: '1990' }, 'Los 90'],
+    [{ kind: 'decade', value: '2000' }, 'Los 2000'],
+    [{ kind: 'decade', value: '2010' }, 'Los 2010'],
+    [{ kind: 'decade', value: '1960' }, 'Los 60'],
+    [{ kind: 'decade', value: '1900' }, 'Los 1900'],
+    [{ kind: 'country', value: 'AR', label: 'AR' }, 'Argentina'],
+    [{ kind: 'genre', value: 'Rock' }, 'Rock'],
+    [{ kind: 'style', value: 'Pop Rock' }, 'Pop Rock'],
+    [{ kind: 'collection', value: 'x', label: 'Latinoamérica 600' }, 'Latinoamérica 600'],
+    [{ kind: 'never' }, 'Nunca escuchados'],
+    [{ kind: 'year-ago' }, 'Sin escuchar hace un año'],
+    [{ kind: 'random' }, 'Álbumes al azar'],
+    [{ kind: 'recent' }, 'Agregados recientemente'],
   ])('%j', (row, want) => {
     expect(S.rowTitle(row)).toBe(want)
   })

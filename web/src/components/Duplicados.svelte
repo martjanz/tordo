@@ -9,7 +9,7 @@
   import { albumHref, duplicatesHref, folderHref } from '../lib/router.js'
   import Icono from './Icono.svelte'
 
-  let { kind = 'exactas', onload } = $props()
+  let { kind = 'exact', onload } = $props()
 
   const PAGE = 100
   const HELP = {
@@ -59,7 +59,7 @@
       <a href={duplicatesHref(k.kind)} class:on={kind === k.kind}>{k.label} ({answer.counts[k.count]})</a>
     {/each}
   </nav>
-  {#if kind === 'exactas'}
+  {#if kind === 'exact'}
     <p class="note">{size(answer.recoverable)} recuperables en total</p>
   {/if}
   <p class="help">{HELP[kind]}</p>

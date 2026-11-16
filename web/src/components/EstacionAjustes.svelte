@@ -81,8 +81,8 @@
   <label>
     Modo
     <select bind:value={mode}>
-      <option value="pistas">Pistas</option>
-      <option value="albumes">Álbumes</option>
+      <option value="tracks">Pistas</option>
+      <option value="albums">Álbumes</option>
     </select>
   </label>
   <label>

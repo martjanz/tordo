@@ -66,7 +66,7 @@ const stationDef = ({ id, createdAt, updatedAt, ...def }) => def // eslint-disab
 // and the ids of the tracks to leave out.
 export function stationQuery(station, recent = []) {
   const params = new URLSearchParams({ def: JSON.stringify(stationDef(station)) })
-  if (recent.length) params.set('recientes', recent.join(','))
+  if (recent.length) params.set('recent', recent.join(','))
   return params.toString()
 }
 
@@ -79,15 +79,15 @@ export const api = {
   folderTreeSearch: (q) => get(`/api/folders/tree/search?${new URLSearchParams({ q })}`),
   collections: () => get('/api/collections'),
   play: (what) => get(`/api/play?${playQuery(what)}`),
-  // search is Explorar's query string ("?decada=1980"); from and limit page it.
+  // search is Explorar's query string ("?decade=1980"); from and limit page it.
   explore: (search, from = 0, limit = 120) => {
     const params = new URLSearchParams(search)
-    if (from) params.set('desde', from)
-    params.set('limite', limit)
+    if (from) params.set('from', from)
+    params.set('limit', limit)
     return get(`/api/explore?${params}`)
   },
   artist: (key) => get(`/api/artists/${encodeURIComponent(key)}`),
-  find: (q, limit = 6) => get(`/api/search?${new URLSearchParams({ q, limite: limit })}`),
+  find: (q, limit = 6) => get(`/api/search?${new URLSearchParams({ q, limit })}`),
   setCollection: (path, collection) => put('/api/folders/collection', { path, collection }),
   identify: () => post('/api/identify'),
   unidentified: () => get('/api/review/unidentified'),
@@ -115,8 +115,8 @@ export const api = {
   createStation: (station) => post('/api/stations', stationDef(station)),
   updateStation: (id, station) => put(`/api/stations/${id}`, stationDef(station)),
   deleteStation: (id) => del(`/api/stations/${id}`),
-  home: (seed) => get(`/api/home?${new URLSearchParams({ semilla: seed })}`),
-  stats: (period, limit) => get(`/api/stats?${new URLSearchParams({ periodo: period, limite: limit })}`),
+  home: (seed) => get(`/api/home?${new URLSearchParams({ seed })}`),
+  stats: (period, limit) => get(`/api/stats?${new URLSearchParams({ period, limit })}`),
   playlists: () => get('/api/playlists'),
   playlist: (id) => get(`/api/playlists/${id}`),
   createPlaylist: (name, add) => post('/api/playlists', add ? { name, add } : { name }),
@@ -140,7 +140,7 @@ export const api = {
   auth: () => get('/api/auth'),
   login: (pin, device) => post('/api/auth/login', { pin, device }),
   logout: () => post('/api/auth/logout'),
-  duplicates: (tipo) => get(`/api/review/duplicates?tipo=${encodeURIComponent(tipo)}`),
+  duplicates: (kind) => get(`/api/review/duplicates?kind=${encodeURIComponent(kind)}`),
   toConvert: () => get('/api/review/formats'),
 }
 

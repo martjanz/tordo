@@ -50,12 +50,12 @@
       <span class="label">{TYPES[artist.type] ?? 'Artista'}</span>
       <h1>{artist.name}</h1>
       <p class="sub">
-        {#if artist.country}<a href={exploreHref({ pais: artist.country })}>{country(artist.country)}</a> · {/if}
+        {#if artist.country}<a href={exploreHref({ country: artist.country })}>{country(artist.country)}</a> · {/if}
         {#if span}{span} · {/if}
         {count(artist.albums.length, 'álbum', 'álbumes')}
       </p>
       <p class="sub links">
-        <a href={exploreHref({ artista: artist.key }, 'pistas')}>Ver sus pistas</a>
+        <a href={exploreHref({ artist: artist.key }, 'tracks')}>Ver sus pistas</a>
         {#if artist.mbid}· <a href={artistMBURL(artist.mbid)} target="_blank" rel="noreferrer">MusicBrainz ↗</a>{/if}
       </p>
       <div class="acts">

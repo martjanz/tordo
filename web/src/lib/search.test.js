@@ -18,15 +18,15 @@ describe('search', () => {
   })
   it('lists options in keyboard order', () => {
     expect(options(result).map((o) => o.href)).toEqual([
-      '/artista/charly-garcia',
+      '/artist/charly-garcia',
       '/album/3',
       '/album/3',
-      '/carpetas?ruta=..%2Fmusica%2Fyoutube',
-      '/carpetas?ruta=..%2Fmusica%2FLatinoam%C3%A9rica%20600',
+      '/folders?path=..%2Fmusica%2Fyoutube',
+      '/folders?path=..%2Fmusica%2FLatinoam%C3%A9rica%20600',
     ])
     expect(options(null)).toEqual([])
     expect(total(result)).toBe(8)
-    expect(trackHref(result.tracks[1])).toBe('/carpetas?ruta=..%2Fmusica%2Fyoutube')
+    expect(trackHref(result.tracks[1])).toBe('/folders?path=..%2Fmusica%2Fyoutube')
   })
   it('moves the selection and follows Enter', () => {
     expect(move(-1, 'ArrowDown', 3)).toBe(0)
@@ -35,7 +35,7 @@ describe('search', () => {
     expect(move(0, 'ArrowDown', 0)).toBe(-1)
     const opts = options(result)
     expect(enterHref(1, opts, 'cl')).toBe('/album/3')
-    expect(enterHref(-1, opts, 'clics')).toBe('/buscar?q=clics')
+    expect(enterHref(-1, opts, 'clics')).toBe('/search?q=clics')
     expect(enterHref(-1, opts, 'c')).toBeNull()
   })
   it('opens with Ctrl+K or ⌘K', () => {

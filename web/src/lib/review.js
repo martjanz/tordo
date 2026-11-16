@@ -37,11 +37,11 @@ export function genreLinks(genres) {
   for (const g of genres ?? []) {
     if (!seen.has(g.genre)) {
       seen.add(g.genre)
-      out.push({ label: g.genre, facets: { genero: g.genre } })
+      out.push({ label: g.genre, facets: { genre: g.genre } })
     }
   }
   for (const g of genres ?? []) {
-    if (g.style) out.push({ label: g.style, facets: { genero: g.genre, estilo: g.style } })
+    if (g.style) out.push({ label: g.style, facets: { genre: g.genre, style: g.style } })
   }
   return out
 }

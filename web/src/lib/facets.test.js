@@ -3,119 +3,119 @@ import { chips, inside, parse, toSearch, valueLabel, withFacet, withOrder, withV
 
 describe('parse and toSearch', () => {
   it('round-trips queries, leaving defaults out', () => {
-    const q = parse('?decada=1980&anio=1986&pais=AR&orden=titulo&x=1')
-    expect(q).toEqual({ view: 'albumes', facets: { decada: '1980', anio: '1986', pais: 'AR' }, order: 'titulo', dir: 'asc' })
-    expect(toSearch(q)).toBe('?decada=1980&anio=1986&pais=AR&orden=titulo')
+    const q = parse('?decade=1980&year=1986&country=AR&order=title&x=1')
+    expect(q).toEqual({ view: 'albums', facets: { decade: '1980', year: '1986', country: 'AR' }, order: 'title', dir: 'asc' })
+    expect(toSearch(q)).toBe('?decade=1980&year=1986&country=AR&order=title')
     expect(toSearch(parse(''))).toBe('')
-    expect(toSearch(parse('?orden=anio&dir=desc'))).toBe('')
+    expect(toSearch(parse('?order=year&dir=desc'))).toBe('')
     expect(toSearch(parse('?dir=asc'))).toBe('?dir=asc')
   })
   it('knows each tab and its orders', () => {
-    expect(parse('?ver=artistas')).toEqual({ view: 'artistas', facets: {}, order: 'titulo', dir: 'asc' })
-    expect(parse('?ver=pistas&orden=cantidad').order).toBe('artista')
-    expect(parse('?ver=otra').view).toBe('albumes')
-    expect(toSearch(parse('?ver=artistas&orden=cantidad'))).toBe('?ver=artistas&orden=cantidad')
+    expect(parse('?view=artists')).toEqual({ view: 'artists', facets: {}, order: 'title', dir: 'asc' })
+    expect(parse('?view=tracks&order=count').order).toBe('artist')
+    expect(parse('?view=otra').view).toBe('albums')
+    expect(toSearch(parse('?view=artists&order=count'))).toBe('?view=artists&order=count')
   })
 })
 
 describe('the random order', () => {
   it('carries its seed in the URL, and only with that order', () => {
-    expect(parse('?orden=azar&semilla=42')).toEqual({ view: 'albumes', facets: {}, order: 'azar', dir: 'desc', seed: '42' })
-    expect(toSearch(parse('?orden=azar&semilla=42'))).toBe('?orden=azar&semilla=42')
-    expect(toSearch(parse('?orden=azar'))).toBe('?orden=azar')
-    expect(toSearch(parse('?orden=titulo&semilla=42'))).toBe('?orden=titulo')
+    expect(parse('?order=random&seed=42')).toEqual({ view: 'albums', facets: {}, order: 'random', dir: 'desc', seed: '42' })
+    expect(toSearch(parse('?order=random&seed=42'))).toBe('?order=random&seed=42')
+    expect(toSearch(parse('?order=random'))).toBe('?order=random')
+    expect(toSearch(parse('?order=title&seed=42'))).toBe('?order=title')
     // The server echoes it as a number.
-    expect(toSearch({ view: 'pistas', facets: {}, order: 'azar', dir: 'desc', seed: 42 })).toBe('?ver=pistas&orden=azar&semilla=42')
+    expect(toSearch({ view: 'tracks', facets: {}, order: 'random', dir: 'desc', seed: 42 })).toBe('?view=tracks&order=random&seed=42')
   })
   it('is on every tab', () => {
-    for (const view of ['albumes', 'artistas', 'pistas']) expect(parse(`?ver=${view}&orden=azar`).order).toBe('azar')
+    for (const view of ['albums', 'artists', 'tracks']) expect(parse(`?view=${view}&order=random`).order).toBe('random')
   })
   it('draws a new seed when chosen, and drops it for another order or tab', () => {
-    const a = withOrder(parse(''), 'azar')
+    const a = withOrder(parse(''), 'random')
     expect(Number(a.seed)).toBeGreaterThan(0)
     expect(Number(a.seed)).toBeLessThanOrEqual(2 ** 31)
-    const seeds = new Set(Array.from({ length: 10 }, () => withOrder(a, 'azar').seed))
+    const seeds = new Set(Array.from({ length: 10 }, () => withOrder(a, 'random').seed))
     expect(seeds.size).toBeGreaterThan(1)
-    expect(withOrder(a, 'titulo')).not.toHaveProperty('seed')
-    expect(withView(a, 'pistas')).not.toHaveProperty('seed')
+    expect(withOrder(a, 'title')).not.toHaveProperty('seed')
+    expect(withView(a, 'tracks')).not.toHaveProperty('seed')
   })
 })
 
 describe('changing the query', () => {
-  const base = parse('?decada=1980&anio=1986&genero=Rock&estilo=Pop+Rock')
+  const base = parse('?decade=1980&year=1986&genre=Rock&style=Pop+Rock')
   it('keeps years inside the decade and styles with their genre', () => {
-    expect(withFacet(base, 'decada', '1990').facets).toEqual({ decada: '1990', genero: 'Rock', estilo: 'Pop Rock' })
-    expect(withFacet(base, 'decada', null).facets).toEqual({ genero: 'Rock', estilo: 'Pop Rock' })
-    expect(withFacet(parse(''), 'anio', '1975').facets).toEqual({ anio: '1975', decada: '1970' })
-    expect(withFacet(base, 'genero', 'Latin').facets).toEqual({ decada: '1980', anio: '1986', genero: 'Latin' })
-    expect(withFacet(base, 'estilo', null).facets).toEqual({ decada: '1980', anio: '1986', genero: 'Rock' })
+    expect(withFacet(base, 'decade', '1990').facets).toEqual({ decade: '1990', genre: 'Rock', style: 'Pop Rock' })
+    expect(withFacet(base, 'decade', null).facets).toEqual({ genre: 'Rock', style: 'Pop Rock' })
+    expect(withFacet(parse(''), 'year', '1975').facets).toEqual({ year: '1975', decade: '1970' })
+    expect(withFacet(base, 'genre', 'Latin').facets).toEqual({ decade: '1980', year: '1986', genre: 'Latin' })
+    expect(withFacet(base, 'style', null).facets).toEqual({ decade: '1980', year: '1986', genre: 'Rock' })
   })
   it('switches tabs and orders', () => {
-    const q = withView(withOrder(base, 'titulo'), 'pistas')
-    expect([q.view, q.order, q.dir, q.facets.genero]).toEqual(['pistas', 'artista', 'asc', 'Rock'])
-    expect(withOrder(base, 'agregado').dir).toBe('desc')
+    const q = withView(withOrder(base, 'title'), 'tracks')
+    expect([q.view, q.order, q.dir, q.facets.genre]).toEqual(['tracks', 'artist', 'asc', 'Rock'])
+    expect(withOrder(base, 'added').dir).toBe('desc')
   })
 })
 
 describe('labels', () => {
   it('names values', () => {
-    expect(valueLabel('decada', '1980')).toBe('1980s')
-    expect(valueLabel('pais', 'UY')).toBe('Uruguay')
-    expect(valueLabel('formato', 'flac')).toBe('FLAC')
-    expect(valueLabel('calidad', 'sin-perdida')).toBe('Sin pérdida')
-    expect(valueLabel('estado', 'no-reproducible')).toBe('No reproducible')
-    expect(valueLabel('estado', 'con-duplicados')).toBe('Con duplicados')
-    expect(valueLabel('artista', 'charly-garcia', { label: 'Charly García' })).toBe('Charly García')
-    expect(valueLabel('artista', 'x')).toBe('x')
+    expect(valueLabel('decade', '1980')).toBe('1980s')
+    expect(valueLabel('country', 'UY')).toBe('Uruguay')
+    expect(valueLabel('format', 'flac')).toBe('FLAC')
+    expect(valueLabel('quality', 'lossless')).toBe('Sin pérdida')
+    expect(valueLabel('state', 'unplayable')).toBe('No reproducible')
+    expect(valueLabel('state', 'duplicated')).toBe('Con duplicados')
+    expect(valueLabel('artist', 'charly-garcia', { label: 'Charly García' })).toBe('Charly García')
+    expect(valueLabel('artist', 'x')).toBe('x')
   })
   it('lists chips and nested values', () => {
-    const counts = { artista: [{ value: 'a1', label: 'Soda Stereo', count: 2 }], anio: [{ value: '1986' }, { value: '1995' }],
-      estilo: [{ value: 'Pop Rock' }] }
-    const q = parse('?decada=1980&artista=a1')
+    const counts = { artist: [{ value: 'a1', label: 'Soda Stereo', count: 2 }], year: [{ value: '1986' }, { value: '1995' }],
+      style: [{ value: 'Pop Rock' }] }
+    const q = parse('?decade=1980&artist=a1')
     expect(chips(q, counts)).toEqual([
-      { name: 'decada', value: '1980', label: '1980s' },
-      { name: 'artista', value: 'a1', label: 'Soda Stereo' },
+      { name: 'decade', value: '1980', label: '1980s' },
+      { name: 'artist', value: 'a1', label: 'Soda Stereo' },
     ])
-    expect(inside('decada', q, counts)).toEqual([{ value: '1986' }])
-    expect(inside('genero', q, counts)).toEqual([])
-    expect(inside('genero', parse('?genero=Rock'), counts)).toEqual([{ value: 'Pop Rock' }])
+    expect(inside('decade', q, counts)).toEqual([{ value: '1986' }])
+    expect(inside('genre', q, counts)).toEqual([])
+    expect(inside('genre', parse('?genre=Rock'), counts)).toEqual([{ value: 'Pop Rock' }])
   })
 })
 
 describe('my data facets', () => {
-  it('keeps megusta, puntaje and the escuchado order', () => {
-    const q = parse('?megusta=si&puntaje=4&orden=escuchado')
-    expect(q.facets).toEqual({ megusta: 'si', puntaje: '4' })
-    expect(q.order).toBe('escuchado')
-    expect(toSearch(q)).toBe('?megusta=si&puntaje=4&orden=escuchado')
-    expect(parse('?ver=pistas&orden=escuchado').order).toBe('escuchado')
+  it('keeps liked, rating and the plays order', () => {
+    const q = parse('?liked=yes&rating=4&order=plays')
+    expect(q.facets).toEqual({ liked: 'yes', rating: '4' })
+    expect(q.order).toBe('plays')
+    expect(toSearch(q)).toBe('?liked=yes&rating=4&order=plays')
+    expect(parse('?view=tracks&order=plays').order).toBe('plays')
   })
   it('labels them', () => {
-    expect(valueLabel('puntaje', '4')).toBe('★★★★ o más')
-    expect(valueLabel('megusta', 'si')).toBe('Me gusta')
+    expect(valueLabel('rating', '4')).toBe('★★★★ o más')
+    expect(valueLabel('liked', 'yes')).toBe('Me gusta')
   })
-  it('calls the megusta facet Preferidos on the albums tab only', async () => {
+  it('calls the liked facet Preferidos on the albums tab only', async () => {
     const F = await import('./facets.js')
-    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'albumes')).toBe('Preferidos')
-    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'pistas')).toBe('Me gusta')
-    expect(F.facetLabel({ name: 'megusta', label: 'Me gusta' }, 'artistas')).toBe('Me gusta')
-    expect(F.facetLabel({ name: 'pais', label: 'País' }, 'albumes')).toBe('País')
-    expect(valueLabel('megusta', 'si', undefined, 'albumes')).toBe('Preferidos')
-    expect(valueLabel('megusta', 'si', undefined, 'pistas')).toBe('Me gusta')
-    expect(chips({ view: 'albumes', facets: { megusta: 'si' } })[0].label).toBe('Preferidos')
-    expect(chips({ view: 'pistas', facets: { megusta: 'si' } })[0].label).toBe('Me gusta')
+    expect(F.facetLabel({ name: 'liked', label: 'Me gusta' }, 'albums')).toBe('Preferidos')
+    expect(F.facetLabel({ name: 'liked', label: 'Me gusta' }, 'tracks')).toBe('Me gusta')
+    expect(F.facetLabel({ name: 'liked', label: 'Me gusta' }, 'artists')).toBe('Me gusta')
+    expect(F.facetLabel({ name: 'country', label: 'País' }, 'albums')).toBe('País')
+    expect(valueLabel('liked', 'yes', undefined, 'albums')).toBe('Preferidos')
+    expect(valueLabel('liked', 'yes', undefined, 'tracks')).toBe('Me gusta')
+    expect(chips({ view: 'albums', facets: { liked: 'yes' } })[0].label).toBe('Preferidos')
+    expect(chips({ view: 'tracks', facets: { liked: 'yes' } })[0].label).toBe('Me gusta')
   })
 })
 
-describe('escucha', () => {
+describe('listened', () => {
   it('is a facet with its labels', async () => {
     const F = await import('./facets.js')
-    const i = F.FACETS.findIndex((f) => f.name === 'puntaje')
-    expect(F.FACETS[i + 1]).toEqual({ name: 'escucha', label: 'Escucha' })
-    expect(F.valueLabel('escucha', 'nunca')).toBe('Nunca escuchado')
-    expect(F.valueLabel('escucha', 'hace-un-anio')).toBe('Sin escuchar hace un año')
-    const q = F.parse('?escucha=nunca')
-    expect(q.facets).toEqual({ escucha: 'nunca' })
-    expect(F.toSearch(q)).toBe('?escucha=nunca')
+    const i = F.FACETS.findIndex((f) => f.name === 'rating')
+    expect(F.FACETS[i + 1]).toEqual({ name: 'listened', label: 'Escucha' })
+    expect(F.valueLabel('listened', 'never')).toBe('Nunca escuchado')
+    expect(F.valueLabel('listened', 'year-ago')).toBe('Sin escuchar hace un año')
+    const q = F.parse('?listened=never')
+    expect(q.facets).toEqual({ listened: 'never' })
+    expect(F.toSearch(q)).toBe('?listened=never')
   })
 })
