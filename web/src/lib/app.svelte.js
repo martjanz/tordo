@@ -1,6 +1,7 @@
 // State shared by the whole app: the server's status and the notices.
 import { api } from './api.js'
 import { busy, listening, progress } from './status.js'
+import { text } from './i18n/index.svelte.js'
 
 export const app = $state({
   status: null,
@@ -80,10 +81,10 @@ export function stopStatus() {
 
 let seq = 0
 
-// notify shows a notice for 6 seconds.
-export function notify(text) {
+// notify shows a notice for 6 seconds. It takes a string or a msg() object.
+export function notify(m) {
   const id = ++seq
-  app.notices.push({ id, text })
+  app.notices.push({ id, text: text(m) })
   setTimeout(() => {
     app.notices = app.notices.filter((n) => n.id !== id)
   }, 6000)

@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('./api.js', () => ({ api: { status: vi.fn() } }))
 
 import { api } from './api.js'
-import { app, settingsSaved, stopStatus, watchStatus } from './app.svelte.js'
+import { msg } from './i18n/index.svelte.js'
+import { app, notify, settingsSaved, stopStatus, watchStatus } from './app.svelte.js'
 
 describe('settingsSaved', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -65,5 +66,19 @@ describe('polling', () => {
     expect(api.status).toHaveBeenCalledTimes(3)
     await vi.advanceTimersByTimeAsync(10000)
     expect(api.status).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('notify', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    app.notices = []
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('accepts a string or a msg()', () => {
+    notify('hola')
+    notify(msg('app.name'))
+    expect(app.notices.map((n) => n.text)).toEqual(['hola', 'Tordo'])
   })
 })
