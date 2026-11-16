@@ -1,7 +1,7 @@
 // State shared by the whole app: the server's status and the notices.
 import { api } from './api.js'
 import { busy, listening, progress } from './status.js'
-import { text } from './i18n/index.svelte.js'
+import { applyLanguage, text } from './i18n/index.svelte.js'
 
 export const app = $state({
   status: null,
@@ -56,6 +56,7 @@ async function poll() {
     preparing = !!st.preparing
     lastProgress = progress(st)
     app.status = st
+    if (typeof st.language === 'string') applyLanguage(st.language)
     app.lost = false
   } catch {
     if (id !== polls) return

@@ -2,12 +2,14 @@
   import { untrack } from 'svelte'
   import AudioDeEstaCompu from '../components/AudioDeEstaCompu.svelte'
   import Dispositivos from '../components/Dispositivos.svelte'
+  import Idioma from '../components/Idioma.svelte'
   import Raices from '../components/Raices.svelte'
   import RedLocal from '../components/RedLocal.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
   import { notify, refreshStatus, settingsSaved } from '../lib/app.svelte.js'
   import { auth, checkAuth } from '../lib/auth.svelte.js'
+  import { applyLanguage, t } from '../lib/i18n/index.svelte.js'
   import { body, changed, draft, pinProblem, portProblem, rescanChoices, savedNotice } from '../lib/settings.js'
 
   let config = $state(null)
@@ -73,6 +75,23 @@
     toggling = false
   }
 
+  // The language saves at once, like listen mode; the page changes language
+  // when the server has it. A failure keeps the previous selection.
+  let langKey = $state(0) // remounts the select to put the old value back
+  async function setLanguage(language) {
+    error = ''
+    try {
+      const saved = await api.saveConfig({ language })
+      config = { ...config, language: saved.language }
+      d = { ...d, language: saved.language }
+      applyLanguage(saved.language)
+      refreshStatus()
+    } catch (e) {
+      notify(e.message)
+      langKey++
+    }
+  }
+
   async function save() {
     saving = true
     error = ''
@@ -107,6 +126,13 @@
     {#if config.readOnly}
       <p class="warn">Modo consulta: la configuración no se puede cambiar.</p>
     {/if}
+
+    <section>
+      <h2>{t('settings.language.title')}</h2>
+      {#key langKey}
+        <Idioma value={config.language ?? ''} onchange={setLanguage} disabled={config.readOnly} />
+      {/key}
+    </section>
 
     <section>
       <h2>Carpetas</h2>

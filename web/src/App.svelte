@@ -4,6 +4,7 @@
   import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { isHelpKey } from './lib/ayuda.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
+  import { applyLanguage } from './lib/i18n/index.svelte.js'
   import { resumeSpeaker } from './lib/speaker.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
@@ -38,7 +39,14 @@
 
   // Who is asking: a device on the network without a session sees only the
   // PIN screen, and nothing is requested until it has one.
+  applyLanguage('')
   checkAuth()
+
+  // The installation language arrives with the auth answer (also on the PIN
+  // screen); the status poll keeps it current.
+  $effect(() => {
+    if (typeof auth.language === 'string') applyLanguage(auth.language)
+  })
   const ready = $derived(auth.checked && !auth.pinRequired)
 
   let watching = false

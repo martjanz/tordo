@@ -13,6 +13,7 @@ export function draft(config) {
     roots,
     ignore: (config.ignore ?? []).join('\n'),
     token: null,
+    language: config.language ?? '',
     normalize: config.normalize,
     rescanMinutes: config.rescanMinutes,
     lan: { enabled: config.lan.enabled, port: config.lan.port, pin: '' },
@@ -49,6 +50,7 @@ export function body(d) {
     token: d.token === null ? null : d.token.trim(),
     normalize: d.normalize,
     rescanMinutes: Number(d.rescanMinutes),
+    language: d.language,
     lan: { enabled: d.lan.enabled, port: Number(d.lan.port), pin: !d.lan.enabled || d.lan.pin === '' ? null : d.lan.pin },
   }
 }

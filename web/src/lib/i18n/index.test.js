@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   _setMessages,
+  applyLanguage,
   formatNumber,
   has,
   locale,
@@ -118,5 +119,31 @@ describe('locale', () => {
   it('ignores unknown locales', () => {
     setLocale('xx')
     expect(locale()).toBe('es')
+  })
+})
+
+describe('applyLanguage', () => {
+  afterEach(() => {
+    setLocale('es')
+    delete globalThis.document
+    applyLanguage('es')
+  })
+
+  it('sets the locale and the document language', () => {
+    globalThis.document = { documentElement: {} }
+    applyLanguage('pt-BR')
+    expect(locale()).toBe('pt-BR')
+    expect(document.documentElement.lang).toBe('pt-BR')
+  })
+  it('does nothing when the same setting comes again', () => {
+    applyLanguage('en')
+    setLocale('es')
+    applyLanguage('en')
+    expect(locale()).toBe('es')
+  })
+  it('resolves automatic from the browser and does not throw without document', () => {
+    delete globalThis.document
+    applyLanguage('')
+    expect(['es', 'en', 'pt-BR']).toContain(locale())
   })
 })

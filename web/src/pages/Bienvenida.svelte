@@ -1,8 +1,10 @@
 <script>
+  import Idioma from '../components/Idioma.svelte'
   import Raices from '../components/Raices.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
   import { notify, settingsSaved } from '../lib/app.svelte.js'
+  import { previewLanguage } from '../lib/i18n/index.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { body, draft } from '../lib/settings.js'
 
@@ -52,6 +54,8 @@
   <p class="bienvenida warn" role="alert">{loadError}</p>
 {:else if d}
   <div class="bienvenida">
+    <div class="idioma"><Idioma value={d.language} onchange={(l) => ((d.language = l), previewLanguage(l))} /></div>
+
     <ol class="steps">
       {#each steps as name, i (name)}
         <li class:on={i === step} class:done={i < step}>{i + 1}. {name}</li>
@@ -112,6 +116,9 @@
   }
   .warn {
     color: var(--warn);
+  }
+  .idioma {
+    margin-bottom: 16px;
   }
   .steps {
     display: flex;

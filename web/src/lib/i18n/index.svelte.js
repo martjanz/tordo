@@ -60,6 +60,28 @@ export function setLocale(l) {
   if (LOCALES.includes(l)) current = l
 }
 
+let applied // the last installation setting applied (undefined = none yet)
+
+// applyLanguage makes the installation setting ('' = automatic) the locale of
+// the page. The same setting twice does nothing, so status polls are cheap.
+export function applyLanguage(setting) {
+  if (setting === applied) return
+  applied = setting
+  previewLanguage(setting)
+}
+
+// previewLanguage shows a setting that is not saved yet (the assistant). It
+// leaves the last applied setting alone, so the next status poll puts the
+// saved one back unless it was saved.
+export function previewLanguage(setting) {
+  setLocale(resolveLocale(setting, browserLanguages()))
+  try {
+    if (typeof document !== 'undefined') document.documentElement.lang = locale()
+  } catch {
+    // no document to update
+  }
+}
+
 export function locale() {
   return current
 }

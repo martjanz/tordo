@@ -11,6 +11,7 @@ const config = {
   tokenHint: '…a1b2',
   normalize: true,
   rescanMinutes: 60,
+  language: 'en',
   lan: { enabled: false, port: 4748, hasPin: false },
 }
 
@@ -28,6 +29,14 @@ describe('draft', () => {
   })
 })
 
+describe('language', () => {
+  it('is carried by the draft and the body (empty means automatic)', () => {
+    expect(draft(config).language).toBe('en')
+    expect(draft({ ...config, language: undefined }).language).toBe('')
+    expect(body({ ...draft(config), language: 'pt-BR' }).language).toBe('pt-BR')
+  })
+})
+
 describe('body', () => {
   it('keeps the token and the PIN unless changed', () => {
     const d = draft(config)
@@ -37,6 +46,7 @@ describe('body', () => {
       token: null,
       normalize: true,
       rescanMinutes: 60,
+      language: 'en',
       lan: { enabled: false, port: 4748, pin: null },
     })
     expect(changed(config, d)).toBe(false)
