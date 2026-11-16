@@ -6,11 +6,11 @@ import (
 	"tordo/internal/store"
 )
 
-// Explorar's Escucha facet: what the user has not listened to lately.
+// Explore's listened facet: what the user has not listened to lately.
 const (
-	FacetListened = "escucha"
-	ListenedNever = "nunca"        // never played
-	ListenedStale = "hace-un-anio" // played, but not in over a year
+	FacetListened = "listened"
+	ListenedNever = "never"        // never played
+	ListenedStale = "year-ago" // played, but not in over a year
 )
 
 // staleAfter is how old the last play of something "sin escuchar hace un año" is.

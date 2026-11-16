@@ -158,7 +158,7 @@ func (s *Server) deleteStation(w http.ResponseWriter, r *http.Request) {
 	written(w, found, err, stationGone)
 }
 
-// stationNext answers GET /api/station/next?def=<station JSON>&recientes=1,2:
+// stationNext answers GET /api/station/next?def=<station JSON>&recent=1,2:
 // the next batch of a station, shaped like /api/play, plus the station as the
 // server applied it. The station travels whole, so the server keeps no state
 // per listener.
@@ -185,7 +185,7 @@ func (s *Server) stationNext(w http.ResponseWriter, r *http.Request) {
 			in.Playlist = append(in.Playlist, it.ID)
 		}
 	}
-	for _, v := range strings.Split(q.Get("recientes"), ",") {
+	for _, v := range strings.Split(q.Get("recent"), ",") {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil && id > 0 {
 			in.Recent = append(in.Recent, id)
 		}

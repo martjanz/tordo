@@ -9,13 +9,13 @@ import (
 	"tordo/internal/catalog"
 )
 
-// periods maps ?periodo= to how many days it looks back (0: all time).
-var periods = map[string]int{"semana": 7, "mes": 30, "anio": 365, "siempre": 0}
+// periods maps ?period= to how many days it looks back (0: all time).
+var periods = map[string]int{"week": 7, "month": 30, "year": 365, "all": 0}
 
-// home answers Inicio: ?semilla= draws the rotating rows (missing or bad:
+// home answers Inicio: ?seed= draws the rotating rows (missing or bad:
 // a random one), plus the saved stations as /api/stations lists them.
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	seed, err := strconv.ParseUint(r.URL.Query().Get("semilla"), 10, 64)
+	seed, err := strconv.ParseUint(r.URL.Query().Get("seed"), 10, 64)
 	if err != nil {
 		seed = rand.Uint64()
 	}
@@ -35,12 +35,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	}{c.Home(p, seed), stations})
 }
 
-// stats answers "Historial de escucha": ?periodo= (semana, mes, anio, siempre; default
-// mes) and ?limite= of each ranking.
+// stats answers "Historial de escucha": ?period= (week, month, year, all; default
+// month) and ?limit= of each ranking.
 func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
-	period := r.URL.Query().Get("periodo")
+	period := r.URL.Query().Get("period")
 	if period == "" {
-		period = "mes"
+		period = "month"
 	}
 	days, ok := periods[period]
 	if !ok {
@@ -69,5 +69,5 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, struct {
 		catalog.Stats
 		Period string `json:"period"`
-	}{c.Stats(tally, p, intParam(r, "limite", 10, 1, 100)), period})
+	}{c.Stats(tally, p, intParam(r, "limit", 10, 1, 100)), period})
 }

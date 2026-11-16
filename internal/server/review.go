@@ -14,7 +14,7 @@ type duplicateCounts struct {
 }
 
 // duplicates answers Revisar → Duplicados: the counts of every kind and the
-// groups of ?tipo= (exactas, formatos, sospechas; anything else: exactas).
+// groups of ?kind= (exact, formats, suspected; anything else: exact).
 func (s *Server) duplicates(w http.ResponseWriter, r *http.Request) {
 	c, err := s.catalog()
 	if err != nil {
@@ -23,10 +23,10 @@ func (s *Server) duplicates(w http.ResponseWriter, r *http.Request) {
 	}
 	d := c.Duplicates()
 	groups := d.Exact
-	switch r.URL.Query().Get("tipo") {
-	case "formatos":
+	switch r.URL.Query().Get("kind") {
+	case "formats":
 		groups = d.Formats
-	case "sospechas":
+	case "suspected":
 		groups = d.Suspect
 	}
 	writeJSON(w, struct {

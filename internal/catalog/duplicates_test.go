@@ -186,7 +186,7 @@ func TestDuplicatedFacet(t *testing.T) {
 		dt(3, "Volver", "p", 3, 4), dt(4, "Volver", "q", 3, 4), // formats, one album
 		dt(5, "Sospecha", "r", 1, 4), dt(6, "Sospecha", "s", 4, 4), // suspects only
 		dt(7, "Solo", "z", 4, 4))
-	r := c.Explore(ParseQuery(url.Values{"ver": {"pistas"}, "estado": {StateDuplicated}}), 0, 100)
+	r := c.Explore(ParseQuery(url.Values{"view": {"tracks"}, "state": {StateDuplicated}}), 0, 100)
 	ids := map[int64]bool{}
 	for _, tk := range r.Tracks {
 		ids[tk.ID] = true
@@ -194,10 +194,10 @@ func TestDuplicatedFacet(t *testing.T) {
 	if r.Total != 4 || !reflect.DeepEqual(ids, map[int64]bool{1: true, 2: true, 3: true, 4: true}) {
 		t.Fatalf("tracks = %v, total %d", ids, r.Total)
 	}
-	if got := c.Explore(ParseQuery(url.Values{"ver": {"pistas"}}), 0, 100).Facets[FacetState]; len(got) != 1 || got[0] != (FacetValue{StateDuplicated, StateDuplicated, 4}) {
+	if got := c.Explore(ParseQuery(url.Values{"view": {"tracks"}}), 0, 100).Facets[FacetState]; len(got) != 1 || got[0] != (FacetValue{StateDuplicated, StateDuplicated, 4}) {
 		t.Fatalf("facet = %+v", got)
 	}
-	r = c.Explore(ParseQuery(url.Values{"estado": {StateDuplicated}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"state": {StateDuplicated}}), 0, 100)
 	if got := albumTitles(r.Albums); r.Total != 3 || !reflect.DeepEqual(map[string]bool{got[0]: true, got[1]: true, got[2]: true},
 		map[string]bool{"Album A": true, "Album B": true, "Album C": true}) {
 		t.Fatalf("albums = %q", got)

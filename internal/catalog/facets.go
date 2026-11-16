@@ -14,59 +14,59 @@ import (
 	"tordo/internal/store"
 )
 
-// Facet names, as they appear in Explorar's URL.
+// Facet names, as they appear in Explore's URL.
 const (
-	FacetDecade     = "decada"
-	FacetYear       = "anio"
-	FacetArtist     = "artista"   // an artist key
-	FacetCountry    = "pais"      // ISO 3166-1 alpha-2
-	FacetGenre      = "genero"    // a genre of the taxonomy
-	FacetStyle      = "estilo"    // a style of the taxonomy
-	FacetCollection = "coleccion" // a collection's folder path
-	FacetFolder     = "carpeta"   // a root, or a first-level folder under it
-	FacetQuality    = "calidad"   // QualityLossless or QualityLossy
-	FacetFormat     = "formato"   // FormatKey
-	FacetState      = "estado"    // StateUnidentified, StateUnplayable or StateDuplicated
-	FacetLiked      = "megusta"   // LikedYes: the album or track itself is liked
-	FacetRating     = "puntaje"   // "1"–"5": rated that many stars or more
+	FacetDecade     = "decade"
+	FacetYear       = "year"
+	FacetArtist     = "artist"    // an artist key
+	FacetCountry    = "country"   // ISO 3166-1 alpha-2
+	FacetGenre      = "genre"     // a genre of the taxonomy
+	FacetStyle      = "style"     // a style of the taxonomy
+	FacetCollection = "collection" // a collection's folder path
+	FacetFolder     = "folder"    // a root, or a first-level folder under it
+	FacetQuality    = "quality"   // QualityLossless or QualityLossy
+	FacetFormat     = "format"    // FormatKey
+	FacetState      = "state"     // StateUnidentified, StateUnplayable or StateDuplicated
+	FacetLiked      = "liked"     // LikedYes: the album or track itself is liked
+	FacetRating     = "rating"    // "1"–"5": rated that many stars or more
 )
 
-// FacetNames lists the facets in the order of Explorar's bar.
+// FacetNames lists the facets in the order of Explore's bar.
 var FacetNames = []string{FacetDecade, FacetYear, FacetArtist, FacetCountry, FacetGenre, FacetStyle, FacetCollection,
 	FacetFolder, FacetQuality, FacetFormat, FacetState, FacetLiked, FacetRating, FacetListened}
 
 // Values of FacetQuality and FacetState.
 const (
-	QualityLossless   = "sin-perdida"
-	QualityLossy      = "con-perdida"
-	StateUnidentified = "sin-identificar"
-	StateUnplayable   = "no-reproducible"
-	StateDuplicated   = "con-duplicados"
-	LikedYes          = "si"
+	QualityLossless   = "lossless"
+	QualityLossy      = "lossy"
+	StateUnidentified = "unidentified"
+	StateUnplayable   = "unplayable"
+	StateDuplicated   = "duplicated"
+	LikedYes          = "yes"
 )
 
-// Explorar's tabs.
+// Explore's tabs.
 const (
-	ViewAlbums  = "albumes"
-	ViewArtists = "artistas"
-	ViewTracks  = "pistas"
+	ViewAlbums  = "albums"
+	ViewArtists = "artists"
+	ViewTracks  = "tracks"
 )
 
 // Sort orders and directions. Artists sort by name (OrderTitle) or by
 // their number of albums (OrderCount).
 const (
-	OrderYear   = "anio"
-	OrderTitle  = "titulo"
-	OrderArtist = "artista"
-	OrderAdded  = "agregado"
-	OrderCount  = "cantidad"
-	OrderPlays  = "escuchado"
-	OrderRandom = "azar" // shuffled by Query.Seed
+	OrderYear   = "year"
+	OrderTitle  = "title"
+	OrderArtist = "artist"
+	OrderAdded  = "added"
+	OrderCount  = "count"
+	OrderPlays  = "plays"
+	OrderRandom = "random" // shuffled by Query.Seed
 	Asc         = "asc"
 	Desc        = "desc"
 )
 
-// Query is what Explorar asks for: a tab, one value per facet, and an order.
+// Query is what Explore asks for: a tab, one value per facet, and an order.
 type Query struct {
 	View   string            `json:"view"`
 	Facets map[string]string `json:"facets"`
@@ -127,13 +127,13 @@ func naturalDir(order string) string {
 	return Desc
 }
 
-// ParseQuery reads Explorar's parameters: ver, the facets, orden, dir and
-// semilla. Unknown parameters and malformed values are dropped; each tab has
+// ParseQuery reads Explore's parameters: view, the facets, order, dir and
+// seed. Unknown parameters and malformed values are dropped; each tab has
 // its default order, and each order its natural direction. The random order
 // without a valid seed gets a new one.
 func ParseQuery(v url.Values) Query {
 	q := Query{View: ViewAlbums, Facets: map[string]string{}}
-	if w := v.Get("ver"); w == ViewArtists || w == ViewTracks {
+	if w := v.Get("view"); w == ViewArtists || w == ViewTracks {
 		q.View = w
 	}
 	for _, f := range FacetNames {
@@ -143,7 +143,7 @@ func ParseQuery(v url.Values) Query {
 	}
 	os := orders(q.View)
 	q.Order = os[0]
-	if o := v.Get("orden"); slices.Contains(os, o) {
+	if o := v.Get("order"); slices.Contains(os, o) {
 		q.Order = o
 	}
 	q.Dir = naturalDir(q.Order)
@@ -151,7 +151,7 @@ func ParseQuery(v url.Values) Query {
 		q.Dir = d
 	}
 	if q.Order == OrderRandom {
-		n, err := strconv.ParseUint(v.Get("semilla"), 10, 32)
+		n, err := strconv.ParseUint(v.Get("seed"), 10, 32)
 		if err != nil || n == 0 || n > 1<<31 {
 			n = uint64(rand.Uint32N(1<<31)) + 1
 		}
@@ -238,7 +238,7 @@ func (k *counter) result() map[string][]FacetValue {
 	return out
 }
 
-// Result is a page of Explorar: the items of the tab that match the query
+// Result is a page of Explore: the items of the tab that match the query
 // (Albums, Artists or Tracks), how many there are in all, and every facet's
 // values counted over the other facets.
 type Result struct {
@@ -251,12 +251,12 @@ type Result struct {
 	Facets  map[string][]FacetValue `json:"facets"`
 }
 
-// Explore answers Explorar without the user's data.
+// Explore answers Explore without the user's data.
 func (c *Catalog) Explore(q Query, offset, limit int) Result {
 	return c.ExploreFor(q, nil, offset, limit)
 }
 
-// ExploreFor answers Explorar: the items of q's tab from offset, at most
+// ExploreFor answers Explore: the items of q's tab from offset, at most
 // limit, with the user's data (nil: none) for the Me gusta and Puntaje
 // facets and the Más escuchado order. The Artistas tab lists the album
 // artists of the matching albums, with how many of them each has; its menus

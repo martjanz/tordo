@@ -11,9 +11,9 @@ import (
 
 // Kinds of duplicate groups, as Revisar names them.
 const (
-	DupExact   = "exacta"   // the same audio (fingerprint) in several files
-	DupFormats = "formatos" // the same recording in one album, in several files
-	DupSuspect = "sospecha" // the same artist, title and length in different albums
+	DupExact   = "exact"     // the same audio (fingerprint) in several files
+	DupFormats = "formats"   // the same recording in one album, in several files
+	DupSuspect = "suspected" // the same artist, title and length in different albums
 )
 
 // dupGapMs is the most two lengths of one recording may differ by.

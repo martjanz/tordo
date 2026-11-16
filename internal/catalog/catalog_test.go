@@ -152,7 +152,7 @@ func TestAlbumFacetValues(t *testing.T) {
 
 func TestExploreAlbums(t *testing.T) {
 	c := build()
-	r := c.Explore(ParseQuery(url.Values{"decada": {"1980"}}), 0, 100)
+	r := c.Explore(ParseQuery(url.Values{"decade": {"1980"}}), 0, 100)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Doble vida", "Signos", "Clics modernos"}) || r.Total != 3 {
 		t.Fatalf("1980s, newest first: %q (total %d)", got, r.Total)
 	}
@@ -171,11 +171,11 @@ func TestExploreAlbums(t *testing.T) {
 		t.Fatalf("folders = %+v", got)
 	}
 	// Choosing a decade keeps its menu whole even with a year chosen.
-	r = c.Explore(ParseQuery(url.Values{"decada": {"1980"}, "anio": {"1983"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"decade": {"1980"}, "year": {"1983"}}), 0, 100)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Clics modernos"}) || len(r.Facets[FacetDecade]) != 2 {
 		t.Fatalf("1983: %q, decades %+v", got, r.Facets[FacetDecade])
 	}
-	r = c.Explore(ParseQuery(url.Values{"genero": {"Rock"}, "estilo": {"Pop Rock"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"genre": {"Rock"}, "style": {"Pop Rock"}}), 0, 100)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Signos"}) || len(r.Facets[FacetGenre]) != 2 || r.Facets[FacetGenre][0] != (FacetValue{"Rock", "Rock", 2}) {
 		t.Fatalf("Pop Rock: %q, genres %+v", got, r.Facets[FacetGenre])
 	}
@@ -183,15 +183,15 @@ func TestExploreAlbums(t *testing.T) {
 	if got := r.Facets[FacetStyle]; len(got) != 1 || got[0] != (FacetValue{"Pop Rock", "Pop Rock", 1}) {
 		t.Fatalf("styles = %+v", got)
 	}
-	r = c.Explore(ParseQuery(url.Values{"estado": {StateUnplayable}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"state": {StateUnplayable}}), 0, 100)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Rock nacional"}) {
 		t.Fatalf("unplayable: %q", got)
 	}
-	r = c.Explore(ParseQuery(url.Values{"orden": {"titulo"}}), 1, 2)
+	r = c.Explore(ParseQuery(url.Values{"order": {"title"}}), 1, 2)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Clics modernos", "Doble vida"}) || r.Total != 5 || r.Offset != 1 {
 		t.Fatalf("page 2 by title: %q, total %d", got, r.Total)
 	}
-	r = c.Explore(ParseQuery(url.Values{"orden": {"artista"}, "dir": {"desc"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"order": {"artist"}, "dir": {"desc"}}), 0, 100)
 	if got := albumTitles(r.Albums); !reflect.DeepEqual(got, []string{"Rock nacional", "Signos", "Doble vida", "Bocanada", "Clics modernos"}) {
 		t.Fatalf("by artist, Z to A: %q", got)
 	}
@@ -202,15 +202,15 @@ func TestExploreAlbums(t *testing.T) {
 
 func TestExploreArtistsAndTracks(t *testing.T) {
 	c := build()
-	r := c.Explore(ParseQuery(url.Values{"ver": {"artistas"}, "decada": {"1980"}}), 0, 100)
+	r := c.Explore(ParseQuery(url.Values{"view": {"artists"}, "decade": {"1980"}}), 0, 100)
 	if len(r.Artists) != 2 || r.Artists[0].Name != "Charly Garcia" || r.Artists[0].Albums != 1 || r.Artists[1].Albums != 2 {
 		t.Fatalf("artists of the 1980s: %+v", r.Artists)
 	}
-	r = c.Explore(ParseQuery(url.Values{"ver": {"artistas"}, "orden": {"cantidad"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"view": {"artists"}, "order": {"count"}}), 0, 100)
 	if r.Artists[0].Key != "charly-garcia" || r.Artists[1].Key != soda { // as many albums: by name
 		t.Fatalf("by number of albums: %+v", r.Artists)
 	}
-	r = c.Explore(ParseQuery(url.Values{"ver": {"pistas"}, "artista": {soda}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"view": {"tracks"}, "artist": {soda}}), 0, 100)
 	got := []string{}
 	for _, tr := range r.Tracks {
 		got = append(got, tr.Title)
@@ -222,31 +222,31 @@ func TestExploreArtistsAndTracks(t *testing.T) {
 	if tr := r.Tracks[3]; tr.Album != "Rock nacional" || tr.ArtistKey != soda || tr.Path != "" || tr.Year != 1995 {
 		t.Fatalf("compilation track = %+v", tr)
 	}
-	r = c.Explore(ParseQuery(url.Values{"ver": {"pistas"}, "carpeta": {root + "/youtube"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"view": {"tracks"}, "folder": {root + "/youtube"}}), 0, 100)
 	if len(r.Tracks) != 1 || r.Tracks[0].Title != "Juízo Final" || r.Tracks[0].AlbumID != 0 || r.Tracks[0].Dir != root+"/youtube" {
 		t.Fatalf("loose track: %+v", r.Tracks)
 	}
 	if got := r.Facets[FacetDecade]; len(got) != 1 || got[0].Value != "2020" {
 		t.Fatalf("loose track decade: %+v", got)
 	}
-	r = c.Explore(ParseQuery(url.Values{"ver": {"pistas"}, "formato": {"wma"}}), 0, 100)
+	r = c.Explore(ParseQuery(url.Values{"view": {"tracks"}, "format": {"wma"}}), 0, 100)
 	if len(r.Tracks) != 2 || r.Facets[FacetState][0] != (FacetValue{StateUnplayable, StateUnplayable, 2}) {
 		t.Fatalf("WMA tracks: %d, states %+v", len(r.Tracks), r.Facets[FacetState])
 	}
 }
 
 func TestParseQuery(t *testing.T) {
-	q := ParseQuery(url.Values{"decada": {"1985"}, "anio": {"1986"}, "pais": {"ar"}, "calidad": {"mala"}, "x": {"y"},
-		"orden": {"cantidad"}, "dir": {"asc"}})
+	q := ParseQuery(url.Values{"decade": {"1985"}, "year": {"1986"}, "country": {"ar"}, "quality": {"mala"}, "x": {"y"},
+		"order": {"count"}, "dir": {"asc"}})
 	want := Query{View: ViewAlbums, Facets: map[string]string{FacetYear: "1986"}, Order: OrderYear, Dir: Asc}
 	if !reflect.DeepEqual(q, want) {
 		t.Fatalf("q = %+v", q)
 	}
-	q = ParseQuery(url.Values{"ver": {"artistas"}, "orden": {"cantidad"}})
+	q = ParseQuery(url.Values{"view": {"artists"}, "order": {"count"}})
 	if q.View != ViewArtists || q.Order != OrderCount || q.Dir != Desc {
 		t.Fatalf("artists = %+v", q)
 	}
-	if q := ParseQuery(url.Values{"ver": {"pistas"}}); q.Order != OrderArtist || q.Dir != Asc {
+	if q := ParseQuery(url.Values{"view": {"tracks"}}); q.Order != OrderArtist || q.Dir != Asc {
 		t.Fatalf("tracks = %+v", q)
 	}
 }
@@ -266,7 +266,7 @@ func TestExploreRandom(t *testing.T) {
 	c := build()
 	for _, view := range []string{ViewAlbums, ViewArtists, ViewTracks} {
 		// No seed: one is drawn and echoed, so the next pages can ask for it.
-		q := ParseQuery(url.Values{"ver": {view}, "orden": {"azar"}})
+		q := ParseQuery(url.Values{"view": {view}, "order": {"random"}})
 		if q.Order != OrderRandom || q.Seed == 0 || q.Seed > 1<<31 {
 			t.Fatalf("%s: %+v", view, q)
 		}
@@ -283,7 +283,7 @@ func TestExploreRandom(t *testing.T) {
 			}
 			return out
 		}
-		seeded := func(seed string) url.Values { return url.Values{"ver": {view}, "orden": {"azar"}, "semilla": {seed}} }
+		seeded := func(seed string) url.Values { return url.Values{"view": {view}, "order": {"random"}, "seed": {seed}} }
 		whole := ids(c.Explore(ParseQuery(seeded("7")), 0, 100))
 		if !reflect.DeepEqual(ids(c.Explore(ParseQuery(seeded("7")), 0, 100)), whole) {
 			t.Fatalf("%s: not deterministic", view)
@@ -302,10 +302,10 @@ func TestExploreRandom(t *testing.T) {
 		}
 	}
 	// The seed only goes with the random order; a bad one is redrawn.
-	if q := ParseQuery(url.Values{"orden": {"titulo"}, "semilla": {"7"}}); q.Seed != 0 {
+	if q := ParseQuery(url.Values{"order": {"title"}, "seed": {"7"}}); q.Seed != 0 {
 		t.Fatalf("seed without azar: %+v", q)
 	}
-	if q := ParseQuery(url.Values{"orden": {"azar"}, "semilla": {"x"}}); q.Seed == 0 {
+	if q := ParseQuery(url.Values{"order": {"random"}, "seed": {"x"}}); q.Seed == 0 {
 		t.Fatalf("bad seed: %+v", q)
 	}
 }

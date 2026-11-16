@@ -297,8 +297,8 @@ func intParam(r *http.Request, name string, def, lo, hi int) int {
 	return n
 }
 
-// explore answers Explorar: ?ver= (albumes, artistas, pistas), the facets,
-// ?orden= and ?dir=, a page from ?desde= of ?limite= items.
+// explore answers Explorar: ?view= (albums, artists, tracks), the facets,
+// ?order= and ?dir=, a page from ?from= of ?limit= items.
 func (s *Server) explore(w http.ResponseWriter, r *http.Request) {
 	c, p, err := s.browse()
 	if err != nil {
@@ -306,7 +306,7 @@ func (s *Server) explore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := catalog.ParseQuery(r.URL.Query())
-	writeJSON(w, c.ExploreFor(q, p, intParam(r, "desde", 0, 0, 1<<30), intParam(r, "limite", 120, 1, 500)))
+	writeJSON(w, c.ExploreFor(q, p, intParam(r, "from", 0, 0, 1<<30), intParam(r, "limit", 120, 1, 500)))
 }
 
 func (s *Server) artist(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +331,7 @@ func (s *Server) artist(w http.ResponseWriter, r *http.Request) {
 	}{p, c.ArtistTop(r.PathValue("key"), pers, 5)})
 }
 
-// find is the instant search: ?q=, at most ?limite= of each kind.
+// find is the instant search: ?q=, at most ?limit= of each kind.
 func (s *Server) find(w http.ResponseWriter, r *http.Request) {
 	c, idx, err := s.searchIndex()
 	if err != nil {
@@ -347,7 +347,7 @@ func (s *Server) find(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, struct {
 		Q string `json:"q"`
 		catalog.Found
-	}{q, c.Found(keys, intParam(r, "limite", 6, 1, 200))})
+	}{q, c.Found(keys, intParam(r, "limit", 6, 1, 200))})
 }
 
 // albumTrack is a track of the album page: whether the server can deliver it.
