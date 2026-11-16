@@ -10,7 +10,7 @@
   import { mine } from '../lib/mine.svelte.js'
   import Icono from './Icono.svelte'
   import MeGusta from './MeGusta.svelte'
-  import MenuPista from './MenuPista.svelte'
+  import MenuMas from './MenuMas.svelte'
 
   let { tracks, onplay, albumArtist = '', numbered = true, showAlbum = false, showPlays = false } = $props()
 
@@ -51,7 +51,7 @@
       <button class="icon add" onclick={() => enqueue({ tracks: [t.id] })} title="Agregar a la cola" aria-label="Agregar a la cola">
         <Icono name="plus" size={16} />
       </button>
-      <MenuPista track={t} />
+      <MenuMas what={{ tracks: [t.id] }} rating={{ kind: 'track', id: t.id }} />
     </li>
   {/each}
 </ol>

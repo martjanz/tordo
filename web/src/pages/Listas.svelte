@@ -89,7 +89,7 @@
     <p class="empty">Todavía no hay listas.</p>
   {:else}
     {#if playlists.length === 0}
-      <p class="empty">Todavía no hay listas. Creá una acá o con «+ Lista» en un álbum, una carpeta o una pista.</p>
+      <p class="empty">Todavía no hay listas. Creá una acá o con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
     {/if}
     <div class="grid">
       {#each playlists as p (p.id)}
