@@ -170,7 +170,7 @@
   </div>
 
   {#if list.entries.length === 0}
-    <p class="empty">La lista está vacía. Agregale pistas con «+ Lista» en un álbum, una carpeta o una pista.</p>
+    <p class="empty">La lista está vacía. Agregale pistas con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
   {:else}
     <ol class="entries" bind:this={ol}>
       {#each list.entries as e, i (e.itemId)}
