@@ -11,7 +11,7 @@ import (
 
 // Station modes.
 const (
-	ModeTracks = "tracks"  // track by track
+	ModeTracks = "tracks" // track by track
 	ModeAlbums = "albums" // a whole album, then another
 )
 

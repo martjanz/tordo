@@ -1,8 +1,8 @@
 package server
 
 import (
-	"net/http"
 	"errors"
+	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"

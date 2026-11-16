@@ -9,7 +9,7 @@ import (
 // Explore's listened facet: what the user has not listened to lately.
 const (
 	FacetListened = "listened"
-	ListenedNever = "never"        // never played
+	ListenedNever = "never"    // never played
 	ListenedStale = "year-ago" // played, but not in over a year
 )
 

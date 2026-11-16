@@ -18,17 +18,17 @@ import (
 const (
 	FacetDecade     = "decade"
 	FacetYear       = "year"
-	FacetArtist     = "artist"    // an artist key
-	FacetCountry    = "country"   // ISO 3166-1 alpha-2
-	FacetGenre      = "genre"     // a genre of the taxonomy
-	FacetStyle      = "style"     // a style of the taxonomy
+	FacetArtist     = "artist"     // an artist key
+	FacetCountry    = "country"    // ISO 3166-1 alpha-2
+	FacetGenre      = "genre"      // a genre of the taxonomy
+	FacetStyle      = "style"      // a style of the taxonomy
 	FacetCollection = "collection" // a collection's folder path
-	FacetFolder     = "folder"    // a root, or a first-level folder under it
-	FacetQuality    = "quality"   // QualityLossless or QualityLossy
-	FacetFormat     = "format"    // FormatKey
-	FacetState      = "state"     // StateUnidentified, StateUnplayable or StateDuplicated
-	FacetLiked      = "liked"     // LikedYes: the album or track itself is liked
-	FacetRating     = "rating"    // "1"–"5": rated that many stars or more
+	FacetFolder     = "folder"     // a root, or a first-level folder under it
+	FacetQuality    = "quality"    // QualityLossless or QualityLossy
+	FacetFormat     = "format"     // FormatKey
+	FacetState      = "state"      // StateUnidentified, StateUnplayable or StateDuplicated
+	FacetLiked      = "liked"      // LikedYes: the album or track itself is liked
+	FacetRating     = "rating"     // "1"–"5": rated that many stars or more
 )
 
 // FacetNames lists the facets in the order of Explore's bar.
