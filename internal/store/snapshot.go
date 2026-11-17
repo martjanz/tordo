@@ -56,7 +56,7 @@ func (s *Store) Snapshot() (Snapshot, error) {
 	if snap.Folders, err = snapFolders(tx); err != nil {
 		return snap, err
 	}
-	if snap.Artists, err = loadDocs[Artist](tx, "artists"); err != nil {
+	if snap.Artists, err = loadDocs[Artist](tx, "artists", nil); err != nil {
 		return snap, err
 	}
 	snap.ReleaseGroups = make(map[string]string)

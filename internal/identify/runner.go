@@ -616,21 +616,28 @@ func (r *Runner) Apply() error {
 	if w.artists, err = r.Store.Artists(); err != nil {
 		return err
 	}
-	aliases, err := r.Store.GenreAliases()
-	if err != nil {
+	if w.genres, err = r.normalizer(); err != nil {
 		return err
 	}
-	user := map[string]genres.Mapping{}
-	for _, a := range aliases {
-		user[a.Raw] = genres.Mapping{Genre: a.Genre, Style: a.Style}
-	}
-	w.genres = genres.New(user)
 	unmapped := map[string]int{}
 	ids := make([]store.AlbumIdentity, 0, len(targets))
 	for _, t := range targets {
 		ids = append(ids, resolve(t, BuildQuery(t), w, unmapped))
 	}
 	return r.Store.ApplyIdentities(ids, unmapped)
+}
+
+// normalizer maps genres with the user's aliases.
+func (r *Runner) normalizer() (*genres.Normalizer, error) {
+	aliases, err := r.Store.GenreAliases()
+	if err != nil {
+		return nil, err
+	}
+	user := map[string]genres.Mapping{}
+	for _, a := range aliases {
+		user[a.Raw] = genres.Mapping{Genre: a.Genre, Style: a.Style}
+	}
+	return genres.New(user), nil
 }
 
 // SetRelease identifies an album by hand. The release is looked up first
@@ -645,7 +652,7 @@ func (r *Runner) SetRelease(ctx context.Context, albumID int64, releaseID string
 	if err != nil {
 		return err
 	}
-	releases, err := r.Store.Releases()
+	releases, err := r.Store.ReleasesOf([]string{releaseID})
 	if err != nil {
 		return err
 	}
@@ -680,11 +687,87 @@ func (r *Runner) Reset(albumID int64) error {
 	return r.correct(fps, store.Correction{})
 }
 
+// correct stores c on fps and applies it to the albums with those tracks
+// (an album and its copies). Only they are read and resolved: a full Apply
+// took seconds on a large catalog, for every pick in Sin identificar. The
+// unmapped genre counts change by what those albums count after minus before.
 func (r *Runner) correct(fps []string, c store.Correction) error {
+	r.applyMu.Lock()
+	defer r.applyMu.Unlock()
+	scope, err := r.Store.AlbumsWithFingerprints(fps)
+	if err != nil {
+		return err
+	}
+	_, before, err := r.resolveAlbums(scope)
+	if err != nil {
+		return err
+	}
 	if err := r.Store.SetCorrection(fps, c); err != nil {
 		return err
 	}
-	return r.Apply()
+	ids, after, err := r.resolveAlbums(scope)
+	if err != nil {
+		return err
+	}
+	delta := map[string]int{}
+	for raw, n := range after {
+		delta[raw] += n
+	}
+	for raw, n := range before {
+		delta[raw] -= n
+	}
+	return r.Store.ApplyAlbumIdentities(scope, ids, delta)
+}
+
+// resolveAlbums resolves those albums as Apply would, reading only what they
+// need: their corrections, matches, releases and artists.
+func (r *Runner) resolveAlbums(albumIDs []int64) ([]store.AlbumIdentity, map[string]int, error) {
+	targets, err := r.Store.IdentifyTargetsOf(albumIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	queries := make([]Query, len(targets))
+	var keys, fps []string
+	for i, t := range targets {
+		queries[i] = BuildQuery(t)
+		keys = append(keys, queries[i].Key())
+		for _, tr := range t.Tracks {
+			fps = append(fps, tr.Fingerprint)
+		}
+	}
+	var w world
+	if w.corrections, err = r.Store.CorrectionsOf(fps); err != nil {
+		return nil, nil, err
+	}
+	if w.matches, err = r.Store.MatchesOf(keys); err != nil {
+		return nil, nil, err
+	}
+	var releaseIDs []string
+	for _, c := range w.corrections {
+		releaseIDs = append(releaseIDs, c.ReleaseID)
+	}
+	for _, m := range w.matches {
+		releaseIDs = append(releaseIDs, m.ReleaseID)
+	}
+	if w.releases, err = r.Store.ReleasesOf(releaseIDs); err != nil {
+		return nil, nil, err
+	}
+	var artistIDs []string
+	for _, rel := range w.releases {
+		artistIDs = append(artistIDs, mainArtist(rel))
+	}
+	if w.artists, err = r.Store.ArtistsOf(artistIDs); err != nil {
+		return nil, nil, err
+	}
+	if w.genres, err = r.normalizer(); err != nil {
+		return nil, nil, err
+	}
+	unmapped := map[string]int{}
+	ids := make([]store.AlbumIdentity, 0, len(targets))
+	for i, t := range targets {
+		ids = append(ids, resolve(t, queries[i], w, unmapped))
+	}
+	return ids, unmapped, nil
 }
 
 func (r *Runner) fingerprints(albumID int64) ([]string, error) {

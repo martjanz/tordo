@@ -49,12 +49,19 @@ type AlbumIdentity struct {
 // held the catalog's only connection for seconds on a large catalog, while the
 // pages waited, and bumped the change counter, so the catalog was rebuilt.
 func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) error {
+	return s.applyIdentities(nil, ids, unmapped)
+}
+
+// applyIdentities writes ids over the albums in scope, or the whole catalog
+// for nil. unmapped replaces the stored counts for the whole catalog, or is
+// added to them for a scope.
+func (s *Store) applyIdentities(scope []int64, ids []AlbumIdentity, unmapped map[string]int) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	cur, err := currentIdentities(tx)
+	cur, err := currentIdentities(tx, scope)
 	if err != nil {
 		return err
 	}
@@ -70,7 +77,7 @@ func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) er
 	for _, id := range ids {
 		row, ok := cur.albums[id.AlbumID]
 		if !ok {
-			continue // gone since the identities were computed
+			continue // gone since the identities were computed, or out of scope
 		}
 		want := albumIdentityRow{id.Query, id.Status, id.ReleaseID, id.Confidence, id.Title, id.Artist, id.Compilation,
 			id.OriginalYear, id.Country, id.ArtistID, id.CoverCache}
@@ -122,6 +129,21 @@ func (s *Store) ApplyIdentities(ids []AlbumIdentity, unmapped map[string]int) er
 		}
 	}
 
+	if scope != nil {
+		for raw, d := range unmapped {
+			if d == 0 {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT INTO unmapped_genres (raw, albums) VALUES (?, ?)
+				ON CONFLICT(raw) DO UPDATE SET albums = albums + excluded.albums`, raw, d); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(`DELETE FROM unmapped_genres WHERE albums <= 0`); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
 	for raw, n := range cur.unmapped {
 		if want, ok := unmapped[raw]; !ok {
 			if _, err := tx.Exec(`DELETE FROM unmapped_genres WHERE raw = ?`, raw); err != nil {
@@ -171,11 +193,15 @@ type storedIdentities struct {
 	unmapped map[string]int
 }
 
-func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
+// currentIdentities reads the stored identities of the albums in scope (the
+// unmapped counts only for the whole catalog, nil).
+func currentIdentities(tx *sql.Tx, scope []int64) (storedIdentities, error) {
 	cur := storedIdentities{albums: map[int64]albumIdentityRow{}, tracks: map[int64]trackIdentity{},
 		genres: map[genreRow]string{}, unmapped: map[string]int{}}
+	albumsIn, args := inScope("id", scope)
+	ofAlbums, _ := inScope("album_id", scope)
 	err := eachRow(tx, `SELECT id, match_query, status, release_id, confidence, mb_title, mb_artist, mb_compilation,
-		original_year, country, artist_id, cover_cache FROM albums`, func(rows *sql.Rows) error {
+		original_year, country, artist_id, cover_cache FROM albums`+albumsIn, args, func(rows *sql.Rows) error {
 		var id int64
 		var r albumIdentityRow
 		if err := rows.Scan(&id, &r.query, &r.status, &r.releaseID, &r.confidence, &r.title, &r.artist, &r.compilation,
@@ -188,7 +214,7 @@ func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
 	if err != nil {
 		return cur, err
 	}
-	err = eachRow(tx, `SELECT file_id, COALESCE(album_id, 0), mb_title, recording_id FROM tracks`, func(rows *sql.Rows) error {
+	err = eachRow(tx, `SELECT file_id, COALESCE(album_id, 0), mb_title, recording_id FROM tracks`+ofAlbums, args, func(rows *sql.Rows) error {
 		var id int64
 		var t trackIdentity
 		if err := rows.Scan(&id, &t.album, &t.title, &t.recording); err != nil {
@@ -200,7 +226,7 @@ func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
 	if err != nil {
 		return cur, err
 	}
-	err = eachRow(tx, `SELECT album_id, genre, style, source FROM album_genres`, func(rows *sql.Rows) error {
+	err = eachRow(tx, `SELECT album_id, genre, style, source FROM album_genres`+ofAlbums, args, func(rows *sql.Rows) error {
 		var k genreRow
 		var source string
 		if err := rows.Scan(&k.album, &k.genre, &k.style, &source); err != nil {
@@ -212,7 +238,10 @@ func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
 	if err != nil {
 		return cur, err
 	}
-	err = eachRow(tx, `SELECT raw, albums FROM unmapped_genres`, func(rows *sql.Rows) error {
+	if scope != nil {
+		return cur, nil
+	}
+	err = eachRow(tx, `SELECT raw, albums FROM unmapped_genres`, nil, func(rows *sql.Rows) error {
 		var raw string
 		var n int
 		if err := rows.Scan(&raw, &n); err != nil {
@@ -224,8 +253,8 @@ func currentIdentities(tx *sql.Tx) (storedIdentities, error) {
 	return cur, err
 }
 
-func eachRow(tx *sql.Tx, q string, fn func(*sql.Rows) error) error {
-	rows, err := tx.Query(q)
+func eachRow(tx *sql.Tx, q string, args []any, fn func(*sql.Rows) error) error {
+	rows, err := tx.Query(q, args...)
 	if err != nil {
 		return err
 	}

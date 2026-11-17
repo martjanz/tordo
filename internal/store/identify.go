@@ -42,9 +42,21 @@ type IdentifyTarget struct {
 }
 
 // IdentifyTargets returns every album with its tracks.
-func (s *Store) IdentifyTargets() ([]IdentifyTarget, error) {
+func (s *Store) IdentifyTargets() ([]IdentifyTarget, error) { return s.identifyTargets(nil) }
+
+// IdentifyTargetsOf returns those albums with their tracks (none for nil).
+func (s *Store) IdentifyTargetsOf(albumIDs []int64) ([]IdentifyTarget, error) {
+	return s.identifyTargets(nonNil(albumIDs))
+}
+
+// identifyTargets reads the albums in scope, or all of them for nil.
+func (s *Store) identifyTargets(scope []int64) ([]IdentifyTarget, error) {
+	albumsIn, tracksIn, args := "", "", []any(nil)
+	if scope != nil {
+		albumsIn, tracksIn, args = " WHERE id IN "+inJSON, " AND t.album_id IN "+inJSON, []any{jsonList(scope)}
+	}
 	rows, err := s.db.Query(`SELECT id, dir, title, artist, year, compilation, selection,
-		cover_path != '' OR cover_file_id != 0, genres FROM albums ORDER BY id`)
+		cover_path != '' OR cover_file_id != 0, genres FROM albums`+albumsIn+` ORDER BY id`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +82,7 @@ func (s *Store) IdentifyTargets() ([]IdentifyTarget, error) {
 	}
 	rows, err = s.db.Query(`SELECT t.album_id, t.file_id, f.fingerprint, t.title, t.disc, t.track, t.duration_ms, a.tags
 		FROM tracks t JOIN files f ON f.id = t.file_id JOIN audio a ON a.file_id = t.file_id
-		WHERE t.album_id IS NOT NULL ORDER BY t.album_id, t.disc, t.track, f.path`)
+		WHERE t.album_id IS NOT NULL`+tracksIn+` ORDER BY t.album_id, t.disc, t.track, f.path`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,8 +179,14 @@ func (s *Store) SaveMatches(ms []Match) error {
 }
 
 // Matches returns every stored match by query.
-func (s *Store) Matches() (map[string]Match, error) {
-	rows, err := s.db.Query(`SELECT query, status, release_id, confidence, candidates, matcher_version FROM matches`)
+func (s *Store) Matches() (map[string]Match, error) { return s.matches(nil) }
+
+// MatchesOf returns the stored matches of those queries.
+func (s *Store) MatchesOf(queries []string) (map[string]Match, error) { return s.matches(nonNil(queries)) }
+
+func (s *Store) matches(scope []string) (map[string]Match, error) {
+	where, args := inScope("query", scope)
+	rows, err := s.db.Query(`SELECT query, status, release_id, confidence, candidates, matcher_version FROM matches`+where, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +213,14 @@ type Correction struct {
 }
 
 // Corrections returns every correction by fingerprint.
-func (s *Store) Corrections() (map[string]Correction, error) {
-	rows, err := s.db.Query(`SELECT fingerprint, status, release_id FROM corrections`)
+func (s *Store) Corrections() (map[string]Correction, error) { return s.corrections(nil) }
+
+// CorrectionsOf returns the corrections of those fingerprints.
+func (s *Store) CorrectionsOf(fps []string) (map[string]Correction, error) { return s.corrections(nonNil(fps)) }
+
+func (s *Store) corrections(scope []string) (map[string]Correction, error) {
+	where, args := inScope("fingerprint", scope)
+	rows, err := s.db.Query(`SELECT fingerprint, status, release_id FROM corrections`+where, args...)
 	if err != nil {
 		return nil, err
 	}

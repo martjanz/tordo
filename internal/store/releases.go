@@ -60,11 +60,21 @@ type Artist struct {
 
 func (s *Store) SaveRelease(r Release) error { return s.saveDoc("releases", r.ID, r) }
 
-func (s *Store) Releases() (map[string]Release, error) { return loadDocs[Release](s.db, "releases") }
+func (s *Store) Releases() (map[string]Release, error) { return loadDocs[Release](s.db, "releases", nil) }
+
+// ReleasesOf returns those of the ids that are stored.
+func (s *Store) ReleasesOf(ids []string) (map[string]Release, error) {
+	return loadDocs[Release](s.db, "releases", nonNil(ids))
+}
 
 func (s *Store) SaveArtist(a Artist) error { return s.saveDoc("artists", a.ID, a) }
 
-func (s *Store) Artists() (map[string]Artist, error) { return loadDocs[Artist](s.db, "artists") }
+func (s *Store) Artists() (map[string]Artist, error) { return loadDocs[Artist](s.db, "artists", nil) }
+
+// ArtistsOf returns those of the ids that are stored.
+func (s *Store) ArtistsOf(ids []string) (map[string]Artist, error) {
+	return loadDocs[Artist](s.db, "artists", nonNil(ids))
+}
 
 // saveDoc and loadDocs keep JSON documents in a table (id, data,
 // fetched_at). table is always one of the constants above, never input.
@@ -78,8 +88,10 @@ func (s *Store) saveDoc(table, id string, v any) error {
 	return err
 }
 
-func loadDocs[T any](q querier, table string) (map[string]T, error) {
-	rows, err := q.Query(`SELECT id, data FROM ` + table)
+// loadDocs reads the documents with those ids, or all of them for nil.
+func loadDocs[T any](q querier, table string, scope []string) (map[string]T, error) {
+	where, args := inScope("id", scope)
+	rows, err := q.Query(`SELECT id, data FROM `+table+where, args...)
 	if err != nil {
 		return nil, err
 	}
