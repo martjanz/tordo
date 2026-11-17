@@ -58,9 +58,7 @@ func TestListenModeBlocksCuration(t *testing.T) {
 	}
 	for _, r := range curation {
 		rec := do(t, h, r[0], r[1], `{}`, "Content-Type", "application/json")
-		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "Modo escucha activo") {
-			t.Errorf("%s %s: %d %s", r[0], r[1], rec.Code, rec.Body)
-		}
+		wantError(t, rec, http.StatusForbidden, codeListenMode)
 	}
 	// Even without a JSON content type the answer is 403, not 415.
 	if rec := do(t, h, "POST", "/api/scan", ""); rec.Code != http.StatusForbidden {

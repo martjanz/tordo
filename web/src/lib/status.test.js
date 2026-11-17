@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { busy, listening, loadingMessage, pageBlocked, panel, progress, scanMessage, summary } from './status.js'
 
 describe('summary', () => {
@@ -131,7 +132,7 @@ describe('panel', () => {
       { label: 'Discos', value: '1.200' },
       { label: 'Pistas', value: '15.000' },
       { label: 'Identificados', value: '1.100' },
-      { label: 'Sin identificar', value: '90', href: '/revisar' },
+      { label: 'Sin identificar', value: '90', href: '/review' },
       { label: 'Ilegibles', value: '3' },
     ])
     // Listen mode closes Revisar: no link there.
@@ -232,5 +233,25 @@ describe('panel while preparing', () => {
     const p = panel({ scan: { running: true, files: 5 }, preparing: true })
     expect(p.title).toBe('Escaneando la música')
     expect(p.notes).toContain('También se está preparando el catálogo para mostrarlo.')
+  })
+})
+
+describe('other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it('speaks English', () => {
+    setLocale('en')
+    expect(summary(null, true).text).toBe('No connection to Tordo')
+    expect(summary({ scan: { running: true, files: 12345 } }).text).toBe('Finding files · 12,345')
+    expect(summary({ scan: { skipped: 1 } }).text).toBe('1 folder not read')
+    expect(summary({ scan: { skipped: 3 } }).text).toBe('3 folders not read')
+    expect(scanMessage({ running: true, files: 10, read: 10, toRead: 10 }).title).toBe('Assembling the albums…')
+    expect(loadingMessage(null).title).toBe('Loading…')
+    expect(panel({ scan: { running: true, files: 5 } }).steps.map((s) => s.label)).toEqual(['Find files', 'Read tags', 'Assemble albums', 'Identify', 'Complete data'])
+  })
+  it('speaks Portuguese', () => {
+    setLocale('pt-BR')
+    expect(summary(null, true).text).toBe('Sem conexão com o Tordo')
+    expect(summary({ scan: { skipped: 3 } }).text).toBe('3 pastas não lidas')
   })
 })

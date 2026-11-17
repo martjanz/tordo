@@ -31,8 +31,8 @@ const (
 )
 
 var (
-	ErrBusy    = errors.New("ya hay una identificación en curso")
-	ErrNoAlbum = errors.New("álbum no encontrado")
+	ErrBusy    = errors.New("an identification is already running")
+	ErrNoAlbum = errors.New("album not found")
 )
 
 // Retry delays while offline: the first, doubled up to the last.
@@ -131,7 +131,7 @@ func (r *Runner) Trigger() {
 		defer r.wg.Done()
 		for {
 			if err := r.run(ctx); err != nil && ctx.Err() == nil {
-				log.Printf("identificación: %v", err)
+				log.Printf("identification: %v", err)
 			}
 			r.mu.Lock()
 			if !r.again || r.closed {
@@ -226,7 +226,7 @@ func (r *Runner) run(ctx context.Context) error {
 			after = func(d time.Duration, f func()) func() { t := time.AfterFunc(d, f); return func() { t.Stop() } }
 		}
 		r.cancel = after(r.backoff, r.Trigger)
-		log.Printf("identificación: sin conexión, se reintenta en %v", r.backoff)
+		log.Printf("identification: no connection, retrying in %v", r.backoff)
 		return nil
 	}
 	r.status.State = StateIdle
@@ -338,7 +338,7 @@ func (r *Runner) enrichAll(ctx context.Context, fetched map[string]musicbrainz.R
 			case fatal(err):
 				return err
 			case err != nil:
-				log.Printf("no se pudo obtener el lanzamiento %s de MusicBrainz: %v", id, err)
+				log.Printf("could not fetch release %s from MusicBrainz: %v", id, err)
 				continue
 			}
 			rel = releaseFrom(mb)
@@ -381,7 +381,7 @@ func (r *Runner) fetchArtist(ctx context.Context, id string) (store.Artist, erro
 	case errors.Is(err, musicbrainz.ErrNotFound):
 		a = musicbrainz.Artist{ID: id}
 	case err != nil:
-		log.Printf("no se pudo obtener el artista %s de MusicBrainz: %v", id, err)
+		log.Printf("could not fetch artist %s from MusicBrainz: %v", id, err)
 		return store.Artist{ID: id}, nil
 	}
 	sa := store.Artist{ID: a.ID, Name: a.Name, SortName: a.SortName, Type: a.Type, Country: a.Country, Area: a.Area,
@@ -410,7 +410,7 @@ func (r *Runner) discogsFor(ctx context.Context, rel *store.Release) error {
 				return err
 			}
 			if err != nil {
-				log.Printf("no se pudo obtener el grupo %s de MusicBrainz: %v", rel.GroupID, err)
+				log.Printf("could not fetch release group %s from MusicBrainz: %v", rel.GroupID, err)
 			} else {
 				rel.DiscogsURLs = g.DiscogsURLs
 				if len(rel.MBGenres) == 0 {
@@ -443,7 +443,7 @@ func (r *Runner) discogsFor(ctx context.Context, rel *store.Release) error {
 		r.rejectToken()
 		return nil
 	case err != nil:
-		log.Printf("búsqueda en Discogs de %q: %v", rel.Title, err)
+		log.Printf("Discogs search for %q: %v", rel.Title, err)
 		return nil
 	}
 	if res, ok := bestResult(*rel, results); ok {
@@ -494,7 +494,7 @@ func (r *Runner) rejectToken() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.badToken {
-		log.Print("Discogs rechazó el token: se sigue sin Discogs; revisá discogsToken en config.json")
+		log.Print("Discogs rejected the token: continuing without Discogs; check discogsToken in config.json")
 	}
 	r.badToken = true
 }
@@ -554,7 +554,7 @@ func (r *Runner) coversAll(ctx context.Context) error {
 		case errors.Is(err, musicbrainz.ErrNotFound):
 			rel.Cover = store.CoverNone
 		case err != nil:
-			log.Printf("carátula de %s: %v", id, err)
+			log.Printf("cover for %s: %v", id, err)
 			continue
 		default:
 			if rel.Cover, err = r.saveCover(id, b); err != nil {

@@ -1,7 +1,9 @@
+import { t } from './i18n/index.svelte.js'
+
 // deviceName makes a short, readable name of the device that plays, from
 // its user agent: "iPhone · Safari", "Mac · Firefox".
 export function deviceName(ua) {
-  if (!ua) return 'Navegador'
+  if (!ua) return t('device.browser')
   let os = ''
   if (/iPhone/.test(ua)) os = 'iPhone'
   else if (/iPad/.test(ua)) os = 'iPad'
@@ -16,5 +18,5 @@ export function deviceName(ua) {
   else if (/Chrome\/|CriOS\//.test(ua)) browser = 'Chrome'
   else if (/Safari\//.test(ua)) browser = 'Safari'
   if (os && browser) return `${os} · ${browser}`
-  return os || browser || 'Navegador'
+  return os || browser || t('device.browser')
 }

@@ -13,7 +13,7 @@ func readFLAC(s source) (Info, error) {
 		return info, err
 	}
 	if string(magic) != "fLaC" {
-		return info, fmt.Errorf("%w: falta la marca fLaC", ErrFormat)
+		return info, fmt.Errorf("%w: missing fLaC marker", ErrFormat)
 	}
 	pos := off + 4
 	var samples int64
@@ -28,7 +28,7 @@ func readFLAC(s source) (Info, error) {
 		switch typ {
 		case 0: // STREAMINFO
 			if n < 34 {
-				return info, fmt.Errorf("%w: STREAMINFO corto", ErrFormat)
+				return info, fmt.Errorf("%w: STREAMINFO too short", ErrFormat)
 			}
 			d, err := s.read(pos, 34)
 			if err != nil {
@@ -56,12 +56,12 @@ func readFLAC(s source) (Info, error) {
 				s.pic.offer(be32(typ) == 3, nil, "", Range{pos, int64(n)}, true)
 			}
 		case 127:
-			return info, fmt.Errorf("%w: bloque FLAC inválido", ErrFormat)
+			return info, fmt.Errorf("%w: invalid FLAC block", ErrFormat)
 		}
 		pos += int64(n)
 	}
 	if pos > s.size {
-		return info, fmt.Errorf("%w: metadatos FLAC truncados", ErrFormat)
+		return info, fmt.Errorf("%w: truncated FLAC metadata", ErrFormat)
 	}
 	info.Payload = Range{pos, s.size - pos}
 	if info.SampleRate > 0 {

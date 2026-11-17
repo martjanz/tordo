@@ -22,7 +22,7 @@ import (
 	"tordo/internal/store"
 )
 
-var ErrBusy = errors.New("ya hay un escaneo en curso")
+var ErrBusy = errors.New("a scan is already running")
 
 type Status struct {
 	Running bool  `json:"running"`
@@ -237,13 +237,13 @@ func (s *Scanner) walk(ctx context.Context) (attempted, skipped []string, seen [
 	for _, root := range s.Roots {
 		abs := appdir.Abs(s.AppDir, root)
 		if st, err := os.Stat(abs); err != nil || !st.IsDir() {
-			log.Printf("raíz no disponible, se omite: %s", root)
+			log.Printf("root unavailable, skipped: %s", root)
 			continue
 		}
 		attempted = append(attempted, root)
 		start := appdir.Verbatim(abs)
 		skip := func(p string, cause error) error {
-			log.Printf("no se puede leer %s: %v; lo que contiene queda como estaba en el catálogo", p, cause)
+			log.Printf("cannot read %s: %v; its contents stay as they were in the catalog", p, cause)
 			rel, err := appdir.Rel(s.AppDir, p)
 			if err != nil {
 				return err
@@ -303,7 +303,7 @@ func (s *Scanner) walk(ctx context.Context) (attempted, skipped []string, seen [
 		// A root that vanished mid-walk means the drive was unplugged: keep
 		// the previous catalog instead of marking everything missing.
 		if _, err := os.Stat(abs); err != nil {
-			return nil, nil, nil, fmt.Errorf("la raíz %s desapareció durante el escaneo", root)
+			return nil, nil, nil, fmt.Errorf("root %s disappeared during the scan", root)
 		}
 	}
 	return attempted, skipped, seen, nil
@@ -360,7 +360,7 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 		if err != nil && ctx.Err() == nil {
 			root := rootOf(t.Path, roots)
 			if _, statErr := os.Stat(appdir.Abs(s.AppDir, root)); statErr != nil {
-				return errors.Join(fmt.Errorf("la raíz %s desapareció durante la lectura", root), flush())
+				return errors.Join(fmt.Errorf("root %s disappeared during reading", root), flush())
 			}
 		}
 		switch {
@@ -369,7 +369,7 @@ func (s *Scanner) readAll(ctx context.Context, roots []string) error {
 		case ctx.Err() != nil:
 			return errors.Join(ctx.Err(), flush())
 		case errors.Is(err, audiofile.ErrIO):
-			log.Printf("no se puede leer %s, se reintentará: %v", t.Path, err)
+			log.Printf("cannot read %s, will retry: %v", t.Path, err)
 		default:
 			r.Info, r.Err = audiofile.Info{}, err.Error()
 			batch = append(batch, r)

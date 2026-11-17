@@ -10,6 +10,7 @@
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { parse, toSearch } from '../lib/facets.js'
   import { navigate, patchState, route, savedScroll } from '../lib/nav.svelte.js'
   import { play } from '../lib/playback.svelte.js'
@@ -27,7 +28,7 @@
   let pending = $state(false) // other facets are loading: the list is the previous one
 
   const query = $derived(parse(route.search))
-  const key = (v) => (v === 'artistas' ? 'artists' : v === 'pistas' ? 'tracks' : 'albums')
+  const key = (v) => v // the response keys its lists like the view: albums, artists, tracks
 
   // Load on every change of the URL, and again when a scan or an
   // identification run ends (same URL: the list refreshes in place). load
@@ -54,12 +55,12 @@
       }
       return
     }
-    if (id !== loads || (route.path !== '/explorar' && route.path !== '/')) return // a newer request is on its way
+    if (id !== loads || (route.path !== '/explore' && route.path !== '/')) return // a newer request is on its way
     pending = false
     // The server drops malformed facets: show the URL of what it applied.
     const applied = toSearch(d.query)
     if (applied !== toSearch(parse(search))) {
-      navigate('/explorar' + applied, { replace: true })
+      navigate('/explore' + applied, { replace: true })
       return
     }
     data = d
@@ -92,13 +93,13 @@
 
   // playFrom plays the listed tracks from t on (a long list in parts: the
   // tracks go in the request's URL).
-  function playFrom(t) {
-    const i = items.indexOf(t)
+  function playFrom(track) {
+    const i = items.indexOf(track)
     play({ tracks: items.slice(i, i + 500).map((x) => x.id) })
   }
 
   function change(q) {
-    navigate('/explorar' + toSearch(q))
+    navigate('/explore' + toSearch(q))
   }
 
   // Load the next page when the end of the list comes into view.
@@ -119,7 +120,7 @@
   {#if pending}
     <Cargando />
   {:else if items.length}
-    {#if data.query.view === 'pistas'}
+    {#if data.query.view === 'tracks'}
       <div class="list">
         <ListaPistas
           tracks={items}
@@ -129,8 +130,8 @@
       </div>
     {:else}
       <div class="grid list">
-        {#each items as it (data.query.view === 'artistas' ? it.key : it.id)}
-          {#if data.query.view === 'artistas'}
+        {#each items as it (data.query.view === 'artists' ? it.key : it.id)}
+          {#if data.query.view === 'artists'}
             <TarjetaArtista artist={it} />
           {:else}
             <TarjetaAlbum album={it} />
@@ -140,12 +141,12 @@
     {/if}
     <div bind:this={sentinel}></div>
   {:else if filtered}
-    <p class="empty">Nada con estos filtros. <a href="/explorar">Quitar filtros</a></p>
+    <p class="empty">{t('explore.noMatches')} <a href="/explore">{t('explore.clearFilters')}</a></p>
   {:else if scanning}
     {@const msg = scanMessage(app.status.scan)}
     <p class="empty">{msg.title}<br /><small>{msg.detail}</small></p>
   {:else}
-    <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
+    <p class="empty">{t('common.emptyCatalog')}</p>
   {/if}
 {:else}
   <Cargando />

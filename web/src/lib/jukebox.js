@@ -1,6 +1,8 @@
 // The Rockola's commands, shared by the computer (which runs them) and the
 // phones (which send them). Pure: the player is passed in.
 
+import { msg } from './i18n/index.svelte.js'
+
 // ROLES is the lowest role that may send each command (as the server's table).
 export const ROLES = {
   enqueue: 'guest', toggle: 'guest', removeAt: 'guest',
@@ -95,7 +97,7 @@ export function snapshot(p) {
 // run executes a phone's command on the player P, checking role and
 // arguments again; say sends a notice back to that phone.
 export async function run({ command, args, session, role }, P, say) {
-  if (!allowed(role, command)) return say('Solo el anfitrión puede hacer esto.')
+  if (!allowed(role, command)) return say(msg('error.host_only'))
   const a = cleanArgs(command, args)
   if (!a) return
   switch (command) {
@@ -121,7 +123,7 @@ export async function run({ command, args, session, role }, P, say) {
     case 'removeAt': {
       const entry = P.entryOfKey(a.key)
       if (!entry) return
-      if (role !== 'host' && entry.addedBy !== session) return say('Solo podés quitar lo que agregaste.')
+      if (role !== 'host' && entry.addedBy !== session) return say(msg('queue.remove_own'))
       return P.removeAt(P.posOfKey(a.key))
     }
     case 'seek':

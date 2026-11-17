@@ -12,7 +12,7 @@ import (
 func guid(s string) [16]byte {
 	h, err := hex.DecodeString(strings.ReplaceAll(s, "-", ""))
 	if err != nil || len(h) != 16 {
-		panic("guid inválido: " + s)
+		panic("invalid guid: " + s)
 	}
 	var g [16]byte
 	g[0], g[1], g[2], g[3] = h[3], h[2], h[1], h[0]
@@ -47,11 +47,11 @@ func readASF(s source) (Info, error) {
 		return info, err
 	}
 	if [16]byte(h[:16]) != asfHeader {
-		return info, fmt.Errorf("%w: falta la cabecera ASF", ErrFormat)
+		return info, fmt.Errorf("%w: missing ASF header", ErrFormat)
 	}
 	hsize, count := int64(le64(h[16:24])), int(le32(h[24:28]))
 	if hsize < 30 || hsize > s.size {
-		return info, fmt.Errorf("%w: cabecera ASF truncada", ErrFormat)
+		return info, fmt.Errorf("%w: truncated ASF header", ErrFormat)
 	}
 	off := int64(30)
 	for i := 0; i < count && off+24 <= hsize; i++ {
@@ -61,7 +61,7 @@ func readASF(s source) (Info, error) {
 		}
 		size := int64(le64(oh[16:24]))
 		if size < 24 || off+size > hsize {
-			return info, fmt.Errorf("%w: objeto ASF inválido", ErrFormat)
+			return info, fmt.Errorf("%w: invalid ASF object", ErrFormat)
 		}
 		body, n := off+24, size-24
 		switch [16]byte(oh[:16]) {
@@ -110,7 +110,7 @@ func readASF(s source) (Info, error) {
 		off += size
 	}
 	if info.Codec == "" {
-		return info, fmt.Errorf("%w: sin pista de audio", ErrFormat)
+		return info, fmt.Errorf("%w: no audio track", ErrFormat)
 	}
 	if d, err := s.read(hsize, 24); err == nil && [16]byte(d[:16]) == asfData {
 		if size := int64(le64(d[16:24])); size >= 50 && hsize+size <= s.size {

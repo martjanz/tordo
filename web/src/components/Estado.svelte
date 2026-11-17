@@ -3,6 +3,7 @@
   // clicking it opens a panel with the steps, the progress and the catalog's
   // figures; a click keeps it open until a click elsewhere or Esc.
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { panel, summary } from '../lib/status.js'
 
   const s = $derived(summary(app.status, app.lost))
@@ -51,12 +52,12 @@
 {#if s.text}
   <span class="wrap" bind:this={root} onmouseenter={enter} onmouseleave={leave} role="presentation">
     <button class="estado {s.tone}" type="button" onclick={toggle} aria-expanded={open} aria-haspopup="dialog"
-      aria-label="{s.text}. Ver detalles">
+      aria-label={t('status.details', { text: s.text })}>
       <span class="dot"></span>
       <span class="text" role="status">{s.text}</span>
     </button>
     {#if open}
-      <div class="panel" role="dialog" aria-label="Estado de Tordo">
+      <div class="panel" role="dialog" aria-label={t('status.dialog')}>
         <div class="head {p.tone}">
           <span class="dot"></span>
           <strong>{p.title}</strong>
@@ -78,7 +79,7 @@
           <div class="progress">
             <div class="row">
               <span>{p.progress.label}</span>
-              <span class="num">{p.progress.value}{p.progress.percent != null ? ` · ${p.progress.percent} %` : ''}</span>
+              <span class="num">{p.progress.value}{p.progress.percent != null ? ` · ${t('status.percent', { percent: p.progress.percent })}` : ''}</span>
             </div>
             <div class="track" class:indeterminate={p.progress.percent == null}>
               <div class="fill" style:width={p.progress.percent != null ? `${Math.max(p.progress.percent, 1)}%` : null}></div>
@@ -100,7 +101,7 @@
 
         {#each p.notes as note (note)}<p class="note">{note}</p>{/each}
 
-        <a class="more" href="/ayuda#como-funciona" onclick={close}>Cómo funciona →</a>
+        <a class="more" href="/help#how-it-works" onclick={close}>{t('status.howItWorks')}</a>
       </div>
     {/if}
   </span>

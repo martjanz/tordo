@@ -1,6 +1,8 @@
 <script>
   // An album card: cover, title, artist and year, with a play button.
   import { albumCoverURL } from '../lib/api.js'
+  import { artistLabel } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumHref } from '../lib/router.js'
   import Icono from './Icono.svelte'
@@ -14,12 +16,12 @@
     <a href={albumHref(album.id)}>
       <Tapa srcs={album.picture === false ? [] : [albumCoverURL(album.id, 320)]} alt={album.title} />
     </a>
-    <button class="icon play" onclick={() => play({ album: album.id })} title="Reproducir" aria-label="Reproducir {album.title}">
+    <button class="icon play" onclick={() => play({ album: album.id })} title={t('player.play')} aria-label={t('player.playNamed', { title: album.title })}>
       <Icono name="play" size={18} />
     </button>
   </div>
   <a href={albumHref(album.id)} class="title">{album.title}</a>
-  <span class="sub">{album.artist}{album.year ? ` · ${album.year}` : ''}</span>
+  <span class="sub">{artistLabel(album.artist)}{album.year ? ` · ${album.year}` : ''}</span>
 </div>
 
 <style>

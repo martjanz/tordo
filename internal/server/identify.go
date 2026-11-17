@@ -30,7 +30,7 @@ const maxBody = 1 << 16
 
 func noIdentifier(w http.ResponseWriter, p parts) bool {
 	if p.identifier == nil {
-		http.Error(w, "modo consulta: no se puede identificar ni corregir", http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: cannot identify or correct", nil)
 		return true
 	}
 	return false
@@ -39,7 +39,7 @@ func noIdentifier(w http.ResponseWriter, p parts) bool {
 func pathID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 		return 0, false
 	}
 	return id, true
@@ -89,7 +89,7 @@ func (s *Server) setIdentification(w http.ResponseWriter, r *http.Request) {
 		Ignore    bool   `json:"ignore"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&body); err != nil {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	var err error
@@ -99,7 +99,7 @@ func (s *Server) setIdentification(w http.ResponseWriter, r *http.Request) {
 	case strings.TrimSpace(body.ReleaseID) != "":
 		err = p.identifier.SetRelease(r.Context(), id, releaseIDFrom(body.ReleaseID))
 	default:
-		http.Error(w, "falta releaseId o ignore", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeMissingRelease, "releaseId or ignore is required", nil)
 		return
 	}
 	s.afterCorrection(w, p, id, err)
@@ -119,16 +119,16 @@ func (s *Server) resetIdentification(w http.ResponseWriter, r *http.Request) {
 func (s *Server) afterCorrection(w http.ResponseWriter, p parts, id int64, err error) {
 	switch {
 	case errors.Is(err, musicbrainz.ErrInvalidID):
-		http.Error(w, "id de MusicBrainz inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidMBID, "invalid MusicBrainz id", nil)
 		return
 	case errors.Is(err, musicbrainz.ErrNotFound):
-		http.Error(w, "ese lanzamiento no existe en MusicBrainz", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeReleaseNotFound, "release not found in MusicBrainz", nil)
 		return
 	case errors.Is(err, identify.ErrNoAlbum):
-		http.Error(w, "álbum no encontrado", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeAlbumNotFound, "album not found", nil)
 		return
 	case errors.Is(err, httpx.ErrOffline):
-		http.Error(w, "sin conexión con MusicBrainz; probá más tarde", http.StatusServiceUnavailable)
+		writeError(w, http.StatusServiceUnavailable, codeMusicBrainzOffline, "MusicBrainz is unreachable", nil)
 		return
 	case err != nil:
 		fail(w, err)
@@ -165,15 +165,15 @@ func (s *Server) setGenreAlias(w http.ResponseWriter, r *http.Request) {
 	}
 	var a store.GenreAlias
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&a); err != nil {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	if genres.Key(a.Raw) == "" {
-		http.Error(w, "falta el valor a mapear (raw)", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeMissingRaw, "raw value is required", nil)
 		return
 	}
 	if (a.Genre == "" && a.Style != "") || (a.Genre != "" && !genres.Valid(a.Genre, a.Style)) {
-		http.Error(w, "género o estilo desconocido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeUnknownGenre, "unknown genre or style", nil)
 		return
 	}
 	a.Raw = genres.Key(a.Raw)
@@ -196,7 +196,7 @@ func (s *Server) deleteGenreAlias(w http.ResponseWriter, r *http.Request) {
 	}
 	raw := genres.Key(r.URL.Query().Get("raw"))
 	if raw == "" {
-		http.Error(w, "falta el valor (raw)", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeMissingRaw, "raw value is required", nil)
 		return
 	}
 	if err := s.Store.DeleteGenreAlias(raw); err != nil {

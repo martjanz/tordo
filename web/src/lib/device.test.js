@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { deviceName } from './device.js'
 
 describe('deviceName', () => {
@@ -14,5 +15,14 @@ describe('deviceName', () => {
     ['', 'Navegador'],
   ])('%s', (ua, want) => {
     expect(deviceName(ua)).toBe(want)
+  })
+})
+
+describe('deviceName in English', () => {
+  afterEach(() => setLocale('es'))
+
+  it('names an unknown browser', () => {
+    setLocale('en')
+    expect(deviceName('')).toBe('Browser')
   })
 })

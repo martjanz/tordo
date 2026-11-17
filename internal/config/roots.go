@@ -12,13 +12,48 @@ import (
 	"tordo/internal/appdir"
 )
 
+// Root errors. A *RootError wraps one of them with the folder(s) concerned, so
+// the server can answer with a code and the paths as parameters.
+var (
+	ErrRootRequired    = errors.New("folder is required")
+	ErrRootNotFound    = errors.New("folder does not exist")
+	ErrRootNotDir      = errors.New("not a folder")
+	ErrRootOtherDisk   = errors.New("folder must be on the same disk as the app")
+	ErrRootIsApp       = errors.New("that is the app folder")
+	ErrRootContainsApp = errors.New("that folder contains the app folder")
+	ErrRootInsideApp   = errors.New("that folder is inside the app folder")
+	ErrRootsRequired   = errors.New("choose at least one folder")
+	ErrRootMalformed   = errors.New("folder is not in catalog form")
+	ErrRootDuplicate   = errors.New("repeated folder")
+	ErrRootsNested     = errors.New("folders are nested")
+)
+
+// RootError is a rejected root: Err says why, Path is the folder (and Other
+// the second one when two overlap).
+type RootError struct {
+	Err         error
+	Path, Other string
+}
+
+func (e *RootError) Error() string {
+	if e.Other != "" {
+		return fmt.Sprintf("%v: %s, %s", e.Err, e.Path, e.Other)
+	}
+	if e.Path != "" {
+		return fmt.Sprintf("%v: %s", e.Err, e.Path)
+	}
+	return e.Err.Error()
+}
+
+func (e *RootError) Unwrap() error { return e.Err }
+
 // Root turns a folder the user typed (absolute, or relative to the app
 // folder) into a root in catalog form: relative to appDir, '/'-separated.
 // The folder must exist, and neither be, contain nor sit inside the app folder.
 func Root(appDir, input string) (string, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return "", errors.New("falta la carpeta")
+		return "", &RootError{Err: ErrRootRequired}
 	}
 	abs := input
 	if !filepath.IsAbs(abs) {
@@ -26,25 +61,25 @@ func Root(appDir, input string) (string, error) {
 	}
 	st, err := os.Stat(abs)
 	if err != nil {
-		return "", fmt.Errorf("no existe la carpeta %s", input)
+		return "", &RootError{Err: ErrRootNotFound, Path: input}
 	}
 	if !st.IsDir() {
-		return "", fmt.Errorf("%s no es una carpeta", input)
+		return "", &RootError{Err: ErrRootNotDir, Path: input}
 	}
 	abs = canonicalCase(abs)
 	rel, err := appdir.Rel(appDir, abs)
 	if err != nil {
 		// Another drive on Windows: the catalog only keeps relative paths.
-		return "", fmt.Errorf("%s tiene que estar en el mismo disco que la app", input)
+		return "", &RootError{Err: ErrRootOtherDisk, Path: input}
 	}
 	rel = path.Clean(rel)
 	switch {
 	case rel == ".":
-		return "", errors.New("esa es la carpeta de la app")
+		return "", &RootError{Err: ErrRootIsApp, Path: input}
 	case onlyParents(rel):
-		return "", errors.New("esa carpeta contiene a la de la app")
+		return "", &RootError{Err: ErrRootContainsApp, Path: input}
 	case rel != ".." && !strings.HasPrefix(rel, "../"):
-		return "", errors.New("esa carpeta está dentro de la de la app")
+		return "", &RootError{Err: ErrRootInsideApp, Path: input}
 	}
 	return rel, nil
 }
@@ -108,7 +143,7 @@ func onlyParents(rel string) bool {
 // There must be at least one, and none may repeat or contain another.
 func CheckRoots(appDir string, roots, saved []string) error {
 	if len(roots) == 0 {
-		return errors.New("elegí al menos una carpeta")
+		return &RootError{Err: ErrRootsRequired}
 	}
 	for i, r := range roots {
 		if !slices.Contains(saved, r) {
@@ -117,15 +152,15 @@ func CheckRoots(appDir string, roots, saved []string) error {
 				return err
 			}
 			if rel != r {
-				return fmt.Errorf("carpeta mal escrita: %s", r)
+				return &RootError{Err: ErrRootMalformed, Path: r}
 			}
 		}
 		for _, o := range roots[:i] {
 			switch {
 			case o == r:
-				return fmt.Errorf("carpeta repetida: %s", r)
+				return &RootError{Err: ErrRootDuplicate, Path: r}
 			case strings.HasPrefix(r, o+"/"), strings.HasPrefix(o, r+"/"):
-				return fmt.Errorf("%s y %s están una dentro de la otra", o, r)
+				return &RootError{Err: ErrRootsNested, Path: o, Other: r}
 			}
 		}
 	}

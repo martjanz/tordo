@@ -20,7 +20,7 @@ const (
 var now = time.Now
 
 // ErrBadRating is returned for a rating outside 0 to 5.
-var ErrBadRating = errors.New("el puntaje va de 0 a 5")
+var ErrBadRating = errors.New("rating must be 0 to 5")
 
 // Mark is a liked or rated track or album.
 type Mark struct {
@@ -175,7 +175,7 @@ func (s *Store) RateAlbum(id int64, stars int) (bool, error) {
 // LikeArtist likes or unlikes an artist by its catalog key.
 func (s *Store) LikeArtist(key string, liked bool) error {
 	if key == "" {
-		return errors.New("falta el artista")
+		return errors.New("missing artist")
 	}
 	return s.sideWrite(true, func(tx *sql.Tx) error { return setLike(tx, KindArtist, key, liked) })
 }

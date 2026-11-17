@@ -28,7 +28,7 @@ func TestStationsEndpoints(t *testing.T) {
 	call := func(method, target, body string) *httptest.ResponseRecorder {
 		return do(t, h, method, target, body, "Content-Type", jsonCT)
 	}
-	rec := call("POST", "/api/stations", `{"name":"Locura","source":{"folder":"../musica/Virus - Locura"},"mode":"albumes","artistGap":3}`)
+	rec := call("POST", "/api/stations", `{"name":"Locura","source":{"folder":"../musica/Virus - Locura"},"mode":"albums","artistGap":3}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
@@ -36,20 +36,20 @@ func TestStationsEndpoints(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &st); err != nil {
 		t.Fatal(err)
 	}
-	if st.ID == 0 || st.Name != "Locura" || st.Mode != "albumes" || st.ArtistGap != 3 || st.Source.Folder != "../musica/Virus - Locura" || st.CreatedAt == 0 {
+	if st.ID == 0 || st.Name != "Locura" || st.Mode != "albums" || st.ArtistGap != 3 || st.Source.Folder != "../musica/Virus - Locura" || st.CreatedAt == 0 {
 		t.Fatalf("created %+v", st)
 	}
 	var list []stationRow
 	decode(t, call("GET", "/api/stations", ""), &list)
-	if len(list) != 1 || list[0].ID != st.ID || list[0].Mode != "albumes" {
+	if len(list) != 1 || list[0].ID != st.ID || list[0].Mode != "albums" {
 		t.Fatalf("list %+v", list)
 	}
-	if rec := call("PUT", "/api/stations/"+itoa(st.ID), `{"name":"Virus","source":{},"mode":"pistas"}`); rec.Code != http.StatusNoContent {
+	if rec := call("PUT", "/api/stations/"+itoa(st.ID), `{"name":"Virus","source":{},"mode":"tracks"}`); rec.Code != http.StatusNoContent {
 		t.Fatalf("update: %d %s", rec.Code, rec.Body)
 	}
 	list = nil
 	decode(t, call("GET", "/api/stations", ""), &list)
-	if len(list) != 1 || list[0].Name != "Virus" || list[0].Mode != "pistas" || list[0].Source.Folder != "" {
+	if len(list) != 1 || list[0].Name != "Virus" || list[0].Mode != "tracks" || list[0].Source.Folder != "" {
 		t.Fatalf("after update %+v", list)
 	}
 	if rec := call("POST", "/api/stations", `{"name":" "}`); rec.Code != http.StatusBadRequest {
@@ -92,7 +92,7 @@ func TestStationNext(t *testing.T) {
 			q.Set("def", def)
 		}
 		if recent != "" {
-			q.Set("recientes", recent)
+			q.Set("recent", recent)
 		}
 		return do(t, h, "GET", "/api/station/next?"+q.Encode(), "")
 	}
@@ -119,7 +119,7 @@ func TestStationNext(t *testing.T) {
 	}
 	decode(t, next(`{"source":{}}`, ""), &out)
 	onlyMP3("next")
-	if out.Station.Mode != "pistas" {
+	if out.Station.Mode != "tracks" {
 		t.Fatalf("station %+v", out.Station)
 	}
 	out.Items = nil

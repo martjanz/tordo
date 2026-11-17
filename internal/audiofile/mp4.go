@@ -28,7 +28,7 @@ func readAtom(s source, off, limit int64) (atom, error) {
 		a.size = limit - off // up to the end of the parent
 	}
 	if a.size < a.hdr || off+a.size > limit {
-		return atom{}, fmt.Errorf("%w: átomo MP4 %q inválido", ErrFormat, a.typ)
+		return atom{}, fmt.Errorf("%w: invalid MP4 atom %q", ErrFormat, a.typ)
 	}
 	return a, nil
 }
@@ -89,7 +89,7 @@ func readMP4(s source) (Info, error) {
 		return info, err
 	}
 	if moov.size == 0 {
-		return info, fmt.Errorf("%w: falta el átomo moov", ErrFormat)
+		return info, fmt.Errorf("%w: missing moov atom", ErrFormat)
 	}
 	var scale int64
 	if mvhd, ok, err := findAtom(s, moov, "mvhd"); err != nil {
@@ -136,7 +136,7 @@ func readMP4(s source) (Info, error) {
 		}
 	}
 	if info.Codec == "" {
-		return info, fmt.Errorf("%w: sin pista de audio", ErrFormat)
+		return info, fmt.Errorf("%w: no audio track", ErrFormat)
 	}
 	if mdat.size > 0 {
 		info.Payload = Range{mdat.body(), mdat.size - mdat.hdr}

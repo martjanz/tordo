@@ -4,7 +4,8 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
-  import { count, duration, length, size } from '../lib/format.js'
+  import { duration, length, size } from '../lib/format.js'
+  import { formatNumber, t } from '../lib/i18n/index.svelte.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { folderStation } from '../lib/stations.js'
@@ -30,12 +31,12 @@
   const album = $derived(folder.albums?.length === 1 && folder.albums[0].dir === folder.path ? folder.albums[0] : null)
 
   const COLUMNS = [
-    ['name', 'Nombre'],
-    [null, 'Tamaño relativo'],
-    ['tracks', 'Pistas'],
-    ['duration', 'Duración'],
-    ['format', 'Formato'],
-    ['size', 'Tamaño'],
+    ['name', 'facets.order.name'],
+    [null, 'folders.relativeSize'],
+    ['tracks', 'facets.view.tracks'],
+    ['duration', 'folders.duration'],
+    ['format', 'facets.facet.format'],
+    ['size', 'folders.size'],
   ]
 
   function ariaSort(column) {
@@ -56,10 +57,10 @@
 
 <header>
   {#if isRoot}
-    <h1>Carpetas</h1>
+    <h1>{t('nav.folders')}</h1>
   {:else}
-    <nav class="trail" aria-label="Ubicación">
-      <a href="/carpetas">Carpetas</a>
+    <nav class="trail" aria-label={t('folders.location')}>
+      <a href="/folders">{t('nav.folders')}</a>
       {#each folder.trail ?? [] as c, i (c.path)}
         <span>/</span>
         {#if i < folder.trail.length - 1}<a href={folderHref(c.path)}>{c.name}</a>{:else}<span class="here">{c.name}</span>{/if}
@@ -72,12 +73,12 @@
         </div>
       {/if}
       <div>
-        {#if folder.collection}<span class="label">Colección</span>{/if}
+        {#if folder.collection}<span class="label">{t('facets.facet.collection')}</span>{/if}
         <h1>{folder.name}</h1>
         <p class="sub">
-          {count(folder.albumCount, 'álbum', 'álbumes')} · {count(folder.trackCount, 'pista', 'pistas')} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
+          {t('count.albums', { n: folder.albumCount })} · {t('count.tracks', { n: folder.trackCount })} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
         </p>
-        {#if album}<a class="album-link" href={albumHref(album.id)}>Ver álbum</a>{/if}
+        {#if album}<a class="album-link" href={albumHref(album.id)}>{t('folders.viewAlbum')}</a>{/if}
       </div>
     </div>
     <div class="tools">
@@ -86,7 +87,7 @@
       {/if}
       {#if folder.detected && !app.status?.readOnly && !listenMode()}
         <button class="small" onclick={() => setCollection(!folder.collection)}>
-          {folder.collection ? 'No es una colección' : 'Es una colección'}
+          {folder.collection ? t('folders.notCollection') : t('folders.isCollection')}
         </button>
       {/if}
       {#if folder.collection}<MeGusta kind="collection" ref={folder.path} />{/if}
@@ -98,21 +99,21 @@
   <table>
     <thead>
       <tr>
-        {#each COLUMNS as [column, label] (label)}
+        {#each COLUMNS as [column, labelKey] (labelKey)}
           <th
             class:num={column === 'tracks' || column === 'duration' || column === 'size'}
             class:bar-col={column === null}
             aria-sort={column ? ariaSort(column) : undefined}>
             {#if column}
               <button class="head" onclick={() => (sort = nextSort(sort, column))}>
-                {label}{#if sort.column === column}<span aria-hidden="true">{sort.desc ? ' ↓' : ' ↑'}</span>{/if}
+                {t(labelKey)}{#if sort.column === column}<span aria-hidden="true">{sort.desc ? ' ↓' : ' ↑'}</span>{/if}
               </button>
             {:else}
-              {label}
+              {t(labelKey)}
             {/if}
           </th>
         {/each}
-        <th class="act"><span class="sr">Acciones</span></th>
+        <th class="act"><span class="sr">{t('common.actions')}</span></th>
       </tr>
     </thead>
     <tbody>
@@ -122,17 +123,17 @@
             <div class="cell">
               <Icono name={f.album ? 'disc' : 'folder'} size={16} />
               <a href={folderHref(f.path)}>{f.name}</a>
-              {#if f.collection}<span class="label">Colección</span>{/if}
+              {#if f.collection}<span class="label">{t('facets.facet.collection')}</span>{/if}
             </div>
           </td>
           <td class="bar-col"><div class="bar" style="width: {bar(f.sizeBytes, folder.sizeBytes)}%"></div></td>
-          <td class="num">{f.tracks.toLocaleString('es')}</td>
+          <td class="num">{formatNumber(f.tracks)}</td>
           <td class="num">{f.durationMs ? length(f.durationMs) : ''}</td>
           <td>{f.format}</td>
           <td class="num">{size(f.sizeBytes)}</td>
           <td class="act">
             {#if f.tracks > 0}
-              <button class="icon row-btn" onclick={() => play({ folder: f.path })} aria-label="Reproducir {f.name}">
+              <button class="icon row-btn" onclick={() => play({ folder: f.path })} aria-label={t('player.playNamed', { title: f.name })}>
                 <Icono name="play" size={14} />
               </button>
             {/if}
@@ -148,7 +149,7 @@
               <button
                 class="link"
                 disabled={!f.playable}
-                title={f.playable ? undefined : f.track ? 'No se puede reproducir: falta ffmpeg' : 'No se pudo leer este archivo'}
+                title={f.playable ? undefined : f.track ? t('album.unplayable') : t('folders.unreadable')}
                 onclick={() => play({ tracks: ids }, { startId: f.id })}>{f.name}</button>
               </div>
             </td>
@@ -159,7 +160,7 @@
             <td class="num">{size(f.sizeBytes)}</td>
             <td class="act">
               {#if f.playable}
-                <button class="icon row-btn" onclick={() => enqueue({ tracks: [f.id] })} aria-label="Agregar {f.name} a la cola">
+                <button class="icon row-btn" onclick={() => enqueue({ tracks: [f.id] })} aria-label={t('folders.addToQueue', { name: f.name })}>
                   <Icono name="plus" size={14} />
                 </button>
               {/if}

@@ -6,7 +6,8 @@
   // differ from the one most of the list shares (the album header says it).
   // The track playing shows an equaliser instead of its number.
   // Tracks the server cannot deliver (playable false) are dimmed.
-  import { count, dominantQuality, duration, quality } from '../lib/format.js'
+  import { artistLabel, dominantQuality, duration, quality } from '../lib/format.js'
+  import { t as translate } from '../lib/i18n/index.svelte.js'
   import { shown } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
   import { albumHref, artistHref } from '../lib/router.js'
@@ -29,7 +30,7 @@
 <ol class="pistas">
   {#each tracks as t, i (t.id)}
     {#if headers[i]}
-      <li class="disc label">Disco {headers[i]}</li>
+      <li class="disc label">{translate('album.disc', { n: headers[i] })}</li>
     {/if}
     {@const now = t.id === nowId}
     {@const q = quality(t)}
@@ -38,11 +39,11 @@
       <button
         class="play"
         onclick={() => onplay(t)}
-        aria-label="Reproducir {t.title}"
-        title={t.playable === false ? 'No se puede reproducir: falta ffmpeg' : undefined}></button>
+        aria-label={translate('player.playNamed', { title: t.title })}
+        title={t.playable === false ? translate('album.unplayable') : undefined}></button>
       <span class="n">
         {#if now}
-          <span class="eq" class:paused={!p.playing} role="img" aria-label={p.playing ? 'Sonando' : 'En pausa'}><i></i><i></i><i></i></span>
+          <span class="eq" class:paused={!p.playing} role="img" aria-label={p.playing ? translate('player.nowPlaying') : translate('player.paused')}><i></i><i></i><i></i></span>
         {:else}
           <span class="num">{numbered ? t.track || '' : ''}</span>
           {#if t.playable !== false}<span class="hover-play"><Icono name="play" size={14} /></span>{/if}
@@ -53,7 +54,7 @@
         {#if otherArtist(t) || (showAlbum && t.album)}
           <span class="artist">
             {#if otherArtist(t)}
-              {#if t.artistKey}<a href={artistHref(t.artistKey)}>{t.artist}</a>{:else}{t.artist}{/if}
+              {#if t.artistKey}<a href={artistHref(t.artistKey)}>{artistLabel(t.artist)}</a>{:else}{artistLabel(t.artist)}{/if}
             {/if}
             {#if showAlbum && t.album}
               {otherArtist(t) ? ' · ' : ''}<a href={albumHref(t.albumId)}>{t.album}</a>
@@ -61,7 +62,7 @@
           </span>
         {/if}
       </span>
-      {#if showPlays}<span class="plays">{count(t.plays ?? 0, 'vez', 'veces')}</span>{/if}
+      {#if showPlays}<span class="plays">{translate('count.times', { n: t.plays ?? 0 })}</span>{/if}
       {#if q && q !== usual}<span class="quality">{q}</span>{/if}
       <span class="like" class:liked={isLiked(mine.marks, 'track', t.id)}><MeGusta kind="track" ref={t.id} size={16} /></span>
       <span class="time">{duration(t.durationMs)}</span>

@@ -1,41 +1,41 @@
 // Routes of the app. Pure: nav.svelte.js keeps the current route.
 import { NAMES as FACET_NAMES } from './facets.js'
 
-// Old links of the form "/?pais=AR" still open Explorar: "/" with any of
+// Links of the form "/?country=AR" open Explorar: "/" with any of
 // these parameters is Explorar, without them it is Inicio.
-const EXPLORAR_PARAMS = ['ver', 'orden', 'dir', ...FACET_NAMES]
+const EXPLORAR_PARAMS = ['view', 'order', 'dir', ...FACET_NAMES]
 
-const DUPLICATE_KINDS = ['exactas', 'formatos', 'sospechas']
+const DUPLICATE_KINDS = ['exact', 'formats', 'suspected']
 
-const PERIODS = ['semana', 'mes', 'anio', 'siempre']
+const PERIODS = ['week', 'month', 'year', 'all']
 
 // resolve maps a pathname and query to the page to show and its parameters.
 export function resolve(pathname, search = '') {
   const params = new URLSearchParams(search)
   if (pathname === '/') return EXPLORAR_PARAMS.some((p) => params.has(p)) ? { page: 'explorar' } : { page: 'inicio' }
-  if (pathname === '/explorar') return { page: 'explorar' }
-  if (pathname === '/estadisticas') {
-    const period = params.get('periodo')
-    return { page: 'estadisticas', period: PERIODS.includes(period) ? period : 'mes' }
+  if (pathname === '/explore') return { page: 'explorar' }
+  if (pathname === '/stats') {
+    const period = params.get('period')
+    return { page: 'estadisticas', period: PERIODS.includes(period) ? period : 'month' }
   }
-  if (pathname === '/carpetas') return { page: 'carpetas', path: params.get('ruta') ?? '' }
-  if (pathname === '/listas') return { page: 'listas' }
-  if (pathname === '/buscar') return { page: 'buscar', q: params.get('q') ?? '' }
-  if (pathname === '/revisar') return { page: 'revisar', tab: 'sin-identificar' }
-  if (pathname === '/ajustes') return { page: 'ajustes' }
-  if (pathname === '/ayuda') return { page: 'ayuda' }
-  if (pathname === '/bienvenida') return { page: 'bienvenida' }
-  if (pathname === '/revisar/duplicados') {
-    const kind = params.get('tipo')
-    return { page: 'revisar', tab: 'duplicados', kind: DUPLICATE_KINDS.includes(kind) ? kind : 'exactas' }
+  if (pathname === '/folders') return { page: 'carpetas', path: params.get('path') ?? '' }
+  if (pathname === '/lists') return { page: 'listas' }
+  if (pathname === '/search') return { page: 'buscar', q: params.get('q') ?? '' }
+  if (pathname === '/review') return { page: 'revisar', tab: 'sin-identificar' }
+  if (pathname === '/settings') return { page: 'ajustes' }
+  if (pathname === '/help') return { page: 'ayuda' }
+  if (pathname === '/welcome') return { page: 'bienvenida' }
+  if (pathname === '/review/duplicates') {
+    const kind = params.get('kind')
+    return { page: 'revisar', tab: 'duplicados', kind: DUPLICATE_KINDS.includes(kind) ? kind : 'exact' }
   }
-  if (pathname === '/revisar/formatos') return { page: 'revisar', tab: 'formatos' }
-  if (pathname === '/revisar/generos') return { page: 'revisar', tab: 'generos' }
-  let m = pathname.match(/^\/listas\/([1-9][0-9]*)$/)
+  if (pathname === '/review/formats') return { page: 'revisar', tab: 'formatos' }
+  if (pathname === '/review/genres') return { page: 'revisar', tab: 'generos' }
+  let m = pathname.match(/^\/lists\/([1-9][0-9]*)$/)
   if (m) return { page: 'lista', id: Number(m[1]) }
   m = pathname.match(/^\/album\/([1-9][0-9]*)$/)
   if (m) return { page: 'album', id: Number(m[1]) }
-  m = pathname.match(/^\/artista\/([^/]+)$/)
+  m = pathname.match(/^\/artist\/([^/]+)$/)
   if (m) {
     try {
       return { page: 'artista', key: decodeURIComponent(m[1]) }
@@ -60,7 +60,7 @@ export function appLink(event, anchor, origin) {
 }
 
 export function folderHref(path) {
-  return path ? `/carpetas?ruta=${encodeURIComponent(path)}` : '/carpetas'
+  return path ? `/folders?path=${encodeURIComponent(path)}` : '/folders'
 }
 
 export function albumHref(id) {
@@ -68,32 +68,32 @@ export function albumHref(id) {
 }
 
 export function listHref(id) {
-  return `/listas/${id}`
+  return `/lists/${id}`
 }
 
 export function artistHref(key) {
-  return `/artista/${encodeURIComponent(key)}`
+  return `/artist/${encodeURIComponent(key)}`
 }
 
-// exploreHref links Explorar with some facets: exploreHref({ pais: 'AR' }).
+// exploreHref links Explorar with some facets: exploreHref({ country: 'AR' }).
 export function exploreHref(facets = {}, view = '') {
   const params = new URLSearchParams()
-  if (view && view !== 'albumes') params.set('ver', view)
+  if (view && view !== 'albums') params.set('view', view)
   for (const [k, v] of Object.entries(facets)) if (v) params.set(k, v)
   const s = params.toString()
-  return s ? `/explorar?${s}` : '/explorar'
+  return s ? `/explore?${s}` : '/explore'
 }
 
 export function searchHref(q) {
-  return `/buscar?q=${encodeURIComponent(q.trim())}`
+  return `/search?q=${encodeURIComponent(q.trim())}`
 }
 
-// statsHref links the statistics page; "mes" is the default period.
+// statsHref links the statistics page; "month" is the default period.
 export function statsHref(period) {
-  return period && period !== 'mes' ? `/estadisticas?periodo=${encodeURIComponent(period)}` : '/estadisticas'
+  return period && period !== 'month' ? `/stats?period=${encodeURIComponent(period)}` : '/stats'
 }
 
-// duplicatesHref links the duplicates tab of Revisar; "exactas" is the default kind.
+// duplicatesHref links the duplicates tab of Revisar; "exact" is the default kind.
 export function duplicatesHref(kind) {
-  return kind && kind !== 'exactas' ? `/revisar/duplicados?tipo=${encodeURIComponent(kind)}` : '/revisar/duplicados'
+  return kind && kind !== 'exact' ? `/review/duplicates?kind=${encodeURIComponent(kind)}` : '/review/duplicates'
 }

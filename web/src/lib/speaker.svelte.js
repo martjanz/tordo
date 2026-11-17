@@ -3,6 +3,7 @@
 // so the phones can see it.
 import { api } from './api.js'
 import { notify } from './app.svelte.js'
+import { msg } from './i18n/index.svelte.js'
 import { run, snapshot } from './jukebox.js'
 import * as P from './player.svelte.js'
 import { rockola, setRockola } from './rockola.svelte.js'
@@ -80,11 +81,11 @@ function open(connect) {
   })
   es.addEventListener('command', (e) => {
     const cmd = data(e)
-    run(cmd, P, (text) => api.jukeboxNotice(token, cmd.remote, text).catch(() => {}))
+    run(cmd, P, (notice) => api.jukeboxNotice(token, cmd.remote, notice).catch(() => {}))
   })
   es.addEventListener('replaced', () => {
     disableSpeaker()
-    notify('Otro navegador tomó el audio de esta compu.')
+    notify(msg('speaker.replaced'))
   })
   es.addEventListener('error', () => {
     if (source !== es) return

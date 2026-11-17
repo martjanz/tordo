@@ -16,7 +16,7 @@ Proyecto hermano de Cinexplorer: mismo modelo de distribución y mismas convenci
 - **Herramientas externas opcionales:** `ffmpeg`/`ffprobe`, si están en el `PATH`, se usan para reproducir formatos no soportados por el navegador, para leer lo que el lector nativo no entiende y para analizar volumen. Sin ellas todo lo demás funciona.
 - **Escucha en la red local** desde otros dispositivos (teléfono, otra computadora), protegida con PIN. El audio suena en el dispositivo que tiene la página abierta.
 - **Un solo usuario** (el dueño, en varios dispositivos).
-- Interfaz en **español**.
+- Interfaz en **español, inglés y portugués de Brasil** (idioma automático según el navegador o fijado en Ajustes); ver `2026-11-16-tordo-i18n-design.md`.
 
 ### Datos de referencia
 
@@ -251,6 +251,8 @@ Pedido 2026-10-03, etapa M6. Desde el teléfono (u otro navegador) se elige qué
 **Seguridad:** un teléfono nunca puede volverse parlante ni publicar estado, ni marcarse anfitrión; los límites del invitado se aplican en el servidor, no solo en la interfaz; la Rockola no reconfigura nada (los endpoints de configuración siguen solo desde localhost).
 
 ## 8. Interfaz
+
+> Nota: los nombres de URL, de facetas y de la API que aparecen en §7–§8 (`/explorar`, `megusta`, `orden`, `semilla`, etc.) son los originales en español; hoy son en inglés (`/explore`, `liked`, `order`, `seed`, etc.) según `2026-11-16-tordo-i18n-design.md` §4.5. Los nombres de las secciones de la interfaz que se citan acá son los del idioma español.
 
 Estética de la familia de Cinexplorer: tema oscuro, Inter, imagen primero, pero con **carátulas cuadradas**. Responsiva desde el inicio (barra de navegación inferior en móvil).
 

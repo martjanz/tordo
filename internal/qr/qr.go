@@ -2,7 +2,7 @@ package qr // QR codes for short texts (the LAN addresses): byte mode, level M, 
 
 import "errors"
 
-var ErrTooLong = errors.New("texto demasiado largo para el código QR")
+var ErrTooLong = errors.New("text too long for the QR code")
 
 // Code is a QR symbol without its quiet zone.
 type Code struct {

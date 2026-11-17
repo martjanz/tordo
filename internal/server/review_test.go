@@ -44,12 +44,12 @@ func TestReviewDuplicates(t *testing.T) {
 		len(d.Groups) != 1 || len(d.Groups[0].Files) != 2 || d.Groups[0].Kind != catalog.DupExact {
 		t.Fatalf("exact: %+v", d)
 	}
-	rec := do(t, h, "GET", "/api/review/duplicates?tipo=sospechas", "")
+	rec := do(t, h, "GET", "/api/review/duplicates?kind=suspected", "")
 	if !strings.Contains(rec.Body.String(), `"groups":[]`) {
 		t.Fatalf("suspects must be an empty list: %s", rec.Body)
 	}
 	var raro duplicatesResponse
-	decode(t, do(t, h, "GET", "/api/review/duplicates?tipo=raro", ""), &raro)
+	decode(t, do(t, h, "GET", "/api/review/duplicates?kind=raro", ""), &raro)
 	if len(raro.Groups) != 1 || raro.Groups[0].Kind != catalog.DupExact {
 		t.Fatalf("unknown kind: %+v", raro)
 	}
