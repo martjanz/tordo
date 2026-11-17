@@ -3,7 +3,7 @@
   // tracks span several discs; the artist when it is not the album's (with
   // a link to their page when there is one); the album with showAlbum.
   // Tracks the server cannot deliver (playable false) are dimmed.
-  import { duration, quality } from '../lib/format.js'
+  import { artistLabel, duration, quality } from '../lib/format.js'
   import { t as translate } from '../lib/i18n/index.svelte.js'
   import { enqueue } from '../lib/playback.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
@@ -22,22 +22,22 @@
 <ol class="pistas">
   {#each tracks as t, i (t.id)}
     {#if discs > 1 && (i === 0 || (tracks[i - 1].disc || 1) !== (t.disc || 1))}
-      <li class="disc label">Disco {t.disc || 1}</li>
+      <li class="disc label">{translate('album.disc', { n: t.disc || 1 })}</li>
     {/if}
     <li class="row" class:unplayable={t.playable === false}>
       <!-- The whole row plays the track; the links on top of it stay links. -->
       <button
         class="play"
         onclick={() => onplay(t)}
-        aria-label="Reproducir {t.title}"
-        title={t.playable === false ? 'No se puede reproducir: falta ffmpeg' : undefined}></button>
+        aria-label={translate('player.playNamed', { title: t.title })}
+        title={t.playable === false ? translate('album.unplayable') : undefined}></button>
       <span class="n">{numbered ? t.track || '' : ''}</span>
       <span class="text">
         <span class="title">{t.title}</span>
         {#if otherArtist(t) || (showAlbum && t.album)}
           <span class="artist">
             {#if otherArtist(t)}
-              {#if t.artistKey}<a href={artistHref(t.artistKey)}>{t.artist}</a>{:else}{t.artist}{/if}
+              {#if t.artistKey}<a href={artistHref(t.artistKey)}>{artistLabel(t.artist)}</a>{:else}{artistLabel(t.artist)}{/if}
             {/if}
             {#if showAlbum && t.album}
               {otherArtist(t) ? ' · ' : ''}<a href={albumHref(t.albumId)}>{t.album}</a>
@@ -49,7 +49,7 @@
       <span class="quality">{quality(t)}</span>
       <span class="like" class:liked={isLiked(mine.marks, 'track', t.id)}><MeGusta kind="track" ref={t.id} size={16} /></span>
       <span class="time">{duration(t.durationMs)}</span>
-      <button class="icon add" onclick={() => enqueue({ tracks: [t.id] })} title="Agregar a la cola" aria-label="Agregar a la cola">
+      <button class="icon add" onclick={() => enqueue({ tracks: [t.id] })} title={translate('queue.add')} aria-label={translate('queue.add')}>
         <Icono name="plus" size={16} />
       </button>
       <MenuPista track={t} />

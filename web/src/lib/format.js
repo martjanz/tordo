@@ -52,6 +52,12 @@ export function quality(t) {
   return t.bitrate ? `${name} ${t.bitrate}` : name
 }
 
+// artistLabel names an album's artist: the server calls compilations
+// "Various Artists", shown in the current language.
+export function artistLabel(name) {
+  return name === 'Various Artists' ? t('album.variousArtists') : name
+}
+
 // folderName is the last part of a catalog path.
 export function folderName(path) {
   return (path ?? '').split('/').filter((p) => p && p !== '..').pop() ?? ''

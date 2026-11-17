@@ -1,5 +1,6 @@
 <script>
   import { listenMode } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { player } from '../lib/playback.svelte.js'
   import { rockola, rockolaAvailable, setRockola } from '../lib/rockola.svelte.js'
   import { reactivate, speaker } from '../lib/speaker.svelte.js'
@@ -16,13 +17,13 @@
     (s.page === 'listas' && page === 'lista') ||
     (s.page === 'inicio' && page === 'estadisticas')
 
-  // The sections of the app.
+  // The sections of the app (label: the message key).
   const SECTIONS = [
-    { page: 'inicio', href: '/', label: 'Inicio', icon: 'home' },
-    { page: 'explorar', href: '/explore', label: 'Explorar', icon: 'explore' },
-    { page: 'carpetas', href: '/folders', label: 'Carpetas', icon: 'folder' },
-    { page: 'listas', href: '/lists', label: 'Listas', icon: 'lists' },
-    { page: 'revisar', href: '/review', label: 'Revisar', icon: 'review' },
+    { page: 'inicio', href: '/', label: 'nav.home', icon: 'home' },
+    { page: 'explorar', href: '/explore', label: 'nav.explore', icon: 'explore' },
+    { page: 'carpetas', href: '/folders', label: 'nav.folders', icon: 'folder' },
+    { page: 'listas', href: '/lists', label: 'nav.lists', icon: 'lists' },
+    { page: 'revisar', href: '/review', label: 'nav.review', icon: 'review' },
   ]
   const sections = $derived(SECTIONS.filter((s) => !(s.page === 'revisar' && listenMode())))
 </script>
@@ -34,33 +35,33 @@
         <circle cx="16" cy="16" r="10.5" fill="none" stroke="currentColor" stroke-width="2.5" />
         <circle cx="16" cy="16" r="3" fill="currentColor" />
       </svg>
-      Tordo
+      {t('app.name')}
     </a>
     {#if !bare}
       <span class="sections">
         {#each sections as s (s.page)}
-          <a href={s.href} class:active={isActive(s)}>{s.label}</a>
+          <a href={s.href} class:active={isActive(s)}>{t(s.label)}</a>
         {/each}
       </span>
       <span class="spacer"></span>
-      {#if listenMode()}<a class="modo" href="/settings" title="Modo escucha activo: la curaduría está bloqueada">Modo escucha</a>{/if}
+      {#if listenMode()}<a class="modo" href="/settings" title={t('nav.listenTitle')}>{t('nav.listenMode')}</a>{/if}
       <Busqueda />
       {#if speaker.on}
         {#if player.blocked}
-          <button class="chip" type="button" onclick={reactivate}>Reactivar audio</button>
+          <button class="chip" type="button" onclick={reactivate}>{t('nav.reactivate')}</button>
         {:else if !speaker.connected}
-          <a class="chip" href="/settings">🔊 Reconectando…</a>
+          <a class="chip" href="/settings">{t('nav.reconnecting')}</a>
         {:else}
-          <a class="chip" href="/settings">🔊 Audio de esta compu</a>
+          <a class="chip" href="/settings">{t('nav.thisComputer')}</a>
         {/if}
       {/if}
       {#if !speaker.on && (rockolaAvailable() || rockola.on)}
         <button class="chip toggle" class:on={rockola.on} type="button" aria-pressed={rockola.on}
-          title="Elegí qué suena en la compu" onclick={() => setRockola(!rockola.on)}>🎵 Rockola</button>
+          title={t('nav.rockolaTitle')} onclick={() => setRockola(!rockola.on)}>{t('nav.rockola')}</button>
       {/if}
       <Estado />
-      <a class="gear help" href="/help" class:active={page === 'ayuda'} aria-label="Ayuda" title="Ayuda (?)">?</a>
-      <a class="gear" href="/settings" class:active={page === 'ajustes'} aria-label="Ajustes" title="Ajustes">
+      <a class="gear help" href="/help" class:active={page === 'ayuda'} aria-label={t('nav.help')} title={t('nav.helpTitle')}>?</a>
+      <a class="gear" href="/settings" class:active={page === 'ajustes'} aria-label={t('nav.settings')} title={t('nav.settings')}>
         <Icono name="settings" size={18} />
       </a>
     {/if}
@@ -69,11 +70,11 @@
 
 <!-- On phones the sections go to tabs at the bottom, under the player. -->
 {#if !bare}
-  <nav class="tabs" aria-label="Secciones">
+  <nav class="tabs" aria-label={t('nav.sections')}>
     {#each sections as s (s.page)}
       <a href={s.href} class:active={isActive(s)}>
         <Icono name={s.icon} size={20} />
-        <span>{s.label}</span>
+        <span>{t(s.label)}</span>
       </a>
     {/each}
   </nav>

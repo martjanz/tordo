@@ -4,7 +4,7 @@
   import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { isHelpKey } from './lib/ayuda.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
-  import { applyLanguage } from './lib/i18n/index.svelte.js'
+  import { applyLanguage, t } from './lib/i18n/index.svelte.js'
   import { resumeSpeaker } from './lib/speaker.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
@@ -138,7 +138,7 @@
   {:else if current.page === 'bienvenida'}
     <Bienvenida />
   {:else}
-    <p class="empty">No existe esta página. <a href="/">Ir al Inicio</a></p>
+    <p class="empty">{t('app.notFound')} <a href="/">{t('app.goHome')}</a></p>
   {/if}
 </main>
 

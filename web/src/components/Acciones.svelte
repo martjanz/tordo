@@ -2,6 +2,7 @@
   // Play, shuffle and queue buttons for an album, folder or collection; with
   // a station prop (null when none fits) also its "Estación" button.
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import AgregarALista from './AgregarALista.svelte'
@@ -13,14 +14,14 @@
 </script>
 
 <div class="actions">
-  <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> Reproducir</button>
-  <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
+  <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> {t('player.play')}</button>
+  <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> {t('player.shuffle')}</button>
   {#if station}<BotonEstacion {station} />{/if}
-  <button onclick={() => enqueue(what, { next: true })}><Icono name="next_up" size={14} /> A continuación</button>
-  <button onclick={() => enqueue(what)}><Icono name="plus" size={14} /> A la cola</button>
+  <button onclick={() => enqueue(what, { next: true })}><Icono name="next_up" size={14} /> {t('player.upNext')}</button>
+  <button onclick={() => enqueue(what)}><Icono name="plus" size={14} /> {t('queue.toQueue')}</button>
   {#if !app.status?.readOnly}
     <span class="add">
-      <button onclick={(e) => (e.stopPropagation(), (adding = !adding))} aria-haspopup="dialog" aria-expanded={adding}><Icono name="lists" size={14} /> + Lista</button>
+      <button onclick={(e) => (e.stopPropagation(), (adding = !adding))} aria-haspopup="dialog" aria-expanded={adding}><Icono name="lists" size={14} /> {t('menu.plusList')}</button>
       {#if adding}<AgregarALista {what} onclose={() => (adding = false)} />{/if}
     </span>
   {/if}

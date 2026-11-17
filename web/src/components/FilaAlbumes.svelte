@@ -1,6 +1,7 @@
 <script>
   // A row of Inicio: a title, its actions and the albums in one line that
   // scrolls sideways.
+  import { t } from '../lib/i18n/index.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import TarjetaAlbum from './TarjetaAlbum.svelte'
 
@@ -10,7 +11,7 @@
 <section>
   <div class="head">
     <h2>{title}</h2>
-    {#if href}<a class="all" href={href}>ver todas →</a>{/if}
+    {#if href}<a class="all" href={href}>{t('common.seeAll')}</a>{/if}
     <span class="spacer"></span>
     {#if station}<BotonEstacion {station} />{/if}
   </div>

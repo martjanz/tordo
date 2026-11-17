@@ -1,6 +1,7 @@
 <script>
   // A small menu for a track: queue actions and rating.
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { enqueue } from '../lib/playback.svelte.js'
   import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'
@@ -33,15 +34,15 @@
 
 <span class="menu" bind:this={root}>
   <button class="icon more" onclick={() => (open = !open)} aria-haspopup="menu" aria-expanded={open}
-    title="Más opciones" aria-label="Más opciones"><Icono name="more" size={16} /></button>
+    title={t('menu.more')} aria-label={t('menu.more')}><Icono name="more" size={16} /></button>
   {#if open && adding}
     <AgregarALista right what={{ tracks: [track.id] }} onclose={() => ((adding = false), (open = false))} />
   {:else if open}
     <div class="pop" role="menu">
-      <button role="menuitem" onclick={() => choose(true)}>Reproducir a continuación</button>
-      <button role="menuitem" onclick={() => choose(false)}>Agregar a la cola</button>
+      <button role="menuitem" onclick={() => choose(true)}>{t('menu.playNext')}</button>
+      <button role="menuitem" onclick={() => choose(false)}>{t('queue.add')}</button>
       {#if !app.status?.readOnly}
-        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}>Agregar a una lista…</button>
+        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}>{t('menu.addToList')}</button>
         <div class="rate"><Puntaje kind="track" id={track.id} size={16} /></div>
       {/if}
     </div>

@@ -1,5 +1,6 @@
 <script>
   // A station card: a square with the radio icon, its name and its rules.
+  import { t } from '../lib/i18n/index.svelte.js'
   import { DEFAULT_RULES, station as makeStation, summary } from '../lib/stations.js'
   import Icono from './Icono.svelte'
 
@@ -9,13 +10,13 @@
   const full = $derived(station.mode ? station : makeStation(station.name, station.source, DEFAULT_RULES))
 
   function remove() {
-    if (confirm(`¿Eliminar la estación «${station.name}»?`)) ondelete(station)
+    if (confirm(t('station.confirmDelete', { name: station.name }))) ondelete(station)
   }
 </script>
 
 <div class="card">
   {#if onplay}
-    <button class="pic" onclick={() => onplay(full)} aria-label="Reproducir la estación {station.name}">
+    <button class="pic" onclick={() => onplay(full)} aria-label={t('station.playNamed', { name: station.name })}>
       <Icono name="radio" size={40} />
     </button>
   {:else}
@@ -25,8 +26,8 @@
   <span class="sub">{summary(full)}</span>
   {#if ondelete}
     <details class="menu">
-      <summary aria-label="Más opciones de {station.name}"><Icono name="more" size={16} /></summary>
-      <div class="pop"><button onclick={remove}>Eliminar</button></div>
+      <summary aria-label={t('station.moreOf', { name: station.name })}><Icono name="more" size={16} /></summary>
+      <div class="pop"><button onclick={remove}>{t('station.delete')}</button></div>
     </details>
   {/if}
 </div>

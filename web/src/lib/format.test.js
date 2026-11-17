@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setLocale, t } from './i18n/index.svelte.js'
-import { codecName, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { artistLabel, codecName, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -115,5 +115,21 @@ describe('other languages', () => {
     expect(since(now - 3 * 86_400_000, now)).toBe('há 3 dias')
     expect(since(now, now)).toBe('agora')
     expect(since(now - 86_400_000, now)).toBe('ontem')
+  })
+})
+
+describe('artistLabel', () => {
+  afterEach(() => setLocale('es'))
+  it('names the compilations artist in the current language', () => {
+    expect(artistLabel('Various Artists')).toBe('Varios artistas')
+    setLocale('en')
+    expect(artistLabel('Various Artists')).toBe('Various Artists')
+    setLocale('pt-BR')
+    expect(artistLabel('Various Artists')).toBe('Vários artistas')
+  })
+  it('leaves other names as they are', () => {
+    expect(artistLabel('Charly García')).toBe('Charly García')
+    expect(artistLabel('')).toBe('')
+    expect(artistLabel(undefined)).toBe(undefined)
   })
 })
