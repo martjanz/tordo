@@ -70,9 +70,10 @@ describe('t', () => {
     setLocale('en')
     expect(t('year', { year: 1985 })).toBe('1985')
   })
-  it('pt-BR uses one for zero', () => {
+  it('pt-BR uses other for zero, one for one', () => {
     setLocale('pt-BR')
-    expect(t('tracks', { n: 0 })).toBe('0 faixa')
+    expect(t('tracks', { n: 0 })).toBe('0 faixas')
+    expect(t('tracks', { n: 1 })).toBe('1 faixa')
   })
   it('falls back to English, then the key', () => {
     setLocale('es')

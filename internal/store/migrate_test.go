@@ -205,6 +205,35 @@ func TestOpenMigratesV6SessionsAlreadyHavingHost(t *testing.T) {
 	}
 }
 
+func TestMigrateV4ToV8(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "tordo.db")
+	s, err := Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO albums (key, dir, title, artist, year, compilation, discs, tracks, duration_ms, position,
+		cover_path, cover_file_id, genres, mb_artist) VALUES ('k', 'd', 't', 'Varios artistas', 0, 1, 1, 1, 0, 0, '', 0, '[]', 'Varios artistas')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO grouping_stamp (hash) VALUES ('h'); PRAGMA user_version = 4`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = Open(file, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var artist, mb string
+	var stamps, version int
+	s.db.QueryRow(`SELECT artist, mb_artist FROM albums`).Scan(&artist, &mb)
+	s.db.QueryRow(`SELECT COUNT(*) FROM grouping_stamp`).Scan(&stamps)
+	s.db.QueryRow(`PRAGMA user_version`).Scan(&version)
+	if artist != "Various Artists" || mb != "Various Artists" || stamps != 0 || version != 8 {
+		t.Fatalf("artist %q mb %q stamps %d version %d", artist, mb, stamps, version)
+	}
+}
+
 func TestMigrateV7ToV8(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "tordo.db")
 	s, err := Open(file, false)

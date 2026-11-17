@@ -127,7 +127,8 @@ export function t(key, params) {
   if (typeof value !== 'string') {
     let form = 'other'
     if (params && typeof params === 'object' && typeof params.n === 'number') {
-      form = pluralFor(current, params.n)
+      // CLDR puts 0 in `one` for Portuguese; "0 álbuns" reads right.
+      form = current === 'pt-BR' && params.n === 0 ? 'other' : pluralFor(current, params.n)
     }
     value = typeof value[form] === 'string' ? value[form] : value.other
   }

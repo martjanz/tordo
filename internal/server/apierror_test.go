@@ -104,6 +104,30 @@ func codeConstants(t *testing.T) []string {
 	return codes
 }
 
+// errorBlock returns the text of the `error: { ... }` object of a message file.
+func errorBlock(t *testing.T, lang, src string) string {
+	t.Helper()
+	i := strings.Index(src, "error: {")
+	if i < 0 {
+		t.Fatalf("%s.js has no error block", lang)
+	}
+	start := i + len("error: ")
+	depth := 0
+	for j := start; j < len(src); j++ {
+		switch src[j] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return src[start : j+1]
+			}
+		}
+	}
+	t.Fatalf("%s.js: unterminated error block", lang)
+	return ""
+}
+
 func TestErrorCodesTranslated(t *testing.T) {
 	codes := codeConstants(t)
 	if len(codes) < 50 {
@@ -114,8 +138,9 @@ func TestErrorCodesTranslated(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		block := errorBlock(t, lang, string(b))
 		for _, c := range codes {
-			if !regexp.MustCompile(`\b` + c + `\s*:`).Match(b) {
+			if !regexp.MustCompile(`\b` + c + `\s*:`).MatchString(block) {
 				t.Errorf("%s.js has no error.%s", lang, c)
 			}
 		}

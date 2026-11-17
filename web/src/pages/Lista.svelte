@@ -7,7 +7,7 @@
   import Tapa from '../components/Tapa.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { duration, length } from '../lib/format.js'
+  import { artistLabel, duration, length } from '../lib/format.js'
   import { msg, t, text } from '../lib/i18n/index.svelte.js'
   import { RowDrag } from '../lib/drag.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
@@ -194,7 +194,7 @@
           <span class="text">
             <span class="title">{e.title}{#if !e.trackId} <span class="na">{t('playlist.unavailable')}</span>{/if}</span>
             <span class="artist">
-              {#if e.artist}{#if e.artistKey}<a href={artistHref(e.artistKey)}>{e.artist}</a>{:else}{e.artist}{/if}{/if}
+              {#if e.artist}{#if e.artistKey}<a href={artistHref(e.artistKey)}>{artistLabel(e.artist)}</a>{:else}{artistLabel(e.artist)}{/if}{/if}
               {#if e.artist && e.album && e.albumId} · {/if}
               {#if e.album && e.albumId}<a href={albumHref(e.albumId)}>{e.album}</a>{:else if e.album}{e.album}{/if}
             </span>

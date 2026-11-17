@@ -51,9 +51,15 @@ export function body(d) {
     token: d.token === null ? null : d.token.trim(),
     normalize: d.normalize,
     rescanMinutes: Number(d.rescanMinutes),
-    language: d.language,
     lan: { enabled: d.lan.enabled, port: Number(d.lan.port), pin: !d.lan.enabled || d.lan.pin === '' ? null : d.lan.pin },
   }
+}
+
+// firstBody is the body of the first save (the assistant): it also carries
+// the language. The settings page leaves it out, because the language saves
+// on its own there and a stale form must not put an old value back.
+export function firstBody(d) {
+  return { ...body(d), language: d.language }
 }
 
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i])

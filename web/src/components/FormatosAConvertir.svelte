@@ -3,7 +3,7 @@
   // Detection only: nothing is converted.
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { duration, folderName, size } from '../lib/format.js'
+  import { artistLabel, duration, folderName, size } from '../lib/format.js'
   import { t } from '../lib/i18n/index.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
 
@@ -54,7 +54,7 @@
           {:else}
             <a class="title" href={folderHref(it.dir)}>{folderName(it.dir) || it.title}</a>
           {/if}
-          <span class="artist">{it.artist}</span>
+          <span class="artist">{artistLabel(it.artist)}</span>
           <span class="fmt">{label(it.format)}</span>
           <span class="meta">{t('count.files', { n: it.files })} · {size(it.bytes)} · {duration(it.durationMs)}</span>
         </li>

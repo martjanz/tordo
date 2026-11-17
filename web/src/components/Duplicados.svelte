@@ -4,7 +4,7 @@
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { KINDS, fileQuality, groupLine } from '../lib/dupes.js'
-  import { folderName, size } from '../lib/format.js'
+  import { artistLabel, folderName, size } from '../lib/format.js'
   import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumHref, duplicatesHref, folderHref } from '../lib/router.js'
@@ -62,7 +62,7 @@
     {#each groups.slice(0, shown) as g, i (i)}
       <section class="group">
         <header>
-          <span class="name">{g.title} — {g.artist}</span>
+          <span class="name">{g.title} — {artistLabel(g.artist)}</span>
           <span class="line">{groupLine(g)}</span>
         </header>
         <ul>

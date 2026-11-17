@@ -6,7 +6,7 @@
   import { notify, settingsSaved } from '../lib/app.svelte.js'
   import { previewLanguage, t } from '../lib/i18n/index.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
-  import { body, draft } from '../lib/settings.js'
+  import { draft, firstBody } from '../lib/settings.js'
 
   const steps = $derived([t('settings.folders.title'), 'Discogs', t('setup.stepDone')])
 
@@ -36,7 +36,7 @@
   async function start() {
     saving = true
     try {
-      await api.saveConfig(body(d))
+      await api.saveConfig(firstBody(d))
       settingsSaved()
       navigate('/', { replace: true })
     } catch (e) {

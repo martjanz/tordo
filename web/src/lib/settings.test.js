@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setLocale } from './i18n/index.svelte.js'
-import { addRoot, body, changed, checkAll, draft, pinProblem, portProblem, rescanChoices, savedNotice } from './settings.js'
+import { addRoot, body, firstBody, changed, checkAll, draft, pinProblem, portProblem, rescanChoices, savedNotice } from './settings.js'
 
 const config = {
   setupPending: false,
@@ -34,7 +34,8 @@ describe('language', () => {
   it('is carried by the draft and the body (empty means automatic)', () => {
     expect(draft(config).language).toBe('en')
     expect(draft({ ...config, language: undefined }).language).toBe('')
-    expect(body({ ...draft(config), language: 'pt-BR' }).language).toBe('pt-BR')
+    expect(firstBody({ ...draft(config), language: 'pt-BR' }).language).toBe('pt-BR')
+    expect('language' in body(draft(config))).toBe(false)
   })
 })
 
@@ -47,7 +48,6 @@ describe('body', () => {
       token: null,
       normalize: true,
       rescanMinutes: 60,
-      language: 'en',
       lan: { enabled: false, port: 4748, pin: null },
     })
     expect(changed(config, d)).toBe(false)

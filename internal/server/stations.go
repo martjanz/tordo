@@ -13,7 +13,6 @@ import (
 	"tordo/internal/store"
 )
 
-
 // savedStation is a saved station as listed: its stored name and what it plays.
 type savedStation struct {
 	ID int64 `json:"id"`

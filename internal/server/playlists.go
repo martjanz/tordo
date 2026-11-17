@@ -71,7 +71,6 @@ func playlistID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return id, true
 }
 
-
 func (s *Server) playlists(w http.ResponseWriter, r *http.Request) {
 	ps, err := s.Store.Playlists()
 	if err != nil {

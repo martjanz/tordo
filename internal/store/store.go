@@ -104,7 +104,7 @@ func migrate(db *sql.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
-	if v >= 5 && v < 8 {
+	if v < 8 {
 		if err := upgradeVocabulary(db); err != nil {
 			return err
 		}
