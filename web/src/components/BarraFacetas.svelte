@@ -1,18 +1,21 @@
 <script>
-  // Explorar's bar: tabs, facet menus, order, and the chips of what is
-  // applied.
+  // Explorar's bar: tabs, facet menus, order, the station, and the chips of
+  // what is applied. On phones the facets are one row that scrolls sideways.
   import { listenMode } from '../lib/app.svelte.js'
   import { t } from '../lib/i18n/index.svelte.js'
+  import BotonEstacion from './BotonEstacion.svelte'
   import Icono from './Icono.svelte'
   import { chips, FACETS, facetLabel, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
 
   // query: the applied query; facets: the server's counts per facet;
+  // station: what the "Estación" button plays (null disables it);
   // onchange(query): a new query was chosen.
-  let { query, facets, total, onchange } = $props()
+  let { query, facets, total, station, onchange } = $props()
 
   let open = $state(null) // name of the open menu, "more", or null
   let filters = $state({}) // text filter of each facet's menu: "Más" shows several at once
   let bar = $state()
+  let menuTop = $state(0) // on phones the menu is fixed: right under its button
 
   const main = FACETS.filter((f) => !f.more)
   // "Estado" only holds maintenance states (unidentified, duplicates).
@@ -20,7 +23,8 @@
   const applied = $derived(chips(query, facets))
   const NESTED = { decade: { name: 'year', label: 'explore.bar.years' }, genre: { name: 'style', label: 'explore.bar.styles' } }
 
-  function toggle(name) {
+  function toggle(name, event) {
+    menuTop = event.currentTarget.getBoundingClientRect().bottom + 6
     open = open === name ? null : name
     filters = {}
   }
@@ -88,10 +92,11 @@
   {/each}
 </div>
 
-<div class="bar" bind:this={bar}>
+<div class="bar" bind:this={bar} style:--menu-top="{menuTop}px">
+  <div class="facets">
   {#each main as f (f.name)}
     <div class="facet">
-      <button class="dd" class:on={query.facets[f.name]} onclick={() => toggle(f.name)} aria-expanded={open === f.name}>
+      <button class="dd" class:on={query.facets[f.name]} onclick={(e) => toggle(f.name, e)} aria-expanded={open === f.name}>
         {facetLabel(f, query.view)} ▾
       </button>
       {#if open === f.name}
@@ -100,7 +105,7 @@
     </div>
   {/each}
   <div class="facet">
-    <button class="dd" class:on={more.some((f) => query.facets[f.name])} onclick={() => toggle('more')} aria-expanded={open === 'more'}>
+    <button class="dd" class:on={more.some((f) => query.facets[f.name])} onclick={(e) => toggle('more', e)} aria-expanded={open === 'more'}>
       {t('explore.bar.more')} ▾
     </button>
     {#if open === 'more'}
@@ -111,6 +116,7 @@
         {/each}
       </div>
     {/if}
+  </div>
   </div>
 
   <div class="right">
@@ -132,6 +138,7 @@
         title={query.dir === 'asc' ? t('explore.bar.asc') : t('explore.bar.desc')}>{query.dir === 'asc' ? '↑' : '↓'}</button
       >
     {/if}
+    <BotonEstacion {station} compact />
   </div>
 </div>
 
@@ -175,10 +182,17 @@
     border-bottom: 1px solid var(--line);
     font-size: var(--fs-sm);
   }
+  .facets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
   .facet {
     position: relative;
   }
   .dd {
+    white-space: nowrap;
     color: var(--muted);
     border-color: var(--line);
     padding: 3px 10px;
@@ -246,6 +260,7 @@
   }
   .total {
     color: var(--faint);
+    white-space: nowrap;
   }
   .right select {
     padding-block: 3px; /* as tall as the facet buttons */
@@ -276,15 +291,45 @@
     color: var(--muted);
   }
   @media (max-width: 640px) {
+    .bar {
+      gap: 6px;
+      padding-bottom: 6px;
+    }
+    /* One row of chips that swipes, out to the screen's edges. */
+    .facets {
+      flex-wrap: nowrap;
+      gap: 6px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      margin-inline: calc(-1 * var(--gutter));
+      padding-inline: var(--gutter);
+      scroll-padding-inline: var(--gutter);
+      scrollbar-width: none;
+    }
+    .facets::-webkit-scrollbar {
+      display: none;
+    }
+    .dd {
+      border-radius: 14px;
+    }
     .right {
       margin-left: 0;
       width: 100%;
     }
+    .right select {
+      min-width: 0;
+      flex: 0 1 auto;
+    }
+    /* The station sits at the row's end. */
+    .right > :global(.estacion) {
+      margin-left: auto;
+    }
     .menu {
       position: fixed;
-      left: 16px;
-      right: 16px;
-      top: 120px;
+      left: var(--gutter);
+      right: var(--gutter);
+      top: var(--menu-top);
+      max-height: calc(100dvh - var(--menu-top) - 96px);
     }
   }
 </style>
