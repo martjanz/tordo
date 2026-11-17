@@ -24,7 +24,7 @@
     <span class="pic"><Tapa name={station.name} badge="radio" tint="var(--accent)" /></span>
   {/if}
   <span class="title">{station.name}</span>
-  <span class="sub">{summary(full)}</span>
+  <span class="sub" title={summary(full)}>{summary(full)}</span>
   {#if ondelete}
     <details class="menu">
       <summary aria-label="Más opciones de {station.name}"><Icono name="more" size={16} /></summary>
@@ -54,11 +54,18 @@
   span.pic {
     cursor: default;
   }
-  .title,
-  .sub {
+  .title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* The rules wrap rather than get cut on one line. */
+  .sub {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
   }
   .title {
     color: var(--strong);
