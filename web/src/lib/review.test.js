@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setLocale } from './i18n/index.svelte.js'
-import { aliasLabel, candidateLine, genreChoice, genreLinks, genreOptions, identification, percent, searchURL, worthAccepting } from './review.js'
+import { aliasLabel, candidateChip, candidateLine, confidenceLevel, folderDiffers, genreChoice, genreLinks, genreOptions, identification, percent, searchURL, worthAccepting } from './review.js'
 
 describe('review', () => {
   it('reads scores and candidates', () => {
@@ -8,6 +8,29 @@ describe('review', () => {
     expect(percent(undefined)).toBe('0 %')
     expect(candidateLine({ artist: 'Soda Stereo', year: 1986, country: 'AR', tracks: 9 })).toBe('Soda Stereo · 1986 · Argentina · 9 pistas')
     expect(candidateLine({ artist: 'X', year: 0, country: '' })).toBe('X')
+  })
+  it('sums up the best candidate', () => {
+    expect(candidateChip({ title: 'Signos', artist: 'Soda Stereo', year: 1986 })).toBe('Signos — Soda Stereo · 1986')
+    expect(candidateChip({ title: 'Signos', artist: 'Soda Stereo', year: 0 })).toBe('Signos — Soda Stereo')
+    expect(candidateChip({ title: 'Signos' })).toBe('Signos')
+  })
+  it('grades confidence like the bulk accept', () => {
+    expect(confidenceLevel(0.7)).toBe('high')
+    expect(confidenceLevel(0.93)).toBe('high')
+    expect(confidenceLevel(0.69)).toBe('mid')
+    expect(confidenceLevel(0.5)).toBe('mid')
+    expect(confidenceLevel(0.49)).toBe('low')
+    expect(confidenceLevel(undefined)).toBe('low')
+  })
+  it('shows the folder only when it says something the title does not', () => {
+    const a = { tagTitle: 'Signos', tagArtist: 'Soda Stereo', year: 1986 }
+    expect(folderDiffers({ ...a, dir: 'Musica/Signos' })).toBe(false)
+    expect(folderDiffers({ ...a, dir: 'Musica/signos' })).toBe(false)
+    expect(folderDiffers({ ...a, dir: 'Musica/Soda Stereo - Signos (1986)' })).toBe(false)
+    expect(folderDiffers({ ...a, dir: 'Musica/1986 - Signos [FLAC]' })).toBe(true)
+    expect(folderDiffers({ ...a, dir: 'Musica/CD1' })).toBe(true)
+    expect(folderDiffers({ tagTitle: 'Canción Animal', dir: 'x/Cancion animal' })).toBe(false)
+    expect(folderDiffers({ tagTitle: '', dir: 'x/Algo' })).toBe(true)
   })
   it('says where the data comes from', () => {
     expect(identification({ status: 'auto', confidence: 0.92 })).toBe('Identificado en MusicBrainz (92 %)')

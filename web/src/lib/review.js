@@ -1,5 +1,5 @@
 // How identifications read: statuses, candidates, confidence.
-import { country } from './format.js'
+import { country, folderName } from './format.js'
 import { t } from './i18n/index.svelte.js'
 
 // percent reads a score: 0.873 → "87 %".
@@ -11,6 +11,45 @@ export function percent(score) {
 // Argentina · 9 pistas".
 export function candidateLine(c) {
   return [c.artist, c.year || '', country(c.country), c.tracks ? t('count.tracks', { n: c.tracks }) : ''].filter(Boolean).join(' · ')
+}
+
+// candidateChip names a candidate in a few words: "Signos — Soda Stereo ·
+// 1986".
+export function candidateChip(c) {
+  const by = [c.artist, c.year || ''].filter(Boolean).join(' · ')
+  return by ? `${c.title} — ${by}` : c.title
+}
+
+// confidenceLevel grades a score for its badge: high from the bulk accept's
+// threshold, mid from 50 %, low below.
+export function confidenceLevel(score, high = 0.7) {
+  const s = score ?? 0
+  if (s >= high) return 'high'
+  if (s >= 0.5) return 'mid'
+  return 'low'
+}
+
+// letters folds a name to compare it: lower case, no accents, letters and
+// digits only.
+function letters(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+// folderDiffers tells whether an album's folder name says more than its
+// title: "Soda Stereo - Signos (1986)" doesn't, "CD1" does.
+export function folderDiffers(album) {
+  const title = letters(album.tagTitle || album.title)
+  if (!title) return true
+  let rest = letters(folderName(album.dir))
+  for (const w of [album.tagArtist || album.artist, album.year || '']) {
+    const l = letters(w)
+    if (l && rest !== title) rest = rest.replace(l, '')
+  }
+  return rest !== title
 }
 
 // identification tells where an album's data comes from.
