@@ -18,15 +18,15 @@ func clockAt(t *testing.T, at time.Time) {
 }
 
 func TestParseQueryListened(t *testing.T) {
-	q := ParseQuery(url.Values{"escucha": {"nunca"}})
+	q := ParseQuery(url.Values{"listened": {"never"}})
 	if q.Facets[FacetListened] != ListenedNever {
 		t.Fatalf("nunca: %v", q.Facets)
 	}
-	q = ParseQuery(url.Values{"escucha": {"hace-un-anio"}})
+	q = ParseQuery(url.Values{"listened": {"year-ago"}})
 	if q.Facets[FacetListened] != ListenedStale {
 		t.Fatalf("hace-un-anio: %v", q.Facets)
 	}
-	if q = ParseQuery(url.Values{"escucha": {"x"}}); len(q.Facets) != 0 {
+	if q = ParseQuery(url.Values{"listened": {"x"}}); len(q.Facets) != 0 {
 		t.Fatalf("x kept: %v", q.Facets)
 	}
 }

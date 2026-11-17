@@ -1,5 +1,6 @@
 // The logic behind Carpetas' detail list: entries, sorting, relative bar.
 import { codecName, quality } from './format.js'
+import { locale } from './i18n/index.svelte.js'
 
 export const DEFAULT_SORT = { column: null, desc: false }
 
@@ -38,7 +39,14 @@ export function entries(folder) {
   return { folders, files }
 }
 
-const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
+const collators = new Map()
+
+// collator compares names in the current language, digits by value ("2" < "10").
+function collator() {
+  const l = locale()
+  if (!collators.has(l)) collators.set(l, new Intl.Collator(l, { numeric: true, sensitivity: 'base' }))
+  return collators.get(l)
+}
 
 const KEYS = {
   name: (e) => e.name,
@@ -59,7 +67,7 @@ export function sortEntries(list, sort) {
     .sort(([a, i], [b, j]) => {
       const x = key(a)
       const y = key(b)
-      const c = text ? collator.compare(x ?? '', y ?? '') : (x ?? 0) - (y ?? 0)
+      const c = text ? collator().compare(x ?? '', y ?? '') : (x ?? 0) - (y ?? 0)
       return c * dir || i - j
     })
     .map(([e]) => e)

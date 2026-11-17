@@ -2,7 +2,8 @@
   // The persistent player bar. On phones it is a mini player above the
   // tabs that opens into a full-screen sheet.
   import { itemCoverURL } from '../lib/api.js'
-  import { duration, quality } from '../lib/format.js'
+  import { artistLabel, duration, quality } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import {
     can,
     cycleRepeat,
@@ -32,7 +33,7 @@
   const pct = $derived(p.duration > 0 ? Math.min(100, (p.time / p.duration) * 100) : 0)
   // In Rockola mode a slider sends once, when released, not on every move.
   const live = (fn) => (e) => fn(Number(e.currentTarget.value))
-  const repeatTitle = { off: 'Repetir: no', all: 'Repetir: toda la cola', one: 'Repetir: esta pista' }
+  const repeatTitle = $derived({ off: t('player.repeatOff'), all: t('player.repeatAll'), one: t('player.repeatOne') })
 
   let sheet = $state(false) // the full player, on phones
   let queueOpen = $state(false)
@@ -65,18 +66,18 @@
 {#snippet controls(big)}
   <div class="controls" class:big>
     {#if can('toggleShuffle')}
-      <button class="icon" class:on={p.queue.shuffle} onclick={toggleShuffle} title="Aleatorio" aria-label="Aleatorio"
+      <button class="icon" class:on={p.queue.shuffle} onclick={toggleShuffle} title={t('player.shuffle')} aria-label={t('player.shuffle')}
         aria-pressed={p.queue.shuffle}><Icono name="shuffle" size={big ? 22 : 18} /></button>
     {/if}
     {#if can('prev')}
-      <button class="icon" onclick={prev} title="Anterior" aria-label="Anterior"><Icono name="prev" size={big ? 28 : 20} /></button>
+      <button class="icon" onclick={prev} title={t('player.prev')} aria-label={t('player.prev')}><Icono name="prev" size={big ? 28 : 20} /></button>
     {/if}
-    <button class="icon playpause" onclick={toggle} title={p.playing ? 'Pausa' : 'Reproducir'}
-      aria-label={p.playing ? 'Pausa' : 'Reproducir'} disabled={!entry}>
+    <button class="icon playpause" onclick={toggle} title={p.playing ? t('player.pause') : t('player.play')}
+      aria-label={p.playing ? t('player.pause') : t('player.play')} disabled={!entry}>
       <Icono name={p.playing ? 'pause' : 'play'} size={big ? 30 : 20} />
     </button>
     {#if can('next')}
-      <button class="icon" onclick={next} title="Siguiente" aria-label="Siguiente"><Icono name="next" size={big ? 28 : 20} /></button>
+      <button class="icon" onclick={next} title={t('player.next')} aria-label={t('player.next')}><Icono name="next" size={big ? 28 : 20} /></button>
     {/if}
     {#if can('cycleRepeat')}
       <button class="icon" class:on={p.queue.repeat !== 'off'} onclick={cycleRepeat} title={repeatTitle[p.queue.repeat]}
@@ -92,7 +93,7 @@
   {#if !app.status?.readOnly}
     <span class="add">
       <button class="icon" onclick={(e) => (e.stopPropagation(), (adding = adding === where ? null : where))} aria-haspopup="dialog"
-        aria-expanded={adding === where} title="Agregar a una lista" aria-label="Agregar a una lista"><Icono name="lists" {size} /></button>
+        aria-expanded={adding === where} title={t('player.addToList')} aria-label={t('player.addToList')}><Icono name="lists" {size} /></button>
       {#if adding === where}<AgregarALista up right={where === 'sheet'} what={{ tracks: [entry.id] }} onclose={() => (adding = null)} />{/if}
     </span>
   {/if}
@@ -102,8 +103,8 @@
   <div class="progress">
     <span class="time">{duration(p.time * 1000)}</span>
     <input type="range" min="0" max={p.duration || 0} step="1" value={p.time} disabled={!p.seekable || !entry || !can('seek')}
-      oninput={remote() ? undefined : live(seek)} onchange={remote() ? live(seek) : undefined} aria-label="Posición"
-      title={p.seekable ? '' : 'Este formato se convierte al vuelo: no se puede adelantar'}
+      oninput={remote() ? undefined : live(seek)} onchange={remote() ? live(seek) : undefined} aria-label={t('player.position')}
+      title={p.seekable ? '' : t('player.notSeekable')}
       style="--pct: {pct}%" />
     <span class="time">{duration(p.duration * 1000)}</span>
   </div>
@@ -112,12 +113,12 @@
 {#if !entry && remote()}
   <div class="bar idle">
     <div class="text">
-      <span class="rockola-tag">Rockola · en la compu</span>
-      {#if p.blocked}<span class="blocked">La compu necesita un clic para sonar</span>{/if}
-      <span class="artist">La cola de la compu está vacía.</span>
+      <span class="rockola-tag">{t('player.rockolaTag')}</span>
+      {#if p.blocked}<span class="blocked">{t('player.needsClick')}</span>{/if}
+      <span class="artist">{t('player.remoteEmpty')}</span>
     </div>
     <div class="right">
-      <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title="Cola" aria-label="Cola">
+      <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title={t('queue.title')} aria-label={t('queue.title')}>
         <Icono name="queue" />
       </button>
     </div>
@@ -129,22 +130,22 @@
   <div class="bar opens" onclick={openFromBar}>
     <div class="line" style="width: {pct}%"></div>
     <div class="now">
-      <button class="open" onclick={() => (sheet = true)} aria-label="Abrir el reproductor">
+      <button class="open" onclick={() => (sheet = true)} aria-label={t('player.open')}>
         <span class="pic"><Tapa small srcs={[itemCoverURL(entry, 160)]} /></span>
       </button>
       <span class="text">
-        {#if remote()}<span class="rockola-tag">Rockola · en la compu</span>{/if}
-        {#if remote() && p.blocked}<span class="blocked">La compu necesita un clic para sonar</span>{/if}
+        {#if remote()}<span class="rockola-tag">{t('player.rockolaTag')}</span>{/if}
+        {#if remote() && p.blocked}<span class="blocked">{t('player.needsClick')}</span>{/if}
         {#if entry.albumId}
           <a class="title" href={albumHref(entry.albumId)}>{entry.title}</a>
         {:else}
           <span class="title">{entry.title}</span>
         {/if}
-        <span class="artist">{entry.artist}</span>
+        <span class="artist">{artistLabel(entry.artist)}</span>
       </span>
       <span class="like"><MeGusta kind="track" ref={entry.id} size={18} /></span>
       <span class="like bar-add">{@render addToList('bar', 18)}</span>
-      <button class="open cover-all" onclick={() => (sheet = true)} aria-label="Abrir el reproductor"></button>
+      <button class="open cover-all" onclick={() => (sheet = true)} aria-label={t('player.open')}></button>
     </div>
     <div class="center">
       {@render controls(false)}
@@ -152,35 +153,35 @@
     </div>
     <div class="right">
       {#if can('setVolume')}
-        <button class="icon" onclick={toggleMute} title={p.muted ? 'Activar sonido' : 'Silenciar'}
-          aria-label={p.muted ? 'Activar sonido' : 'Silenciar'}><Icono name={p.muted ? 'mute' : 'volume'} /></button>
+        <button class="icon" onclick={toggleMute} title={p.muted ? t('player.unmute') : t('player.mute')}
+          aria-label={p.muted ? t('player.unmute') : t('player.mute')}><Icono name={p.muted ? 'mute' : 'volume'} /></button>
         <input class="volume" type="range" min="0" max="1" step="0.01" value={p.muted ? 0 : p.volume}
-          oninput={remote() ? undefined : live(setVolume)} onchange={remote() ? live(setVolume) : undefined} aria-label="Volumen"
+          oninput={remote() ? undefined : live(setVolume)} onchange={remote() ? live(setVolume) : undefined} aria-label={t('player.volume')}
           style="--pct: {(p.muted ? 0 : p.volume) * 100}%" />
       {/if}
-      <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title="Cola" aria-label="Cola">
+      <button class="icon" class:on={queueOpen} onclick={() => (queueOpen = !queueOpen)} title={t('queue.title')} aria-label={t('queue.title')}>
         <Icono name="queue" />
       </button>
     </div>
     <div class="mini">
-      <button class="icon" onclick={toggle} aria-label={p.playing ? 'Pausa' : 'Reproducir'}>
+      <button class="icon" onclick={toggle} aria-label={p.playing ? t('player.pause') : t('player.play')}>
         <Icono name={p.playing ? 'pause' : 'play'} size={22} />
       </button>
       {#if can('next')}
-        <button class="icon" onclick={next} aria-label="Siguiente"><Icono name="next" size={22} /></button>
+        <button class="icon" onclick={next} aria-label={t('player.next')}><Icono name="next" size={22} /></button>
       {/if}
     </div>
   </div>
 
   {#if sheet}
-    <div class="sheet" role="dialog" aria-label="Reproductor">
+    <div class="sheet" role="dialog" aria-label={t('player.dialog')}>
       <div class="backdrop" aria-hidden="true">
         {#key entry.key}<img src={itemCoverURL(entry, 160)} alt="" onerror={(e) => e.currentTarget.remove()} />{/key}
       </div>
       <header>
-        <button class="icon" onclick={() => (sheet = false)} title="Cerrar (Esc)" aria-label="Cerrar"><Icono name="down" size={26} /></button>
-        <span class="label">{remote() ? 'Rockola · en la compu' : 'Sonando'}</span>
-        <button class="icon" onclick={() => ((queueOpen = true), (sheet = false))} title="Cola" aria-label="Cola"><Icono name="queue" size={22} /></button>
+        <button class="icon" onclick={() => (sheet = false)} title={t('player.closeTitle')} aria-label={t('common.close')}><Icono name="down" size={26} /></button>
+        <span class="label">{remote() ? t('player.rockolaTag') : t('player.nowPlaying')}</span>
+        <button class="icon" onclick={() => ((queueOpen = true), (sheet = false))} title={t('queue.title')} aria-label={t('queue.title')}><Icono name="queue" size={22} /></button>
       </header>
       <div class="stage">
         {#key entry.key}
@@ -191,7 +192,7 @@
             {#key entry.key}
               <h2 class="big-title" class:long={entry.title.length > 40}>{entry.title}</h2>
             {/key}
-            <p class="big-artist">{entry.artist}</p>
+            <p class="big-artist">{artistLabel(entry.artist)}</p>
             <p class="big-album">
               {#if entry.albumId}
                 <a href={albumHref(entry.albumId)} onclick={() => (sheet = false)}>{entry.album}</a>
@@ -210,14 +211,14 @@
           </div>
           {#if upcoming.length > 0}
             <div class="upnext">
-              <p class="label">A continuación</p>
+              <p class="label">{t('player.upNext')}</p>
               <!-- A fourth, fading out, hints that the queue goes on (the
                    third, on short screens, where the fourth is hidden). -->
               {#each upcoming.slice(0, 4) as u, i (u.entry.key)}
                 <button class="up" class:tail={i === 3} class:tail-short={i === 2 && upcoming.length > 3}
                   onclick={() => jumpTo(u.pos)} disabled={!can('jumpTo')}>
                   <span class="up-pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
-                  <span class="up-text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+                  <span class="up-text"><b>{u.entry.title}</b><span>{artistLabel(u.entry.artist)}</span></span>
                   <span class="time">{duration(u.entry.durationMs)}</span>
                 </button>
               {/each}

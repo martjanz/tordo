@@ -118,14 +118,14 @@ func TestSlowRequestsAreLogged(t *testing.T) {
 	defer srv.Close()
 	res := make(chan error, 1)
 	go func() {
-		r, err := http.Get(srv.URL + "/api/explore?ver=albumes")
+		r, err := http.Get(srv.URL + "/api/explore?view=albums")
 		if err == nil {
 			r.Body.Close()
 		}
 		res <- err
 	}()
 	deadline := time.Now().Add(5 * time.Second)
-	for !strings.Contains(buf.String(), "GET /api/explore?ver=albumes") {
+	for !strings.Contains(buf.String(), "GET /api/explore?view=albums") {
 		if time.Now().After(deadline) {
 			t.Fatalf("no note while running; log: %q", buf.String())
 		}
@@ -135,7 +135,7 @@ func TestSlowRequestsAreLogged(t *testing.T) {
 	if err := <-res; err != nil {
 		t.Fatal(err)
 	}
-	if n := strings.Count(buf.String(), "GET /api/explore?ver=albumes"); n != 2 {
+	if n := strings.Count(buf.String(), "GET /api/explore?view=albums"); n != 2 {
 		t.Fatalf("want a note while running and one at the end; log: %q", buf.String())
 	}
 }

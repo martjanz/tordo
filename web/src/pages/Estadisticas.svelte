@@ -6,18 +6,14 @@
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count, country, duration } from '../lib/format.js'
+  import { country, duration } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { artistHref, exploreHref, statsHref } from '../lib/router.js'
 
   let { period } = $props()
 
-  const PERIODS = [
-    { value: 'semana', label: 'Última semana' },
-    { value: 'mes', label: 'Último mes' },
-    { value: 'anio', label: 'Último año' },
-    { value: 'siempre', label: 'Siempre' },
-  ]
+  const PERIODS = ['week', 'month', 'year', 'all']
 
   let data = $state(null)
   let loads = 0
@@ -44,34 +40,34 @@
   const artists = $derived(data?.artists ?? [])
   const countries = $derived(data?.countries ?? [])
   const genres = $derived(data?.genres ?? [])
-  const plays = (n) => count(n, 'reproducción', 'reproducciones')
+  const plays = (n) => t('count.plays', { n })
 </script>
 
-<h1>Historial de escucha</h1>
+<h1>{t('stats.title')}</h1>
 <nav class="tabs">
-  {#each PERIODS as p (p.value)}
-    <a href={statsHref(p.value)} class:on={period === p.value}>{p.label}</a>
+  {#each PERIODS as p (p)}
+    <a href={statsHref(p)} class:on={period === p}>{t('stats.' + p)}</a>
   {/each}
 </nav>
 
 {#if data}
   {#if !data.plays}
-    <p class="empty">Todavía no hay reproducciones en este período.</p>
+    <p class="empty">{t('stats.empty')}</p>
   {:else}
     <p class="totals">
-      {plays(data.plays)} · {duration(data.listenedMs)} · {count(data.played, 'pista distinta', 'pistas distintas')}
+      {plays(data.plays)} · {duration(data.listenedMs)} · {t('count.distinctTracks', { n: data.played })}
     </p>
 
     {#if tracks.length}
       <section>
-        <h2>Pistas</h2>
-        <ListaPistas {tracks} numbered={false} showAlbum showPlays onplay={(t) => play({ tracks: tracks.map((x) => x.id) }, { startId: t.id })} />
+        <h2>{t('facets.view.tracks')}</h2>
+        <ListaPistas {tracks} numbered={false} showAlbum showPlays onplay={(track) => play({ tracks: tracks.map((x) => x.id) }, { startId: track.id })} />
       </section>
     {/if}
 
     {#if albums.length}
       <section>
-        <h2>Álbumes</h2>
+        <h2>{t('facets.view.albums')}</h2>
         <div class="grid">
           {#each albums as a (a.id)}
             <div class="cell">
@@ -85,7 +81,7 @@
 
     {#if artists.length}
       <section>
-        <h2>Artistas</h2>
+        <h2>{t('facets.view.artists')}</h2>
         <ol class="rank">
           {#each artists as a (a.key ? 'k:' + a.key : 'n:' + a.name)}
             <li>
@@ -99,11 +95,11 @@
 
     {#if countries.length}
       <section>
-        <h2>Países</h2>
+        <h2>{t('stats.countries')}</h2>
         <ol class="rank">
           {#each countries as c (c.value)}
             <li>
-              <a href={exploreHref({ pais: c.value })}>{country(c.value)}</a>
+              <a href={exploreHref({ country: c.value })}>{country(c.value)}</a>
               <span class="n">{plays(c.plays)}</span>
             </li>
           {/each}
@@ -113,11 +109,11 @@
 
     {#if genres.length}
       <section>
-        <h2>Géneros</h2>
+        <h2>{t('stats.genres')}</h2>
         <ol class="rank">
           {#each genres as g (g.value)}
             <li>
-              <a href={exploreHref({ genero: g.value })}>{g.value}</a>
+              <a href={exploreHref({ genre: g.value })}>{g.value}</a>
               <span class="n">{plays(g.plays)}</span>
             </li>
           {/each}
@@ -128,14 +124,14 @@
 
   {#if data.never || data.stale}
     <section>
-      <h2>Por escuchar</h2>
+      <h2>{t('stats.toListen')}</h2>
       <ul class="rank">
         {#if data.never}
-          <li><a href={exploreHref({ escucha: 'nunca' })}>{count(data.never, 'álbum nunca escuchado', 'álbumes nunca escuchados')} →</a></li>
+          <li><a href={exploreHref({ listened: 'never' })}>{t('count.albumsNever', { n: data.never })} →</a></li>
         {/if}
         {#if data.stale}
           <li>
-            <a href={exploreHref({ escucha: 'hace-un-anio' })}>{count(data.stale, 'álbum sin escuchar', 'álbumes sin escuchar')} hace más de un año →</a>
+            <a href={exploreHref({ listened: 'year-ago' })}>{t('count.albumsStale', { n: data.stale })} →</a>
           </li>
         {/if}
       </ul>

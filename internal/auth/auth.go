@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var ErrPINFormat = errors.New("el PIN tiene que tener entre 6 y 12 dígitos, solo números")
+var ErrPINFormat = errors.New("PIN must be 6 to 12 digits")
 
 const (
 	// Iterations is the PBKDF2 cost of new hashes.

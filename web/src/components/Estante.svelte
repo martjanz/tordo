@@ -1,8 +1,9 @@
 <script>
-  // A shelf of Inicio: a title with its actions and a "Ver todo" link, over
+  // A shelf of Inicio: a title with its actions and a "see all" link, over
   // a row of cards that scrolls sideways. The row runs to the page's edges
   // (its first card still lined up with the title), hides its scrollbar,
   // fades on the sides that have more, and pages with arrows on hover.
+  import { t } from '../lib/i18n/index.svelte.js'
   import { edges, pageStep } from '../lib/shelf.js'
   import Icono from './Icono.svelte'
 
@@ -47,19 +48,19 @@
   <div class="head">
     <h2>{title}</h2>
     {#if actions}<span class="actions">{@render actions()}</span>{/if}
-    {#if href}<a class="all" {href}>Ver todo</a>{/if}
+    {#if href}<a class="all" {href}>{t('shelf.seeAll')}</a>{/if}
   </div>
   <div class="rail">
     <div class="strip" class:fade-start={more.start} class:fade-end={more.end} bind:this={strip} onscroll={update}>
       {@render children()}
     </div>
     {#if more.start}
-      <button class="icon arrow prev" tabindex="-1" onclick={() => move(-1)} aria-label="Anteriores" title="Anteriores">
+      <button class="icon arrow prev" tabindex="-1" onclick={() => move(-1)} aria-label={t('shelf.previous')} title={t('shelf.previous')}>
         <Icono name="left" size={20} />
       </button>
     {/if}
     {#if more.end}
-      <button class="icon arrow next" tabindex="-1" onclick={() => move(1)} aria-label="Siguientes" title="Siguientes">
+      <button class="icon arrow next" tabindex="-1" onclick={() => move(1)} aria-label={t('shelf.next')} title={t('shelf.next')}>
         <Icono name="right" size={20} />
       </button>
     {/if}

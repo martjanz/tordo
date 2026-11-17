@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { codecName, count, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale, t } from './i18n/index.svelte.js'
+import { artistLabel, codecName, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -10,14 +11,6 @@ describe('durations', () => {
     expect(length(48 * 60000)).toBe('48 min')
     expect(length(72 * 60000)).toBe('1 h 12 min')
     expect(length(120 * 60000)).toBe('2 h')
-  })
-})
-
-describe('count', () => {
-  it('agrees in number', () => {
-    expect(count(1, 'pista', 'pistas')).toBe('1 pista')
-    expect(count(12, 'pista', 'pistas')).toBe('12 pistas')
-    expect(count(0, 'álbum', 'álbumes')).toBe('0 álbumes')
   })
 })
 
@@ -104,4 +97,58 @@ describe('since', () => {
     [now - 3 * 86_400_000, 'hace 3 días'],
     [now + 5_000, 'recién'],
   ])('%d', (ms, want) => expect(since(ms, now)).toBe(want))
+})
+
+describe('other languages', () => {
+  afterEach(() => setLocale('es'))
+  const now = Date.UTC(2026, 9, 2, 12, 0, 0)
+
+  it('formats in English', () => {
+    setLocale('en')
+    expect(size(7_200_000)).toBe('7.2 MB')
+    expect(since(now - 3 * 86_400_000, now)).toBe('3 days ago')
+    expect(since(now, now)).toBe('just now')
+    expect(since(now - 25 * 60_000, now)).toBe('25 min ago')
+    expect(since(now - 5 * 3600_000, now)).toBe('5 h ago')
+    expect(since(now - 86_400_000, now)).toBe('yesterday')
+    expect(country('AR')).toBe('Argentina')
+    expect(country('DE')).toBe('Germany')
+    expect(length(72 * 60000)).toBe('1 h 12 min')
+    expect(length(120 * 60000)).toBe('2 h')
+    expect(t('count.tracks', { n: 1 })).toBe('1 track')
+    expect(t('count.tracks', { n: 1234 })).toBe('1,234 tracks')
+    expect(quality({ format: 'wav', codec: 'pcm', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('WAV 16/44.1')
+  })
+  it('formats in Spanish', () => {
+    setLocale('es')
+    expect(size(7_200_000)).toBe('7,2 MB')
+    expect(t('count.tracks', { n: 1 })).toBe('1 pista')
+    expect(t('count.albums', { n: 0 })).toBe('0 álbumes')
+    expect(t('count.tracks', { n: 1234 })).toBe('1.234 pistas')
+    expect(country('DE')).toBe('Alemania')
+  })
+  it('formats in Portuguese', () => {
+    setLocale('pt-BR')
+    expect(country('DE')).toBe('Alemanha')
+    expect(size(7_200_000)).toBe('7,2 MB')
+    expect(since(now - 3 * 86_400_000, now)).toBe('há 3 dias')
+    expect(since(now, now)).toBe('agora')
+    expect(since(now - 86_400_000, now)).toBe('ontem')
+  })
+})
+
+describe('artistLabel', () => {
+  afterEach(() => setLocale('es'))
+  it('names the compilations artist in the current language', () => {
+    expect(artistLabel('Various Artists')).toBe('Varios artistas')
+    setLocale('en')
+    expect(artistLabel('Various Artists')).toBe('Various Artists')
+    setLocale('pt-BR')
+    expect(artistLabel('Various Artists')).toBe('Vários artistas')
+  })
+  it('leaves other names as they are', () => {
+    expect(artistLabel('Charly García')).toBe('Charly García')
+    expect(artistLabel('')).toBe('')
+    expect(artistLabel(undefined)).toBe(undefined)
+  })
 })

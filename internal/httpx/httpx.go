@@ -16,10 +16,10 @@ import (
 
 // ErrOffline means the service could not be reached (network down, DNS,
 // timeouts, or repeated 429/5xx): the work should be retried later.
-var ErrOffline = errors.New("sin conexión")
+var ErrOffline = errors.New("no connection")
 
 // ErrTooLarge means a response exceeded the size limit; it is not retried.
-var ErrTooLarge = errors.New("respuesta demasiado grande")
+var ErrTooLarge = errors.New("response too large")
 
 // UserAgent identifies tordo to the services it calls. MusicBrainz asks
 // every client for a name, a version and a contact URL.

@@ -5,8 +5,8 @@
 import { api, itemCoverURL, streamURL } from './api.js'
 import { app, notify } from './app.svelte.js'
 import { deviceName } from './device.js'
-import { count } from './format.js'
 import { factor, gainDb, missing, withGains } from './gain.js'
+import { msg } from './i18n/index.svelte.js'
 import * as P from './plays.js'
 import * as Q from './queue.js'
 import * as S from './stations.js'
@@ -217,7 +217,7 @@ function onError() {
   const entry = Q.current(player.queue)
   player.loading = false
   if (!entry) return
-  notify(`No se pudo reproducir «${entry.title}».`)
+  notify(msg('play.failed', { title: entry.title }))
   if (++errors >= 3) {
     player.playing = false
     return
@@ -301,7 +301,7 @@ async function topUp() {
   topUpFailed = null
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    notify('La estación se quedó sin pistas.')
+    notify(msg('station.ranOut'))
     player.queue = { ...player.queue, station: null }
     persist()
     return
@@ -318,12 +318,12 @@ export async function playStation(st, { say = notify } = {}) {
   try {
     res = await api.stationNext(st, [])
   } catch (e) {
-    say(e.message)
+    say(e.notice)
     return
   }
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    say('Esta estación no tiene nada para sonar.')
+    say(msg('station.empty'))
     return
   }
   // The server's cleaned station has no id: keep the saved station's.
@@ -393,16 +393,16 @@ export async function play(what, { shuffle = false, startId = null, say = notify
   try {
     res = await api.play(what) // the queue does the shuffling
   } catch (e) {
-    say(e.message)
+    say(e.notice)
     return
   }
   player.ffmpeg = res.ffmpeg
-  if (res.skipped > 0) say(`${count(res.skipped, 'pista no se puede', 'pistas no se pueden')} reproducir: falta ffmpeg.`)
+  if (res.skipped > 0) say(msg('play.skipped', { n: res.skipped }))
   if (res.items.length === 0) {
-    if (res.skipped === 0) say('No hay nada para reproducir acá.')
+    if (res.skipped === 0) say(msg('play.nothing'))
     return
   }
-  if (res.truncated > 0) say(`Se agregaron las primeras ${count(res.items.length, 'pista', 'pistas')}.`)
+  if (res.truncated > 0) say(msg('play.truncated', { n: res.items.length }))
   const at = startId == null ? 0 : Math.max(0, res.items.findIndex((it) => it.id === startId))
   setQueue(Q.replace({ ...player.queue, shuffle, station: null }, res.items, shuffle ? Math.floor(Math.random() * res.items.length) : at))
 }
@@ -416,12 +416,12 @@ export async function enqueue(what, { next = false, shuffle = false, startIfIdle
   try {
     res = await api.play(what)
   } catch (e) {
-    say(e.message)
+    say(e.notice)
     return
   }
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    if (res.skipped === 0) say('No hay nada para reproducir acá.')
+    if (res.skipped === 0) say(msg('play.nothing'))
     return
   }
   let items = res.items
@@ -431,8 +431,8 @@ export async function enqueue(what, { next = false, shuffle = false, startIfIdle
   const firstKey = player.queue.nextKey // the first new entry's key
   player.queue = next ? Q.playNext(player.queue, items) : Q.append(player.queue, items)
   persist()
-  if (res.truncated > 0) say(`Se agregaron las primeras ${count(items.length, 'pista', 'pistas')}.`)
-  else say(next ? 'Suena a continuación.' : `${count(items.length, 'pista agregada', 'pistas agregadas')} a la cola.`)
+  if (res.truncated > 0) say(msg('play.truncated', { n: items.length }))
+  else say(next ? msg('queue.next') : msg('queue.added', { n: items.length }))
   const idle = !player.playing && (wasEmpty || player.ended)
   if (startIfIdle && idle) {
     const pos = player.queue.order.indexOf(firstKey)

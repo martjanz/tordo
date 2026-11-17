@@ -2,7 +2,7 @@
   // Explorar's bar: tabs, facet menus, order, the station, and the chips of
   // what is applied. On phones the facets are one row that scrolls sideways.
   import { listenMode } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import Icono from './Icono.svelte'
   import { chips, FACETS, facetLabel, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
@@ -19,9 +19,9 @@
 
   const main = FACETS.filter((f) => !f.more)
   // "Estado" only holds maintenance states (unidentified, duplicates).
-  const more = $derived(FACETS.filter((f) => f.more && !(listenMode() && f.name === 'estado')))
+  const more = $derived(FACETS.filter((f) => f.more && !(listenMode() && f.name === 'state')))
   const applied = $derived(chips(query, facets))
-  const NESTED = { decada: { name: 'anio', label: 'Años' }, genero: { name: 'estilo', label: 'Estilos' } }
+  const NESTED = { decade: { name: 'year', label: 'explore.bar.years' }, genre: { name: 'style', label: 'explore.bar.styles' } }
 
   function toggle(name, event) {
     menuTop = event.currentTarget.getBoundingClientRect().bottom + 6
@@ -47,11 +47,11 @@
 
   // What the total counts: artists, tracks, or albums.
   const totalLabel = $derived(
-    query.view === 'artistas'
-      ? count(total, 'artista', 'artistas')
-      : query.view === 'pistas'
-        ? count(total, 'pista', 'pistas')
-        : count(total, 'álbum', 'álbumes'),
+    query.view === 'artists'
+      ? t('count.artists', { n: total })
+      : query.view === 'tracks'
+        ? t('count.tracks', { n: total })
+        : t('count.albums', { n: total }),
   )
 </script>
 
@@ -66,7 +66,7 @@
         </button>
       </li>
     {:else}
-      <li class="none">Sin valores</li>
+      <li class="none">{t('explore.bar.noValues')}</li>
     {/each}
   </ul>
 {/snippet}
@@ -75,11 +75,11 @@
   {@const nested = NESTED[name]}
   {#if (facets?.[name] ?? []).length > 12}
     <!-- svelte-ignore a11y_autofocus -->
-    <input type="search" placeholder="Filtrar…" bind:value={filters[name]} autofocus />
+    <input type="search" placeholder={t('explore.bar.filter')} bind:value={filters[name]} autofocus />
   {/if}
   {@render options(name, values(name))}
   {#if nested && inside(name, query, facets).length}
-    <div class="label sub">{nested.label}</div>
+    <div class="label sub">{t(nested.label)}</div>
     {@render options(nested.name, inside(name, query, facets))}
   {/if}
 {/snippet}
@@ -106,7 +106,7 @@
   {/each}
   <div class="facet">
     <button class="dd" class:on={more.some((f) => query.facets[f.name])} onclick={(e) => toggle('more', e)} aria-expanded={open === 'more'}>
-      Más ▾
+      {t('explore.bar.more')} ▾
     </button>
     {#if open === 'more'}
       <div class="menu wide">
@@ -121,21 +121,21 @@
 
   <div class="right">
     <span class="total">{totalLabel}</span>
-    <select value={query.order} onchange={(e) => onchange(withOrder(query, e.currentTarget.value))} aria-label="Orden">
+    <select value={query.order} onchange={(e) => onchange(withOrder(query, e.currentTarget.value))} aria-label={t('explore.bar.order')}>
       {#each ORDERS[query.view] as o (o.value)}
         <option value={o.value}>{o.label}</option>
       {/each}
     </select>
-    {#if query.order === 'azar'}
+    {#if query.order === 'random'}
       <!-- No direction to a shuffle: draw another one instead. -->
-      <button class="dir reshuffle" onclick={() => onchange(withOrder(query, 'azar'))} aria-label="Mezclar de nuevo"
-        title="Mezclar de nuevo"><Icono name="refresh" size={14} /></button>
+      <button class="dir reshuffle" onclick={() => onchange(withOrder(query, 'random'))} aria-label={t('explore.bar.reshuffle')}
+        title={t('explore.bar.reshuffle')}><Icono name="refresh" size={14} /></button>
     {:else}
       <button
         class="dir"
         onclick={() => onchange({ ...query, dir: query.dir === 'asc' ? 'desc' : 'asc' })}
-        aria-label={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}
-        title={query.dir === 'asc' ? 'Ascendente' : 'Descendente'}>{query.dir === 'asc' ? '↑' : '↓'}</button
+        aria-label={query.dir === 'asc' ? t('explore.bar.asc') : t('explore.bar.desc')}
+        title={query.dir === 'asc' ? t('explore.bar.asc') : t('explore.bar.desc')}>{query.dir === 'asc' ? '↑' : '↓'}</button
       >
     {/if}
     <BotonEstacion {station} compact />
@@ -145,12 +145,12 @@
 {#if applied.length}
   <div class="chips">
     {#each applied as c (c.name)}
-      <button class="chip" onclick={() => onchange(withFacet(query, c.name, null))} aria-label={`Quitar ${c.label}`}>
+      <button class="chip" onclick={() => onchange(withFacet(query, c.name, null))} aria-label={t('explore.bar.remove', { label: c.label })}>
         {c.label} ✕
       </button>
     {/each}
     {#if applied.length > 1}
-      <button class="chip clear" onclick={() => onchange({ ...query, facets: {} })}>Quitar todo</button>
+      <button class="chip clear" onclick={() => onchange({ ...query, facets: {} })}>{t('explore.bar.removeAll')}</button>
     {/if}
   </div>
 {/if}

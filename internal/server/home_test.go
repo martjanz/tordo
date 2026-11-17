@@ -21,8 +21,8 @@ func TestHomeEndpoint(t *testing.T) {
 	h := (&Server{Store: st}).Handler()
 	tr, al := ids(t, st)
 
-	a := do(t, h, "GET", "/api/home?semilla=7", "")
-	b := do(t, h, "GET", "/api/home?semilla=7", "")
+	a := do(t, h, "GET", "/api/home?seed=7", "")
+	b := do(t, h, "GET", "/api/home?seed=7", "")
 	if a.Code != http.StatusOK || a.Body.String() != b.Body.String() {
 		t.Fatalf("same seed: %d\n%s\n%s", a.Code, a.Body, b.Body)
 	}
@@ -32,22 +32,22 @@ func TestHomeEndpoint(t *testing.T) {
 		home.Liked == nil || len(home.Liked) != 0 || home.LikedTracks == nil || len(home.LikedTracks) != 0 || home.Stations == nil || len(home.Stations) != 0 {
 		t.Fatalf("empty home = %+v\n%s", home, a.Body)
 	}
-	if rec := do(t, h, "GET", "/api/home?semilla=nope", ""); rec.Code != http.StatusOK {
+	if rec := do(t, h, "GET", "/api/home?seed=nope", ""); rec.Code != http.StatusOK {
 		t.Fatalf("bad seed: %d", rec.Code)
 	}
 
 	if _, err := st.RecordPlay(tr, time.Now(), 500, "test"); err != nil {
 		t.Fatal(err)
 	}
-	if rec := put(t, h, "POST", "/api/stations", `{"name":"Todo","source":{},"mode":"pistas"}`); rec.Code != http.StatusCreated {
+	if rec := put(t, h, "POST", "/api/stations", `{"name":"Todo","source":{},"mode":"tracks"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("station: %d %s", rec.Code, rec.Body)
 	}
 	home = homeBody{}
-	decode(t, do(t, h, "GET", "/api/home?semilla=7", ""), &home)
+	decode(t, do(t, h, "GET", "/api/home?seed=7", ""), &home)
 	if len(home.Continue) != 1 || home.Continue[0].ID != al {
 		t.Fatalf("continue = %+v", home.Continue)
 	}
-	if len(home.Stations) != 1 || home.Stations[0].Name != "Todo" || home.Stations[0].Mode != "pistas" {
+	if len(home.Stations) != 1 || home.Stations[0].Name != "Todo" || home.Stations[0].Mode != "tracks" {
 		t.Fatalf("stations = %+v", home.Stations)
 	}
 }
@@ -67,21 +67,21 @@ func TestStatsEndpoint(t *testing.T) {
 			Plays int   `json:"plays"`
 		} `json:"tracks"`
 	}
-	decode(t, do(t, h, "GET", "/api/stats?periodo=semana", ""), &s)
-	if s.Period != "semana" || s.Plays != 1 || len(s.Tracks) != 1 || s.Tracks[0].ID != tr || s.Tracks[0].Plays != 1 {
-		t.Fatalf("semana = %+v", s)
+	decode(t, do(t, h, "GET", "/api/stats?period=week", ""), &s)
+	if s.Period != "week" || s.Plays != 1 || len(s.Tracks) != 1 || s.Tracks[0].ID != tr || s.Tracks[0].Plays != 1 {
+		t.Fatalf("week = %+v", s)
 	}
-	for _, p := range []string{"mes", "anio", "siempre"} {
-		if rec := do(t, h, "GET", "/api/stats?periodo="+p+"&limite=3", ""); rec.Code != http.StatusOK {
+	for _, p := range []string{"month", "year", "all"} {
+		if rec := do(t, h, "GET", "/api/stats?period="+p+"&limit=3", ""); rec.Code != http.StatusOK {
 			t.Fatalf("%s: %d", p, rec.Code)
 		}
 	}
-	if rec := do(t, h, "GET", "/api/stats?periodo=x", ""); rec.Code != http.StatusBadRequest {
+	if rec := do(t, h, "GET", "/api/stats?period=x", ""); rec.Code != http.StatusBadRequest {
 		t.Fatalf("bad period: %d", rec.Code)
 	}
 	s.Period = ""
 	decode(t, do(t, h, "GET", "/api/stats", ""), &s)
-	if s.Period != "mes" {
+	if s.Period != "month" {
 		t.Fatalf("default period = %q", s.Period)
 	}
 }

@@ -43,14 +43,14 @@ func readWAV(s source) (Info, error) {
 		return info, err
 	}
 	if string(h[:4]) != "RIFF" || string(h[8:12]) != "WAVE" {
-		return info, fmt.Errorf("%w: no es un WAV", ErrFormat)
+		return info, fmt.Errorf("%w: not a WAV", ErrFormat)
 	}
 	var byteRate int64
 	err = eachChunk(s, 12, false, func(id string, body, n int64) error {
 		switch id {
 		case "fmt ":
 			if n < 16 {
-				return fmt.Errorf("%w: bloque fmt corto", ErrFormat)
+				return fmt.Errorf("%w: fmt block too short", ErrFormat)
 			}
 			d, err := s.read(body, 16)
 			if err != nil {
@@ -87,7 +87,7 @@ func readWAV(s source) (Info, error) {
 		return info, err
 	}
 	if info.Codec == "" || info.Payload.Length == 0 {
-		return info, fmt.Errorf("%w: WAV sin formato o sin datos", ErrFormat)
+		return info, fmt.Errorf("%w: WAV without format or data", ErrFormat)
 	}
 	if byteRate > 0 {
 		info.DurationMs = info.Payload.Length * 1000 / byteRate
@@ -122,14 +122,14 @@ func readAIFF(s source) (Info, error) {
 	}
 	kind := string(h[8:12])
 	if string(h[:4]) != "FORM" || (kind != "AIFF" && kind != "AIFC") {
-		return info, fmt.Errorf("%w: no es un AIFF", ErrFormat)
+		return info, fmt.Errorf("%w: not an AIFF", ErrFormat)
 	}
 	var frames int64
 	err = eachChunk(s, 12, true, func(id string, body, n int64) error {
 		switch id {
 		case "COMM":
 			if n < 18 {
-				return fmt.Errorf("%w: bloque COMM corto", ErrFormat)
+				return fmt.Errorf("%w: COMM block too short", ErrFormat)
 			}
 			d, err := s.read(body, int(min(n, 22)))
 			if err != nil {
@@ -149,7 +149,7 @@ func readAIFF(s source) (Info, error) {
 			}
 		case "SSND":
 			if n < 8 {
-				return fmt.Errorf("%w: bloque SSND corto", ErrFormat)
+				return fmt.Errorf("%w: SSND block too short", ErrFormat)
 			}
 			d, err := s.read(body, 8)
 			if err != nil {
@@ -178,7 +178,7 @@ func readAIFF(s source) (Info, error) {
 		return info, err
 	}
 	if info.Codec == "" || info.Payload.Length == 0 {
-		return info, fmt.Errorf("%w: AIFF sin formato o sin datos", ErrFormat)
+		return info, fmt.Errorf("%w: AIFF without format or data", ErrFormat)
 	}
 	if info.SampleRate > 0 {
 		info.DurationMs = frames * 1000 / int64(info.SampleRate)

@@ -16,19 +16,19 @@ func TestExploreEndpoint(t *testing.T) {
 	h := s.Handler()
 	var r catalog.Result
 	decode(t, do(t, h, "GET", "/api/explore", ""), &r)
-	if r.Total != 1 || len(r.Albums) != 1 || r.Albums[0].Title != "Locura" || r.Albums[0].ArtistKey != "virus" || r.Query.View != "albumes" {
+	if r.Total != 1 || len(r.Albums) != 1 || r.Albums[0].Title != "Locura" || r.Albums[0].ArtistKey != "virus" || r.Query.View != "albums" {
 		t.Fatalf("albums = %+v", r)
 	}
-	if got := r.Facets["estado"]; len(got) != 1 || got[0].Value != catalog.StateUnplayable {
+	if got := r.Facets["state"]; len(got) != 1 || got[0].Value != catalog.StateUnplayable {
 		t.Fatalf("without ffmpeg the WMA track is not playable: %+v", got)
 	}
 	r = catalog.Result{}
-	decode(t, do(t, h, "GET", "/api/explore?ver=pistas&formato=wma&limite=1", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?view=tracks&format=wma&limit=1", ""), &r)
 	if r.Total != 1 || len(r.Tracks) != 1 || r.Tracks[0].Title != "Pecados para dos" {
 		t.Fatalf("tracks = %+v", r)
 	}
 	r = catalog.Result{}
-	decode(t, do(t, h, "GET", "/api/explore?ver=artistas&desde=5", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?view=artists&from=5", ""), &r)
 	if r.Total != 1 || len(r.Artists) != 0 {
 		t.Fatalf("artists past the end = %+v", r)
 	}
@@ -38,7 +38,7 @@ func TestCatalogFollowsChanges(t *testing.T) {
 	s, _ := mediaServer(t, "")
 	h := s.Handler()
 	var r catalog.Result
-	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?country=AR", ""), &r)
 	if r.Total != 0 {
 		t.Fatalf("before: %+v", r)
 	}
@@ -47,7 +47,7 @@ func TestCatalogFollowsChanges(t *testing.T) {
 		Country: "AR"}}, nil); err != nil {
 		t.Fatal(err)
 	}
-	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?country=AR", ""), &r)
 	if r.Total != 1 {
 		t.Fatalf("the catalog was not rebuilt: %+v", r)
 	}
@@ -58,7 +58,7 @@ func TestExploreDuringARun(t *testing.T) {
 	s.Identifier = &fakeIdentifier{state: identify.StateRunning}
 	h := s.Handler()
 	var r catalog.Result
-	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?country=AR", ""), &r)
 	if r.Total != 0 {
 		t.Fatalf("before: %+v", r)
 	}
@@ -69,7 +69,7 @@ func TestExploreDuringARun(t *testing.T) {
 	}
 	// While the run goes on, Explorar answers with the catalog it has and
 	// the new one is built in the background.
-	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?country=AR", ""), &r)
 	if r.Total != 0 {
 		t.Fatalf("a run waited for the rebuild: %+v", r)
 	}
@@ -79,7 +79,7 @@ func TestExploreDuringARun(t *testing.T) {
 			t.Fatal("the catalog was not rebuilt in the background")
 		}
 	}
-	decode(t, do(t, h, "GET", "/api/explore?pais=AR", ""), &r)
+	decode(t, do(t, h, "GET", "/api/explore?country=AR", ""), &r)
 	if r.Total != 1 {
 		t.Fatalf("after the background rebuild: %+v", r)
 	}
@@ -119,7 +119,7 @@ func TestSearchEndpoint(t *testing.T) {
 		t.Fatalf("found = %+v", f)
 	}
 	f.Found = catalog.Found{}
-	decode(t, do(t, h, "GET", "/api/search?q=virus&limite=1", ""), &f)
+	decode(t, do(t, h, "GET", "/api/search?q=virus&limit=1", ""), &f)
 	if len(f.Artists) != 1 || len(f.Albums) != 1 || len(f.Tracks) != 1 || f.Totals["tracks"] != 2 {
 		t.Fatalf("virus = %+v", f)
 	}
@@ -155,5 +155,23 @@ func TestAlbumPage(t *testing.T) {
 	decode(t, do(t, s.Handler(), "GET", "/api/albums/"+itoa(id), ""), &p)
 	if !p.Tracks[1].Playable || !p.Tracks[1].Transcoded {
 		t.Fatalf("with ffmpeg: %+v", p.Tracks)
+	}
+}
+
+// The Spanish vocabulary is gone: old words are unknown values, not aliases.
+func TestOldVocabularyRejected(t *testing.T) {
+	s, _ := mediaServer(t, "")
+	h := s.Handler()
+	var r catalog.Result
+	decode(t, do(t, h, "GET", "/api/explore?view=pistas", ""), &r)
+	if r.Query.View != catalog.ViewAlbums || len(r.Tracks) != 0 {
+		t.Fatalf("view=pistas should fall back to the default view: %+v", r.Query)
+	}
+	decode(t, do(t, h, "GET", "/api/explore?ver=tracks", ""), &r)
+	if r.Query.View != catalog.ViewAlbums {
+		t.Fatalf("the old parameter name ver is ignored: %+v", r.Query)
+	}
+	if rec := do(t, h, "GET", "/api/stats?period=mes", ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("period=mes: %d", rec.Code)
 	}
 }

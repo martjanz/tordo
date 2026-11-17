@@ -10,7 +10,7 @@ import (
 	"tordo/internal/audiofile"
 )
 
-const Various = "Varios artistas"
+const Various = "Various Artists"
 
 type Track struct {
 	FileID     int64

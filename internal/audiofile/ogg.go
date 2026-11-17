@@ -18,7 +18,7 @@ func readOggPage(s source, off int64) (oggPage, error) {
 		return oggPage{}, err
 	}
 	if string(h[:4]) != "OggS" {
-		return oggPage{}, fmt.Errorf("%w: página Ogg inválida", ErrFormat)
+		return oggPage{}, fmt.Errorf("%w: invalid Ogg page", ErrFormat)
 	}
 	lacing, err := s.read(off+27, int(h[26]))
 	if err != nil {
@@ -68,7 +68,7 @@ func readOgg(s source) (Info, error) {
 			}
 		}
 		if len(cur) > maxRead {
-			return info, fmt.Errorf("%w: paquete Ogg demasiado grande", ErrFormat)
+			return info, fmt.Errorf("%w: Ogg packet too large", ErrFormat)
 		}
 	}
 	id, comments := packets[0], packets[1]
@@ -79,7 +79,7 @@ func readOgg(s source) (Info, error) {
 		info.Codec, info.Channels = "opus", int(id[9])
 		preSkip, rate, info.SampleRate = int64(le16(id[10:12])), 48000, 48000
 		if len(comments) < 8 || string(comments[:8]) != "OpusTags" {
-			return info, fmt.Errorf("%w: faltan los comentarios Opus", ErrFormat)
+			return info, fmt.Errorf("%w: missing Opus comments", ErrFormat)
 		}
 		if err := parseVorbisComment(comments[8:], &info.Tags, s.pic); err != nil {
 			return info, err
@@ -89,13 +89,13 @@ func readOgg(s source) (Info, error) {
 		rate = int(le32(id[12:16]))
 		info.SampleRate = rate
 		if len(comments) < 7 || comments[0] != 3 || string(comments[1:7]) != "vorbis" {
-			return info, fmt.Errorf("%w: faltan los comentarios Vorbis", ErrFormat)
+			return info, fmt.Errorf("%w: missing Vorbis comments", ErrFormat)
 		}
 		if err := parseVorbisComment(comments[7:], &info.Tags, s.pic); err != nil {
 			return info, err
 		}
 	default:
-		return info, fmt.Errorf("%w: códec Ogg sin lector propio", ErrUnsupported)
+		return info, fmt.Errorf("%w: Ogg codec without a native reader", ErrUnsupported)
 	}
 	info.Payload = Range{off, s.size - off}
 	last, err := lastOggGranule(s, serial)

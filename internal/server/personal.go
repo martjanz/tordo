@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"sort"
@@ -11,8 +10,6 @@ import (
 
 	"tordo/internal/store"
 )
-
-const readOnlyMsg = "modo consulta: no se pueden guardar cambios"
 
 // personalState is the user's data resolved to the catalog's ids, kept while
 // neither the catalog (ids move with scans) nor the data changed.
@@ -84,22 +81,20 @@ func (s *Server) freshPersonal() (*store.Personal, int64, error) {
 // readBody decodes a JSON body into v, answering 400 when it cannot.
 func readBody(w http.ResponseWriter, r *http.Request, v any) bool {
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(v); err != nil {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return false
 	}
 	return true
 }
 
-// written answers 400 for a bad rating, 500 on error, 404 with msg when a
-// write found nothing, and 204 otherwise.
-func written(w http.ResponseWriter, ok bool, err error, msg string) {
+// written answers the error (a bad rating is 400, anything unknown 500), 404
+// with missing when a write found nothing, and 204 otherwise.
+func written(w http.ResponseWriter, ok bool, err error, missing *httpError) {
 	switch {
-	case errors.Is(err, store.ErrBadRating):
-		http.Error(w, err.Error(), http.StatusBadRequest)
 	case err != nil:
 		fail(w, err)
 	case !ok:
-		http.Error(w, msg, http.StatusNotFound)
+		fail(w, missing)
 	default:
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -131,7 +126,7 @@ func (s *Server) marks(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setLike(w http.ResponseWriter, r *http.Request) {
 	if s.ReadOnly {
-		http.Error(w, readOnlyMsg, http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: changes cannot be saved", nil)
 		return
 	}
 	var b struct {
@@ -146,36 +141,36 @@ func (s *Server) setLike(w http.ResponseWriter, r *http.Request) {
 	switch b.Kind {
 	case "track", "album":
 		if b.ID == 0 {
-			http.Error(w, "falta el id", http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, codeMissingID, "id is required", nil)
 			return
 		}
 	case "artist", "collection":
 		if b.Key == "" {
-			http.Error(w, "falta la clave", http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, codeMissingKey, "key is required", nil)
 			return
 		}
 	default:
-		http.Error(w, "tipo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidKind, "invalid kind", nil)
 		return
 	}
 	switch b.Kind {
 	case "track":
 		ok, err := s.Store.LikeTrack(b.ID, b.Liked)
-		written(w, ok, err, "pista no encontrada")
+		written(w, ok, err, errTrackNotFound)
 	case "album":
 		ok, err := s.Store.LikeAlbum(b.ID, b.Liked)
-		written(w, ok, err, "álbum no encontrado")
+		written(w, ok, err, errAlbumNotFound)
 	case "artist":
-		written(w, true, s.Store.LikeArtist(b.Key, b.Liked), "")
+		written(w, true, s.Store.LikeArtist(b.Key, b.Liked), nil)
 	default:
 		ok, err := s.Store.LikeCollection(b.Key, b.Liked)
-		written(w, ok, err, "carpeta no encontrada")
+		written(w, ok, err, errFolderNotFound)
 	}
 }
 
 func (s *Server) setRating(w http.ResponseWriter, r *http.Request) {
 	if s.ReadOnly {
-		http.Error(w, readOnlyMsg, http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: changes cannot be saved", nil)
 		return
 	}
 	var b struct {
@@ -187,20 +182,20 @@ func (s *Server) setRating(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.Kind != "track" && b.Kind != "album" {
-		http.Error(w, "tipo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidKind, "invalid kind", nil)
 		return
 	}
 	if b.ID == 0 {
-		http.Error(w, "falta el id", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeMissingID, "id is required", nil)
 		return
 	}
 	if b.Kind == "track" {
 		ok, err := s.Store.RateTrack(b.ID, b.Stars)
-		written(w, ok, err, "pista no encontrada")
+		written(w, ok, err, errTrackNotFound)
 		return
 	}
 	ok, err := s.Store.RateAlbum(b.ID, b.Stars)
-	written(w, ok, err, "álbum no encontrado")
+	written(w, ok, err, errAlbumNotFound)
 }
 
 // recordPlay logs a play; in browse-only mode it answers 204 and records
@@ -215,7 +210,7 @@ func (s *Server) recordPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.ListenedMs < 0 {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	if s.ReadOnly {
@@ -223,7 +218,7 @@ func (s *Server) recordPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok, err := s.Store.RecordPlay(b.ID, time.Now(), b.ListenedMs, b.Device)
-	written(w, ok, err, "pista no encontrada")
+	written(w, ok, err, errTrackNotFound)
 }
 
 // liked answers the Listas page's likes.

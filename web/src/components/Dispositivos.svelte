@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
   import { since } from '../lib/format.js'
+  import { numberLocale, t } from '../lib/i18n/index.svelte.js'
 
   // The devices that entered with the PIN (the list is read when it opens
   // and after closing one).
@@ -28,7 +29,7 @@
   })
 
   async function close(s) {
-    if (!confirm(`¿Cerrar la sesión de ${s.device}?`)) return
+    if (!confirm(t('sessions.confirmClose', { device: s.device }))) return
     try {
       await api.closeSession(s.id)
     } catch (e) {
@@ -46,30 +47,30 @@
     await load()
   }
 
-  const date = (ms) => new Date(ms).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })
+  const date = (ms) => new Date(ms).toLocaleString(numberLocale(), { dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
-<h3>Dispositivos</h3>
-<p class="note help">Los anfitriones controlan la rockola por completo; el resto solo agrega temas, pausa y quita lo que agregó.</p>
+<h3>{t('sessions.title')}</h3>
+<p class="note help">{t('sessions.help')}</p>
 {#if error}
   <p class="bad" role="alert">{error}</p>
 {:else if sessions === null}
-  <p class="note">Cargando…</p>
+  <p class="note">{t('status.loading.loading')}</p>
 {:else if sessions.length === 0}
-  <p class="note">Ningún dispositivo entró todavía.</p>
+  <p class="note">{t('sessions.none')}</p>
 {:else}
   <ul>
     {#each sessions as s (s.id)}
       <li>
         <div class="who">
           <strong>{s.device}</strong>
-          <small>conectado desde {date(s.createdAt)} · último uso {since(s.lastSeen)}</small>
+          <small>{t('sessions.seen', { date: date(s.createdAt), ago: since(s.lastSeen) })}</small>
         </div>
         <label class="host">
           <input type="checkbox" checked={s.host} {disabled} onchange={(e) => setHost(s, e.currentTarget.checked)} />
-          Anfitrión de la rockola
+          {t('sessions.host')}
         </label>
-        <button onclick={() => close(s)} {disabled}>Cerrar sesión</button>
+        <button onclick={() => close(s)} {disabled}>{t('sessions.close')}</button>
       </li>
     {/each}
   </ul>

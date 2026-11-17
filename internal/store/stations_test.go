@@ -27,7 +27,7 @@ func TestStationLifecycle(t *testing.T) {
 	now = func() time.Time { return clock }
 	defer func() { now = time.Now }()
 
-	a, err := s.CreateStation("  Brasil  ", []byte(`{"mode":"pistas"}`))
+	a, err := s.CreateStation("  Brasil  ", []byte(`{"mode":"tracks"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestStationLifecycle(t *testing.T) {
 	if list[0].Name != "Brasil" || list[0].CreatedAt <= 0 || list[0].CreatedAt != list[0].UpdatedAt {
 		t.Fatalf("%+v", list[0])
 	}
-	sameJSON(t, list[0].Def, `{"mode":"pistas"}`)
+	sameJSON(t, list[0].Def, `{"mode":"tracks"}`)
 
 	clock = clock.Add(time.Second)
 	b, _ := s.CreateStation("Jazz", []byte(`{}`))
@@ -48,7 +48,7 @@ func TestStationLifecycle(t *testing.T) {
 	}
 
 	clock = clock.Add(time.Second)
-	ok, err := s.UpdateStation(a, "Brasil 2", []byte(`{"mode":"albumes"}`))
+	ok, err := s.UpdateStation(a, "Brasil 2", []byte(`{"mode":"albums"}`))
 	if !ok || err != nil {
 		t.Fatalf("%v %v", ok, err)
 	}
@@ -60,7 +60,7 @@ func TestStationLifecycle(t *testing.T) {
 	if !found || err != nil || got.Name != "Brasil 2" {
 		t.Fatalf("%+v %v %v", got, found, err)
 	}
-	sameJSON(t, got.Def, `{"mode":"albumes"}`)
+	sameJSON(t, got.Def, `{"mode":"albums"}`)
 
 	ok, err = s.DeleteStation(a)
 	if !ok || err != nil {
