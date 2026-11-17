@@ -447,17 +447,25 @@ func (s *Store) Collections() ([]CollectionView, error) {
 		return nil, err
 	}
 	sort.SliceStable(sums, func(i, j int) bool { return natsort.Less(sums[i].Name, sums[j].Name) })
-	out := []CollectionView{}
+	if len(sums) == 0 {
+		return []CollectionView{}, nil
+	}
+	// One read of all the albums, grouped by parent folder: reading them per
+	// collection scans the whole albums table once for each.
+	all, err := s.Albums("")
+	if err != nil {
+		return nil, err
+	}
+	byParent := map[string][]AlbumView{}
+	for _, a := range all {
+		p := path.Dir(a.Dir)
+		byParent[p] = append(byParent[p], a)
+	}
+	out := make([]CollectionView, 0, len(sums))
 	for _, f := range sums {
-		all, err := s.Albums(f.Path)
-		if err != nil {
-			return nil, err
-		}
-		albums := []AlbumView{}
-		for _, a := range all {
-			if path.Dir(a.Dir) == f.Path {
-				albums = append(albums, a)
-			}
+		albums := byParent[f.Path]
+		if albums == nil {
+			albums = []AlbumView{}
 		}
 		sortByPosition(albums)
 		out = append(out, CollectionView{FolderSummary: f, Albums: albums})
