@@ -56,11 +56,11 @@ func guard(next http.Handler, stall, slow time.Duration) http.Handler {
 		what := r.Method + " " + r.URL.RequestURI()
 		start := time.Now()
 		note := time.AfterFunc(slow, func() {
-			log.Printf("pedido sin terminar tras %v: %s", slow, what)
+			log.Printf("request not finished after %v: %s", slow, what)
 		})
 		defer func() {
 			if !note.Stop() {
-				log.Printf("pedido terminado tras %v: %s", time.Since(start).Round(time.Millisecond), what)
+				log.Printf("request finished after %v: %s", time.Since(start).Round(time.Millisecond), what)
 			}
 		}()
 		next.ServeHTTP(&boundedWriter{ResponseWriter: w, rc: http.NewResponseController(w), stall: stall}, r)
@@ -78,7 +78,7 @@ type boundedWriter struct {
 
 func (b *boundedWriter) extend() {
 	if err := b.rc.SetWriteDeadline(time.Now().Add(b.stall)); err != nil && !errors.Is(err, http.ErrNotSupported) {
-		log.Printf("respuesta: %v", err)
+		log.Printf("response: %v", err)
 	}
 }
 

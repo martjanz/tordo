@@ -2,7 +2,7 @@
 // that needs a session.
 import { api, onUnauthorized } from './api.js'
 
-export const auth = $state({ checked: false, local: true, session: false, pinRequired: false, device: '' })
+export const auth = $state({ checked: false, local: true, session: false, pinRequired: false, device: '', language: undefined })
 
 let retry
 
@@ -16,6 +16,7 @@ export async function checkAuth() {
     auth.session = a.session
     auth.device = a.device
     auth.pinRequired = a.pinRequired
+    auth.language = a.language
     auth.checked = true
   } catch {
     retry = setTimeout(checkAuth, 5000)

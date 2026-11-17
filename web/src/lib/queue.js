@@ -1,3 +1,5 @@
+import { upgradeStation } from './legacy.js'
+
 // The play queue: pure functions over a plain, serializable state. Every
 // queued track is an entry with its own key, so the same track can be
 // queued twice. list keeps the entries as they were added (the order
@@ -200,7 +202,7 @@ export function restore(json) {
     if (q.order.some((k) => !keys.has(k))) return empty()
     if (!REPEAT.includes(q.repeat)) q.repeat = 'off'
     q.shuffle = !!q.shuffle
-    q.station = q.station && typeof q.station === 'object' && !Array.isArray(q.station) ? q.station : null
+    q.station = upgradeStation(q.station) // a station from an older version is upgraded, an unreadable one dropped
     q.pos = Number.isInteger(q.pos) && q.pos < q.order.length ? q.pos : q.order.length ? 0 : -1
     q.nextKey = Math.max(q.nextKey ?? 1, ...q.list.map((e) => e.key + 1))
     return q

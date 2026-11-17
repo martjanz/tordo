@@ -1,6 +1,7 @@
 <script>
   import { itemCoverURL } from '../lib/api.js'
-  import { count, duration } from '../lib/format.js'
+  import { artistLabel, duration } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { RowDrag } from '../lib/drag.svelte.js'
   import { can, clearUpcoming, jumpTo, moveTo, removeAt, shown, stopStation } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
@@ -38,62 +39,62 @@
   }
 </script>
 
-<aside class="cola" aria-label="Cola">
+<aside class="cola" aria-label={t('queue.title')}>
   <header>
-    <h3>Cola</h3>
+    <h3>{t('queue.title')}</h3>
     {#if next.length > 0 && can('clearUpcoming')}
-      <button onclick={clearUpcoming}>Vaciar</button>
+      <button onclick={clearUpcoming}>{t('queue.clear')}</button>
     {/if}
-    <button class="icon" onclick={onclose} title="Cerrar" aria-label="Cerrar"><Icono name="close" /></button>
+    <button class="icon" onclick={onclose} title={t('common.close')} aria-label={t('common.close')}><Icono name="close" /></button>
   </header>
   <div class="scroll">
     {#if station}
       <section class="station">
-        <p class="name"><Icono name="radio" size={16} /> <b>Estación · {station.name}</b></p>
+        <p class="name"><Icono name="radio" size={16} /> <b>{t('station.named', { name: station.name })}</b></p>
         <p class="rules">{summary(station)}</p>
         <div class="stbuttons">
           {#if can('setStation')}
-            <button onclick={(e) => (e.stopPropagation(), (adjusting = !adjusting))} aria-expanded={adjusting}>Ajustar</button>
+            <button onclick={(e) => (e.stopPropagation(), (adjusting = !adjusting))} aria-expanded={adjusting}>{t('queue.adjust')}</button>
           {/if}
-          {#if can('stopStation')}<button onclick={stopStation}>Detener</button>{/if}
+          {#if can('stopStation')}<button onclick={stopStation}>{t('queue.stop')}</button>{/if}
         </div>
         {#if adjusting && can('setStation')}<EstacionAjustes {station} onclose={() => (adjusting = false)} />{/if}
       </section>
     {/if}
     {#if now}
-      <p class="label">Sonando</p>
+      <p class="label">{t('player.nowPlaying')}</p>
       <div class="row current">
         <span class="pic"><Tapa small srcs={[itemCoverURL(now, 160)]} /></span>
-        <span class="text"><b>{now.title}</b><span>{now.artist}</span></span>
+        <span class="text"><b>{now.title}</b><span>{artistLabel(now.artist)}</span></span>
         <span class="time">{duration(now.durationMs)}</span>
       </div>
     {/if}
     {#if next.length > 0}
-      <p class="label">A continuación</p>
+      <p class="label">{t('player.upNext')}</p>
       <div bind:this={list}>
       {#each next.slice(0, SHOWN) as u, i (u.entry.key)}
         <div class="row" class:dragging={rows.drag?.from === i} data-key={u.entry.key}
           style:transform={rows.transform(i)} style:transition={rows.transition(i)}>
           {#if can('moveTo')}
-            <button class="icon grip" aria-label="Mover {u.entry.title} (Alt + flechas)" title="Arrastrar para reordenar"
+            <button class="icon grip" aria-label={t('queue.move', { title: u.entry.title })} title={t('queue.drag')}
               onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
               onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
           {/if}
           {#if can('jumpTo')}
             <button class="play" onclick={() => jumpTo(u.pos)}>
               <span class="pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
-              <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+              <span class="text"><b>{u.entry.title}</b><span>{artistLabel(u.entry.artist)}</span></span>
               <span class="time">{duration(u.entry.durationMs)}</span>
             </button>
           {:else}
             <div class="play">
               <span class="pic"><Tapa small srcs={[itemCoverURL(u.entry, 160)]} /></span>
-              <span class="text"><b>{u.entry.title}</b><span>{u.entry.artist}</span></span>
+              <span class="text"><b>{u.entry.title}</b><span>{artistLabel(u.entry.artist)}</span></span>
               <span class="time">{duration(u.entry.durationMs)}</span>
             </div>
           {/if}
           {#if can('removeAt', u.entry)}
-            <button class="icon" onclick={() => removeAt(u.pos)} title="Quitar de la cola" aria-label="Quitar de la cola">
+            <button class="icon" onclick={() => removeAt(u.pos)} title={t('queue.removeRow')} aria-label={t('queue.removeRow')}>
               <Icono name="close" size={16} />
             </button>
           {/if}
@@ -101,10 +102,10 @@
       {/each}
       </div>
       {#if (p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN) > 0}
-        <p class="more">y {count((p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN), 'pista más', 'pistas más')}</p>
+        <p class="more">{t('count.moreTracks', { n: (p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN) })}</p>
       {/if}
     {:else}
-      <p class="empty">No hay nada más en la cola.</p>
+      <p class="empty">{t('queue.nothingMore')}</p>
     {/if}
   </div>
 </aside>

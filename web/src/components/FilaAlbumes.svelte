@@ -1,5 +1,6 @@
 <script>
   // A row of Inicio: a shelf of albums, with a station made from them.
+  import { t } from '../lib/i18n/index.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import Estante from './Estante.svelte'
   import TarjetaAlbum from './TarjetaAlbum.svelte'
@@ -14,5 +15,5 @@
 </Estante>
 
 {#snippet estacion()}
-  <BotonEstacion {station} label="Estación de «{title}»" compact />
+  <BotonEstacion {station} label={t('station.of', { title })} compact />
 {/snippet}

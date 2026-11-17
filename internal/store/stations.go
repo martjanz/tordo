@@ -17,8 +17,8 @@ type SavedStation struct {
 }
 
 var (
-	ErrStationName = errors.New("escribí un nombre para la estación")
-	errStationDef  = errors.New("definición inválida")
+	ErrStationName = errors.New("station name is required")
+	errStationDef  = errors.New("invalid station definition")
 )
 
 // stationFields validates what a write to a station carries.

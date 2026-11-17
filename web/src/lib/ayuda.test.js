@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isHelpKey, SECTIONS } from './ayuda.js'
+import { helpSections, isHelpKey } from './ayuda.js'
 import { resolve } from './router.js'
 
 const key = (over = {}) => ({ key: '?', ctrlKey: false, metaKey: false, altKey: false, target: { tagName: 'BODY' }, ...over })
@@ -24,19 +24,31 @@ describe('isHelpKey', () => {
   })
 })
 
-describe('SECTIONS', () => {
+const LOCALES = ['es', 'en', 'pt-BR']
+
+describe('helpSections', () => {
+  it('returns the sections of each locale and English for an unknown one', () => {
+    for (const l of LOCALES) expect(helpSections(l).length).toBeGreaterThan(0)
+    expect(helpSections('xx')).toBe(helpSections('en'))
+    expect(helpSections(undefined)).toBe(helpSections('en'))
+    expect(helpSections('es')).not.toBe(helpSections('en'))
+  })
+})
+
+describe.each(LOCALES)('help sections (%s)', (l) => {
+  const sections = helpSections(l)
   it('has unique ids and a title on every section', () => {
-    const ids = SECTIONS.map((s) => s.id)
+    const ids = sections.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
-    for (const s of SECTIONS) {
+    for (const s of sections) {
       expect(s.id).toMatch(/^[a-z-]+$/)
       expect(s.title).toBeTruthy()
       expect(Array.isArray(s.items)).toBe(true)
       expect(s.items.length).toBeGreaterThan(0)
     }
   })
-  it('has a term or a text on every item', () => {
-    for (const s of SECTIONS)
+  it('has a text on every item', () => {
+    for (const s of sections)
       for (const i of s.items) {
         expect(typeof i.text).toBe('string')
         expect(i.text).toBeTruthy()
@@ -45,15 +57,31 @@ describe('SECTIONS', () => {
       }
   })
   it('links only to pages that exist', () => {
-    const links = SECTIONS.flatMap((s) => s.items).filter((i) => i.href)
+    const links = sections.flatMap((s) => s.items).filter((i) => i.href)
     expect(links.length).toBeGreaterThan(0)
     for (const { href } of links) {
       const url = new URL(href, 'http://x')
       expect(resolve(url.pathname, url.search).page, href).not.toBe('notfound')
     }
   })
-  it('marks only what lives in Revisar as blocked in listen mode', () => {
-    const blocked = SECTIONS.flatMap((s) => s.items).filter((i) => i.blockedInListen)
-    expect(blocked.map((i) => i.href)).toEqual(['/revisar', '/revisar/duplicados'])
+  it('marks only what lives in Review as blocked in listen mode', () => {
+    const blocked = sections.flatMap((s) => s.items).filter((i) => i.blockedInListen)
+    expect(blocked.map((i) => i.href)).toEqual(['/review', '/review/duplicates'])
+  })
+  it('uses only the known key tokens', () => {
+    const tokens = ['Ctrl+K', '⌘K', 'Space', '/', 'Esc', '?']
+    for (const k of sections.flatMap((s) => s.items).flatMap((i) => i.keys ?? [])) expect(tokens).toContain(k)
+  })
+})
+
+describe('help parity across languages', () => {
+  const [es, en, pt] = LOCALES.map(helpSections)
+  const shape = (sections) => sections.map((s) => ({ id: s.id, items: s.items.map((i) => ({ keys: i.keys, href: i.href, blocked: !!i.blockedInListen, term: i.term !== undefined })) }))
+  it('has the same ids, items, keys, links and blocked flags', () => {
+    expect(shape(en)).toEqual(shape(es))
+    expect(shape(pt)).toEqual(shape(es))
+  })
+  it('links the Settings network anchor and the sections help links to ids that exist', () => {
+    expect(es.map((s) => s.id)).toEqual(['shortcuts', 'sections', 'concepts', 'how-it-works', 'guidelines'])
   })
 })

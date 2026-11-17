@@ -78,7 +78,7 @@ variants:
 			return m, err
 		}
 		if err != nil {
-			log.Printf("búsqueda en MusicBrainz de %q: %v", v.Title, err)
+			log.Printf("MusicBrainz search for %q: %v", v.Title, err)
 			continue
 		}
 		scores := make(map[string]float64, len(hits))

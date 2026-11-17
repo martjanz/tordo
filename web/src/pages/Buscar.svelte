@@ -6,7 +6,7 @@
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { folderHref } from '../lib/router.js'
   import { searchable, total } from '../lib/search.js'
@@ -38,18 +38,18 @@
   const more = (kind, shown) => (result.totals[kind] ?? 0) - shown
 </script>
 
-<h1>Buscar</h1>
+<h1>{t('search.open')}</h1>
 {#if !searchable(q)}
-  <p class="empty">Escribí al menos dos letras en la búsqueda (Ctrl+K).</p>
+  <p class="empty">{t('search.needTwo')}</p>
 {:else if error}
   <p class="empty">{error}</p>
 {:else if result}
-  <p class="sub">{count(total(result), 'resultado', 'resultados')} para «{q}»</p>
+  <p class="sub">{t('search.resultsFor', { results: t('count.results', { n: total(result) }), q })}</p>
   {#if total(result) === 0}
-    <p class="empty">Nada con «{q}».</p>
+    <p class="empty">{t('search.none', { q })}</p>
   {/if}
   {#if result.artists.length}
-    <h2>Artistas</h2>
+    <h2>{t('facets.view.artists')}</h2>
     <div class="grid">
       {#each result.artists as a (a.key)}
         <TarjetaArtista artist={a} />
@@ -57,30 +57,30 @@
     </div>
   {/if}
   {#if result.albums.length}
-    <h2>Álbumes</h2>
+    <h2>{t('facets.view.albums')}</h2>
     <div class="grid">
       {#each result.albums as a (a.id)}
         <TarjetaAlbum album={a} />
       {/each}
     </div>
-    {#if more('albums', result.albums.length) > 0}<p class="sub">Y {more('albums', result.albums.length)} más.</p>{/if}
+    {#if more('albums', result.albums.length) > 0}<p class="sub">{t('search.more', { n: more('albums', result.albums.length) })}</p>{/if}
   {/if}
   {#if result.tracks.length}
-    <h2>Pistas</h2>
+    <h2>{t('facets.view.tracks')}</h2>
     <ListaPistas
       tracks={result.tracks}
       numbered={false}
       showAlbum
-      onplay={(t) => play({ tracks: result.tracks.map((x) => x.id) }, { startId: t.id })} />
-    {#if more('tracks', result.tracks.length) > 0}<p class="sub">Y {more('tracks', result.tracks.length)} más.</p>{/if}
+      onplay={(track) => play({ tracks: result.tracks.map((x) => x.id) }, { startId: track.id })} />
+    {#if more('tracks', result.tracks.length) > 0}<p class="sub">{t('search.more', { n: more('tracks', result.tracks.length) })}</p>{/if}
   {/if}
   {#if result.folders.length}
-    <h2>Carpetas</h2>
+    <h2>{t('nav.folders')}</h2>
     <ul class="folders">
       {#each result.folders as f (f.path)}
         <li>
           <a href={folderHref(f.path)}>{f.name}</a>
-          <span>{f.collection ? 'Colección · ' : ''}{count(f.tracks, 'pista', 'pistas')}</span>
+          <span>{f.collection ? t('facets.facet.collection') + ' · ' : ''}{t('count.tracks', { n: f.tracks })}</span>
         </li>
       {/each}
     </ul>

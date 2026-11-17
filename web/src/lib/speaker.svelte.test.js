@@ -18,12 +18,14 @@ vi.mock('./player.svelte.js', () => ({
   unblock: vi.fn(),
   toggle: vi.fn(),
   next: vi.fn(),
+  enqueue: vi.fn(),
 }))
 
 vi.mock('./rockola.svelte.js', () => ({ rockola: { on: false }, setRockola: vi.fn() }))
 
 import { api } from './api.js'
 import { notify } from './app.svelte.js'
+import { msg } from './i18n/index.svelte.js'
 import * as P from './player.svelte.js'
 import { rockola, setRockola } from './rockola.svelte.js'
 import { disableSpeaker, enableSpeaker, resumeSpeaker, speaker } from './speaker.svelte.js'
@@ -121,7 +123,18 @@ describe('commands', () => {
     last().emit('command', { command: 'next', role: 'guest', session: 5, remote: 'r1' })
     await vi.advanceTimersByTimeAsync(0)
     expect(P.next).not.toHaveBeenCalled()
-    expect(api.jukeboxNotice).toHaveBeenCalledWith('t1', 'r1', 'Solo el anfitrión puede hacer esto.')
+    expect(api.jukeboxNotice).toHaveBeenCalledWith('t1', 'r1', { key: 'error.host_only' })
+  })
+})
+
+describe('notices', () => {
+  it('sends the message key to the phone, not its text', async () => {
+    P.enqueue.mockImplementationOnce(async (what, { say }) => say(msg('queue.next')))
+    enableSpeaker(connect)
+    last().emit('hello', { token: 't1' })
+    last().emit('command', { command: 'enqueue', args: { what: { album: 1 }, next: true }, role: 'host', session: 0, remote: 'r1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.jukeboxNotice).toHaveBeenCalledWith('t1', 'r1', { key: 'queue.next' })
   })
 })
 
@@ -134,7 +147,7 @@ describe('replaced', () => {
     expect(speaker.connected).toBe(false)
     expect(sessionStorage.getItem('tordo.audio-compu')).toBe('')
     expect(last().closed).toBe(true)
-    expect(notify).toHaveBeenCalledWith('Otro navegador tomó el audio de esta compu.')
+    expect(notify).toHaveBeenCalledWith(msg('speaker.replaced'))
   })
 })
 

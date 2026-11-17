@@ -146,14 +146,17 @@ func (g *jukeboxRig) post(t *testing.T, base, path, body string, headers ...stri
 	return resp
 }
 
-func wantStatus(t *testing.T, resp *http.Response, code int, text string) {
+func wantStatus(t *testing.T, resp *http.Response, code int, errCode string) {
 	t.Helper()
 	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != code {
 		t.Fatalf("status %d (%s), want %d", resp.StatusCode, b, code)
 	}
-	if text != "" && !strings.Contains(string(b), text) {
-		t.Fatalf("body %q, want %q", b, text)
+	if errCode != "" {
+		var e struct{ Code string }
+		if json.Unmarshal(b, &e) != nil || e.Code != errCode {
+			t.Fatalf("body %q, want code %q", b, errCode)
+		}
 	}
 }
 
@@ -205,9 +208,9 @@ func TestJukeboxSpeakerFlow(t *testing.T) {
 		t.Errorf("command = %s", got)
 	}
 
-	notice := fmt.Sprintf(`{"token":%q,"remote":%q,"text":"  Listo  "}`, token, remote)
+	notice := fmt.Sprintf(`{"token":%q,"remote":%q,"notice":{"key":"queue.next"}}`, token, remote)
 	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/notice", notice), http.StatusNoContent, "")
-	if got := wantEvent(t, rem, "notice"); field(t, got, "text") != "Listo" {
+	if got := wantEvent(t, rem, "notice"); got != `{"notice":{"key":"queue.next"}}` {
 		t.Errorf("notice = %s", got)
 	}
 
@@ -248,7 +251,7 @@ func TestJukeboxGuestLimits(t *testing.T) {
 		return g.post(t, g.lan.URL, "/api/jukebox/command",
 			fmt.Sprintf(`{"remote":%q,"command":%q}`, remote, command), withCookie(c)...)
 	}
-	wantStatus(t, send("next"), http.StatusForbidden, "Solo el anfitrión puede hacer esto.")
+	wantStatus(t, send("next"), http.StatusForbidden, "host_only")
 	wantStatus(t, send("enqueue"), http.StatusAccepted, "")
 
 	put := mac(g.h, "PUT", fmt.Sprintf("/api/sessions/%d/host", id), `{"host":true}`, "Content-Type", "application/json")
@@ -279,8 +282,7 @@ func TestJukeboxNoSpeaker(t *testing.T) {
 	remote := field(t, wantEvent(t, rem, "hello"), "remote")
 	wantEvent(t, rem, "speaker-off")
 	body := fmt.Sprintf(`{"remote":%q,"command":"next"}`, remote)
-	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", body), http.StatusConflict,
-		"La rockola no está disponible: activá el audio en la compu.")
+	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", body), http.StatusConflict, "no_speaker")
 }
 
 func TestJukeboxSpeakerLocalOnly(t *testing.T) {
@@ -310,7 +312,7 @@ func TestJukeboxLimits(t *testing.T) {
 	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", bigCmd), http.StatusBadRequest, "")
 	bogus := fmt.Sprintf(`{"remote":%q,"command":"bogus"}`, remote)
 	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/command", bogus), http.StatusBadRequest, "")
-	noText := fmt.Sprintf(`{"token":%q,"remote":%q,"text":"   "}`, token, remote)
+	noText := fmt.Sprintf(`{"token":%q,"remote":%q,"notice":"   "}`, token, remote)
 	wantStatus(t, g.post(t, g.local.URL, "/api/jukebox/notice", noText), http.StatusBadRequest, "")
 
 	_, id := g.phoneSession(t, "Celu")
@@ -335,7 +337,7 @@ func TestJukeboxTooManyRemotes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	wantStatus(t, resp, http.StatusServiceUnavailable, "Demasiados controles")
+	wantStatus(t, resp, http.StatusServiceUnavailable, "too_many_remotes")
 }
 
 func TestJukeboxDropsOnSignOut(t *testing.T) {
@@ -388,5 +390,23 @@ func TestJukeboxHeartbeat(t *testing.T) {
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("no ping within 200 ms")
+	}
+}
+
+func TestJukeboxNoticeValidates(t *testing.T) {
+	g := newRig(t)
+	_, token := speakerOn(t, g)
+	rem := openSSE(t, g.local.URL+"/api/jukebox/events")
+	remote := field(t, wantEvent(t, rem, "hello"), "remote")
+	post := func(notice string) *http.Response {
+		body := fmt.Sprintf(`{"token":%q,"remote":%q,"notice":%s}`, token, remote, notice)
+		return g.post(t, g.local.URL, "/api/jukebox/notice", body)
+	}
+	for _, bad := range []string{`5`, `null`, `true`, `[]`, `{}`, `{"key":5}`, `{"key":"a","params":3}`, `""`, `"   "`} {
+		wantStatus(t, post(bad), http.StatusBadRequest, "invalid_body")
+	}
+	wantStatus(t, post(`{"key":"queue.added","params":{"n":3}}`), http.StatusNoContent, "")
+	if got := wantEvent(t, rem, "notice"); got != `{"notice":{"key":"queue.added","params":{"n":3}}}` {
+		t.Errorf("notice = %s", got)
 	}
 }

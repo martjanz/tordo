@@ -186,6 +186,24 @@ describe('station', () => {
   })
 })
 
+describe('station from an older version', () => {
+  const old = { name: 'Rock', source: { view: 'pistas', facets: { genero: 'Rock', megusta: 'si' } }, mode: 'albumes', artistGap: 3, avoidDays: 7 }
+  const now = { name: 'Rock', source: { view: 'tracks', facets: { genre: 'Rock', liked: 'yes' } }, mode: 'albums', artistGap: 3, avoidDays: 7 }
+  it('loads with the station upgraded', () => {
+    const q = { ...Q.replace(Q.empty(), items(1, 2)), station: old }
+    const r = Q.restore(JSON.stringify(q))
+    expect(r.station).toEqual(now)
+    expect(r.list).toEqual(q.list)
+  })
+  it('drops a station it cannot read and keeps the items', () => {
+    const q = { ...Q.replace(Q.empty(), items(1, 2)), station: [1] }
+    const r = Q.restore(JSON.stringify(q))
+    expect(r.station).toBe(null)
+    expect(r.list).toEqual(q.list)
+    expect(r.order).toEqual(q.order)
+  })
+})
+
 describe('trimPlayed', () => {
   const many = (n) => items(...Array.from({ length: n }, (_, i) => i + 1))
   it('drops what was played before the last keep entries', () => {

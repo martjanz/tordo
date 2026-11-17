@@ -3,24 +3,15 @@
   // them to the queue and save it. Closes on Escape and outside click.
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { setStation } from '../lib/playback.svelte.js'
 
   let { station, onclose } = $props()
 
-  const GAPS = [
-    [0, 'No importa'],
-    [2, '2 pistas'],
-    [3, '3 pistas'],
-    [5, '5 pistas'],
-    [10, '10 pistas'],
-  ]
-  const DAYS = [
-    [0, 'No evitar'],
-    [1, '1 día'],
-    [7, '7 días'],
-    [30, '30 días'],
-    [90, '90 días'],
-  ]
+  const GAPS = [0, 2, 3, 5, 10]
+  const DAYS = [0, 1, 7, 30, 90]
+  const gapLabel = (n) => (n === 0 ? t('station.edit.anyGap') : t('count.tracks', { n }))
+  const dayLabel = (n) => (n === 0 ? t('station.edit.noAvoid') : t('count.days', { n }))
 
   // The form edits a copy: it deliberately captures the station's initial values.
   /* svelte-ignore state_referenced_locally */
@@ -35,8 +26,8 @@
   let root = $state()
 
   // Rules outside the menus (saved by hand) stay selectable.
-  const gaps = $derived(GAPS.some(([v]) => v === artistGap) ? GAPS : [...GAPS, [artistGap, `${artistGap} pistas`]])
-  const days = $derived(DAYS.some(([v]) => v === avoidDays) ? DAYS : [...DAYS, [avoidDays, `${avoidDays} días`]])
+  const gaps = $derived((GAPS.includes(artistGap) ? GAPS : [...GAPS, artistGap]).map((v) => [v, gapLabel(v)]))
+  const days = $derived((DAYS.includes(avoidDays) ? DAYS : [...DAYS, avoidDays]).map((v) => [v, dayLabel(v)]))
 
   const edited = () => ({ ...station, name: name.trim(), mode, artistGap: Number(artistGap), avoidDays: Number(avoidDays) })
 
@@ -57,7 +48,7 @@
         const saved = await api.createStation(st)
         setStation({ ...st, id: saved.id })
       }
-      notify(`Estación «${st.name}» guardada.`)
+      notify(t('station.edit.saved', { name: st.name }))
       onclose()
     } catch (e) {
       notify(e.message)
@@ -76,33 +67,33 @@
 
 <svelte:window onclick={onwindowclick} {onkeydown} />
 
-<div class="dialog" bind:this={root} role="dialog" aria-label="Ajustar la estación">
-  <label>Nombre <input bind:value={name} maxlength="200" /></label>
+<div class="dialog" bind:this={root} role="dialog" aria-label={t('station.edit.dialog')}>
+  <label>{t('station.edit.name')} <input bind:value={name} maxlength="200" /></label>
   <label>
-    Modo
+    {t('station.edit.mode')}
     <select bind:value={mode}>
-      <option value="pistas">Pistas</option>
-      <option value="albumes">Álbumes</option>
+      <option value="tracks">{t('facets.view.tracks')}</option>
+      <option value="albums">{t('facets.view.albums')}</option>
     </select>
   </label>
   <label>
-    No repetir artista en
+    {t('station.edit.gap')}
     <select bind:value={artistGap}>
-      {#each gaps as [v, t] (v)}<option value={v}>{t}</option>{/each}
+      {#each gaps as [v, text] (v)}<option value={v}>{text}</option>{/each}
     </select>
   </label>
   <label>
-    Evitar lo escuchado en los últimos
+    {t('station.edit.avoid')}
     <select bind:value={avoidDays}>
-      {#each days as [v, t] (v)}<option value={v}>{t}</option>{/each}
+      {#each days as [v, text] (v)}<option value={v}>{text}</option>{/each}
     </select>
   </label>
   <div class="buttons">
-    <button class="primary" onclick={apply}>Aplicar</button>
+    <button class="primary" onclick={apply}>{t('station.edit.apply')}</button>
     {#if !app.status?.readOnly}
-      <button disabled={busy || !name.trim()} onclick={save}>Guardar</button>
+      <button disabled={busy || !name.trim()} onclick={save}>{t('station.edit.save')}</button>
     {/if}
-    <button onclick={onclose}>Cancelar</button>
+    <button onclick={onclose}>{t('station.edit.cancel')}</button>
   </div>
 </div>
 

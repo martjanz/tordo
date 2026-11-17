@@ -2,6 +2,7 @@
   // Five stars for rating a track or album. Clicking the current rating
   // clears it; arrow keys move it. Browse-only mode: the stars as text.
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { ratingOf } from '../lib/marks.js'
   import { mine, rate } from '../lib/mine.svelte.js'
   import Icono from './Icono.svelte'
@@ -24,17 +25,17 @@
 </script>
 
 {#if !app.status?.readOnly}
-  <div class="stars" role="radiogroup" aria-label="Puntaje" tabindex="-1" {onkeydown}>
+  <div class="stars" role="radiogroup" aria-label={t('facets.facet.rating')} tabindex="-1" {onkeydown}>
     {#each [1, 2, 3, 4, 5] as n (n)}
       <button class="icon star" class:on={n <= stars} role="radio" aria-checked={n === stars}
-        aria-label={n === 1 ? '1 estrella' : `${n} estrellas`} tabindex={n === (stars || 1) ? 0 : -1}
+        aria-label={t('marks.star', { n })} tabindex={n === (stars || 1) ? 0 : -1}
         onclick={() => set(n)}>
         <Icono name="star" {size} />
       </button>
     {/each}
   </div>
 {:else if stars}
-  <span class="text" role="img" aria-label="Puntaje: {stars} de 5">{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
+  <span class="text" role="img" aria-label={t('marks.ratingOf', { stars })}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
 {/if}
 
 <style>

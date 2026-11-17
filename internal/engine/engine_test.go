@@ -17,7 +17,7 @@ import (
 	"tordo/internal/store"
 )
 
-var errTest = errors.New("prueba")
+var errTest = errors.New("boom")
 
 // failMB is a MusicBrainz that fails every call: nothing touches the network.
 type failMB struct{}
@@ -353,7 +353,7 @@ func TestUpdateLAN(t *testing.T) {
 	bad.LAN.Port = 6000
 	err := e.Apply(bad)
 	var ve *ValidationError
-	if !errors.As(err, &ve) || ve.Error() != "no se pudo abrir el puerto 6000: prueba" {
+	if !errors.As(err, &ve) || ve.Error() != "could not open port 6000: boom" {
 		t.Fatalf("err %v", err)
 	}
 	if saved, _, _ := config.Load(e.AppDir); !reflect.DeepEqual(saved, other) {
@@ -483,5 +483,14 @@ func TestSamePartsNilAndEmptyAreEqual(t *testing.T) {
 	b.DiscogsToken = "t"
 	if sameParts(a, b) {
 		t.Fatal("a token change is the same parts")
+	}
+}
+
+func TestSamePartsIgnoresLanguage(t *testing.T) {
+	a := config.Config{Roots: []string{"../m"}, Ignore: []string{}}
+	b := a
+	b.Language = "en"
+	if !sameParts(a, b) || !sameParts(b, a) {
+		t.Fatal("a language change is not the same parts")
 	}
 }

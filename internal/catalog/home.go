@@ -20,23 +20,23 @@ var minRowAlbums = 4
 
 // Kinds of Inicio's rotating rows.
 const (
-	RowDecade     = "decada"
-	RowCountry    = "pais"
-	RowGenre      = "genero"
-	RowStyle      = "estilo"
-	RowCollection = "coleccion"
-	RowNever      = "nunca"
-	RowStale      = "hace-un-anio"
-	RowRandom     = "azar"
-	RowRecent     = "recientes" // the newest albums, in order
+	RowDecade     = "decade"
+	RowCountry    = "country"
+	RowGenre      = "genre"
+	RowStyle      = "style"
+	RowCollection = "collection"
+	RowNever      = "never"
+	RowStale      = "year-ago"
+	RowRandom     = "random"
+	RowRecent     = "recent" // the newest albums, in order
 )
 
 // HomeRow is a rotating row: a facet value and some of its albums.
 type HomeRow struct {
 	Kind   string            `json:"kind"`
-	Value  string            `json:"value"`  // "1980", "BR", "Rock", a folder path; "" for nunca, hace-un-anio, azar, recientes
+	Value  string            `json:"value"`  // "1980", "BR", "Rock", a folder path; "" for never, year-ago, random, recent
 	Label  string            `json:"label"`  // the value's label when it is not the value (a collection's name)
-	Facets map[string]string `json:"facets"` // Explorar's, for "ver todas" and the row's station (view albumes); {} for azar, recientes
+	Facets map[string]string `json:"facets"` // Explore's, for "see all" and the row's station (view albums); {} for random, recent
 	Albums []Album           `json:"albums"`
 }
 

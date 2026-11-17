@@ -1,5 +1,6 @@
 // How identifications read: statuses, candidates, confidence.
-import { country } from './format.js'
+import { country, folderName } from './format.js'
+import { t } from './i18n/index.svelte.js'
 
 // percent reads a score: 0.873 → "87 %".
 export function percent(score) {
@@ -9,24 +10,63 @@ export function percent(score) {
 // candidateLine sums up a MusicBrainz candidate: "Soda Stereo · 1986 ·
 // Argentina · 9 pistas".
 export function candidateLine(c) {
-  return [c.artist, c.year || '', country(c.country), c.tracks ? `${c.tracks} pistas` : ''].filter(Boolean).join(' · ')
+  return [c.artist, c.year || '', country(c.country), c.tracks ? t('count.tracks', { n: c.tracks }) : ''].filter(Boolean).join(' · ')
+}
+
+// candidateChip names a candidate in a few words: "Signos — Soda Stereo ·
+// 1986".
+export function candidateChip(c) {
+  const by = [c.artist, c.year || ''].filter(Boolean).join(' · ')
+  return by ? `${c.title} — ${by}` : c.title
+}
+
+// confidenceLevel grades a score for its badge: high from the bulk accept's
+// threshold, mid from 50 %, low below.
+export function confidenceLevel(score, high = 0.7) {
+  const s = score ?? 0
+  if (s >= high) return 'high'
+  if (s >= 0.5) return 'mid'
+  return 'low'
+}
+
+// letters folds a name to compare it: lower case, no accents, letters and
+// digits only.
+function letters(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+// folderDiffers tells whether an album's folder name says more than its
+// title: "Soda Stereo - Signos (1986)" doesn't, "CD1" does.
+export function folderDiffers(album) {
+  const title = letters(album.tagTitle || album.title)
+  if (!title) return true
+  let rest = letters(folderName(album.dir))
+  for (const w of [album.tagArtist || album.artist, album.year || '']) {
+    const l = letters(w)
+    if (l && rest !== title) rest = rest.replace(l, '')
+  }
+  return rest !== title
 }
 
 // identification tells where an album's data comes from.
 export function identification(album) {
   switch (album.status) {
     case 'auto':
-      return `Identificado en MusicBrainz (${percent(album.confidence)})`
+      return t('review.status.auto', { percent: percent(album.confidence) })
     case 'manual':
-      return 'Identificado a mano en MusicBrainz'
+      return t('review.status.manual')
     case 'unmatched':
-      return 'Sin identificar: revisá los candidatos'
+      return t('review.status.unmatched')
     case 'ignored':
-      return 'No está en MusicBrainz'
+      return t('review.status.ignored')
     case 'selection':
-      return 'Selección de la carpeta: MusicBrainz no la conoce'
+      return t('review.status.selection')
   }
-  return 'Todavía sin buscar en MusicBrainz'
+  return t('review.status.none')
 }
 
 // genreLinks lists an album's genres for links to Explorar: each genre once,
@@ -37,11 +77,11 @@ export function genreLinks(genres) {
   for (const g of genres ?? []) {
     if (!seen.has(g.genre)) {
       seen.add(g.genre)
-      out.push({ label: g.genre, facets: { genero: g.genre } })
+      out.push({ label: g.genre, facets: { genre: g.genre } })
     }
   }
   for (const g of genres ?? []) {
-    if (g.style) out.push({ label: g.style, facets: { genero: g.genre, estilo: g.style } })
+    if (g.style) out.push({ label: g.style, facets: { genre: g.genre, style: g.style } })
   }
   return out
 }
@@ -63,7 +103,7 @@ export function searchURL(album) {
 // styles ("Latin › Samba"), and "not a genre" first. value encodes the
 // choice: genreChoice reads it back.
 export function genreOptions(taxonomy) {
-  const out = [{ value: '|', label: 'No es un género (ignorarlo)' }]
+  const out = [{ value: '|', label: t('review.notGenre') }]
   for (const g of taxonomy ?? []) {
     out.push({ value: `${g.name}|`, label: g.name })
     for (const s of g.styles) out.push({ value: `${g.name}|${s}`, label: `${g.name} › ${s}` })
@@ -79,6 +119,6 @@ export function genreChoice(value) {
 // aliasLabel reads a user's mapping: "Folk, World, & Country › Folk", or
 // "ignorado".
 export function aliasLabel(a) {
-  if (!a.genre) return 'ignorado'
+  if (!a.genre) return t('review.ignored')
   return a.style ? `${a.genre} › ${a.style}` : a.genre
 }

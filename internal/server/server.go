@@ -98,6 +98,7 @@ type parts struct {
 	lan        config.LAN
 	scan       func() // starts a scan in the background
 	listenMode bool   // config.json: curation routes answer 403
+	language   string // config.json: "es", "en", "pt-BR" or "" (the browser decides)
 }
 
 func (s *Server) parts() parts {
@@ -107,7 +108,7 @@ func (s *Server) parts() parts {
 			p.scan = func() {
 				go func() {
 					if err := sc.Run(context.Background()); err != nil && !errors.Is(err, scan.ErrBusy) {
-						log.Printf("escaneo: %v", err)
+						log.Printf("scan: %v", err)
 					}
 				}()
 			}
@@ -118,7 +119,7 @@ func (s *Server) parts() parts {
 	if rt == nil {
 		return parts{normalize: true}
 	}
-	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan, listenMode: rt.Config.ListenMode}
+	p := parts{scanner: rt.Scanner, normalize: rt.Config.Normalizing(), lan: rt.Config.LAN, scan: rt.Scan, listenMode: rt.Config.ListenMode, language: rt.Config.LanguageOrAuto()}
 	if rt.Identifier != nil {
 		p.identifier = rt.Identifier
 	}
@@ -234,7 +235,7 @@ func localOnly(next http.Handler) http.Handler {
 			host = h
 		}
 		if host != "127.0.0.1" && host != "localhost" {
-			http.Error(w, "prohibido", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 			return
 		}
 		if !sameSiteOnly(w, r) {
@@ -251,7 +252,7 @@ func sameSiteOnly(w http.ResponseWriter, r *http.Request) bool {
 	site := r.Header.Get("Sec-Fetch-Site")
 	navigation := r.Method == http.MethodGet && r.Header.Get("Sec-Fetch-Mode") == "navigate"
 	if (site == "cross-site" || site == "same-site") && !navigation {
-		http.Error(w, "prohibido", http.StatusForbidden)
+		writeError(w, http.StatusForbidden, codeForbidden, "forbidden", nil)
 		return false
 	}
 	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
@@ -277,7 +278,7 @@ func localRequest(r *http.Request) bool {
 func settings(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !localRequest(r) {
-			http.Error(w, "Los ajustes solo se cambian en la computadora que corre Tordo.", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeSettingsLocal, "settings can only be changed at the computer running Tordo", nil)
 			return
 		}
 		h(w, r)
@@ -289,7 +290,7 @@ func settings(h http.HandlerFunc) http.HandlerFunc {
 func (s *Server) curation(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.parts().listenMode {
-			http.Error(w, "Modo escucha activo: la curaduría está bloqueada.", http.StatusForbidden)
+			writeError(w, http.StatusForbidden, codeListenMode, "listen mode is on: curation is locked", nil)
 			return
 		}
 		h(w, r)
@@ -300,7 +301,7 @@ func (s *Server) curation(h http.HandlerFunc) http.HandlerFunc {
 func (s *Server) withEngine(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.Engine == nil {
-			http.NotFound(w, r)
+			writeError(w, http.StatusNotFound, codeNotFound, "not found", nil)
 			return
 		}
 		h(w, r)
@@ -312,7 +313,7 @@ func (s *Server) withEngine(h http.HandlerFunc) http.HandlerFunc {
 func jsonOnly(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			http.Error(w, "se requiere application/json", http.StatusUnsupportedMediaType)
+			writeError(w, http.StatusUnsupportedMediaType, codeJSONRequired, "application/json is required", nil)
 			return
 		}
 		h(w, r)
@@ -326,13 +327,8 @@ func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("respuesta: %v", err)
+		log.Printf("response: %v", err)
 	}
-}
-
-func fail(w http.ResponseWriter, err error) {
-	log.Printf("error: %v", err)
-	http.Error(w, "error interno", http.StatusInternalServerError)
 }
 
 func (s *Server) jukebox() *jukebox.Hub {
@@ -418,7 +414,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		loud = s.Loudness.Status()
 	}
 	writeJSON(w, map[string]any{"readOnly": s.readOnly(), "setupPending": s.Engine != nil && s.Engine.SetupPending(),
-		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "counts": counts, "preparing": s.cat.preparing.Load(),
+		"scan": st, "identify": ident, "loudness": loud, "normalize": p.normalize, "listenMode": p.listenMode, "language": p.language, "counts": counts, "preparing": s.cat.preparing.Load(),
 		"jukebox": map[string]bool{"speaker": s.jukebox().Speaking()}})
 }
 
@@ -426,7 +422,7 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 // is scanned or identified before it does (decision 8).
 func (s *Server) setupPending(w http.ResponseWriter) bool {
 	if s.Engine != nil && s.Engine.SetupPending() {
-		http.Error(w, "completá primero el asistente", http.StatusConflict)
+		writeError(w, http.StatusConflict, codeSetupPending, "finish the setup assistant first", nil)
 		return true
 	}
 	return false
@@ -438,11 +434,11 @@ func (s *Server) scan(w http.ResponseWriter, r *http.Request) {
 	}
 	p := s.parts()
 	if p.scanner == nil {
-		http.Error(w, "modo consulta: no se puede escanear", http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: cannot scan", nil)
 		return
 	}
 	if p.scanner.Busy() {
-		http.Error(w, scan.ErrBusy.Error(), http.StatusConflict)
+		fail(w, scan.ErrBusy)
 		return
 	}
 	p.scan()

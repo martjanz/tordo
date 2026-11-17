@@ -2,27 +2,55 @@
 // define them, to know when to ask for more and to describe them.
 import { country } from './format.js'
 import { NAMES, valueLabel } from './facets.js'
+import { t } from './i18n/index.svelte.js'
 
-export const DEFAULT_RULES = { mode: 'pistas', artistGap: 3, avoidDays: 7 }
+export const DEFAULT_RULES = { mode: 'tracks', artistGap: 3, avoidDays: 7 }
 export const LOW_WATER = 3 // ask for more when fewer than this remain after the current track
-export const RECENT = 100 // ids sent as recientes
+export const RECENT = 100 // ids sent as recent
 export const KEEP_PLAYED = 100 // played entries kept while a station plays
 
 export function station(name, source, rules = DEFAULT_RULES) {
   return { name, source, ...rules }
 }
 
-export const LIKED = { name: 'Tus me gusta', source: { liked: true } }
-// Favourite (♥) tracks and Preferidos albums, as stations from Explorar's
-// "megusta" facet: the track mark on pistas, the album mark on albumes.
-export const FAVORITE_TRACKS = { name: 'Tus canciones favoritas', source: { view: 'pistas', facets: { megusta: 'si' } } }
-export const PREFERRED_ALBUMS = { name: 'Álbumes preferidos', source: { view: 'albumes', facets: { megusta: 'si' } } }
-export const LIBRARY = { name: 'Toda la colección', source: {} }
+// The built-ins are named in the language of the moment they are read: name
+// is a getter over the *Name functions.
+export const likedName = () => t('station.liked')
+export const favoriteTracksName = () => t('station.favoriteTracks')
+export const preferredAlbumsName = () => t('station.preferredAlbums')
+export const libraryName = () => t('station.library')
 
-// decadeName: "1980" → "Los 80", "2000" → "Los 2000".
+export const LIKED = {
+  get name() {
+    return likedName()
+  },
+  source: { liked: true },
+}
+// Favourite (♥) tracks and Preferidos albums, as stations from Explorar's
+// "liked" facet: the track mark on tracks, the album mark on albums.
+export const FAVORITE_TRACKS = {
+  get name() {
+    return favoriteTracksName()
+  },
+  source: { view: 'tracks', facets: { liked: 'yes' } },
+}
+export const PREFERRED_ALBUMS = {
+  get name() {
+    return preferredAlbumsName()
+  },
+  source: { view: 'albums', facets: { liked: 'yes' } },
+}
+export const LIBRARY = {
+  get name() {
+    return libraryName()
+  },
+  source: {},
+}
+
+// decadeName: "1980" → "Los 80", "2000" → "Los 2000" (in the current language).
 function decadeName(decade) {
   const n = Number(decade)
-  return n > 1900 && n < 2000 ? `Los ${n - 1900}` : `Los ${decade}`
+  return t('station.decade', { d: n > 1900 && n < 2000 ? n - 1900 : decade })
 }
 
 // exploreStation turns Explorar's query into a station. counts are the
@@ -32,8 +60,8 @@ export function exploreStation(query, counts = {}) {
   const labels = NAMES.filter((n) => facets[n]).map((n) =>
     valueLabel(n, facets[n], (counts[n] ?? []).find((v) => v.value === facets[n]), query.view),
   )
-  const view = query.view === 'pistas' ? 'pistas' : 'albumes'
-  return { name: labels.length ? labels.join(' · ') : LIBRARY.name, source: { view, facets } }
+  const view = query.view === 'tracks' ? 'tracks' : 'albums'
+  return { name: labels.length ? labels.join(' · ') : libraryName(), source: { view, facets } }
 }
 
 // albumStation is the station of an album: not the album on loop but its
@@ -42,21 +70,21 @@ export function exploreStation(query, counts = {}) {
 export function albumStation(album) {
   const genres = album.genres ?? []
   const style = genres.find((g) => g.style)?.style
-  if (style) return { name: style, source: { view: 'pistas', facets: { estilo: style } } }
+  if (style) return { name: style, source: { view: 'tracks', facets: { style } } }
   const genre = genres.find((g) => g.genre)?.genre
-  if (genre) return { name: genre, source: { view: 'pistas', facets: { genero: genre } } }
+  if (genre) return { name: genre, source: { view: 'tracks', facets: { genre } } }
   if (album.artistKey) {
-    return { name: album.artist || album.artistKey, source: { view: 'pistas', facets: { artista: album.artistKey } } }
+    return { name: album.artist || album.artistKey, source: { view: 'tracks', facets: { artist: album.artistKey } } }
   }
   if (album.year > 0) {
     const decade = String(Math.floor(album.year / 10) * 10)
-    return { name: decadeName(decade), source: { view: 'pistas', facets: { decada: decade } } }
+    return { name: decadeName(decade), source: { view: 'tracks', facets: { decade } } }
   }
   return null
 }
 
 export function artistStation(artist) {
-  return { name: artist.name, source: { view: 'pistas', facets: { artista: artist.key } } }
+  return { name: artist.name, source: { view: 'tracks', facets: { artist: artist.key } } }
 }
 
 export function folderStation(folder) {
@@ -83,33 +111,31 @@ export function recentIds(q) {
     .filter((id) => id != null)
 }
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
-
 // summary reads a station's rules; rules at 0 are left out.
 export function summary(st) {
-  const parts = [st.mode === 'albumes' ? 'Álbumes' : 'Pistas']
-  if (st.artistGap > 0) parts.push(`sin repetir artista en ${st.artistGap}`)
-  if (st.avoidDays > 0) parts.push(`evita lo escuchado en ${plural(st.avoidDays, 'día', 'días')}`)
+  const parts = [t(st.mode === 'albums' ? 'facets.view.albums' : 'facets.view.tracks')]
+  if (st.artistGap > 0) parts.push(t('station.artistGap', { n: st.artistGap }))
+  if (st.avoidDays > 0) parts.push(t('station.avoidDays', { n: st.avoidDays }))
   return parts.join(' · ')
 }
 
 // rowTitle is the title of one of Inicio's rotating rows.
 export function rowTitle(row) {
   switch (row.kind) {
-    case 'decada':
+    case 'decade':
       return decadeName(row.value)
-    case 'pais':
+    case 'country':
       return country(row.value)
-    case 'coleccion':
+    case 'collection':
       return row.label || row.value
-    case 'nunca':
-      return 'Nunca escuchados'
-    case 'hace-un-anio':
-      return 'Sin escuchar hace un año'
-    case 'azar':
-      return 'Álbumes al azar'
-    case 'recientes':
-      return 'Agregados recientemente'
+    case 'never':
+      return t('station.row.never')
+    case 'year-ago':
+      return t('station.row.yearAgo')
+    case 'random':
+      return t('station.row.random')
+    case 'recent':
+      return t('station.row.recent')
   }
   return row.value
 }

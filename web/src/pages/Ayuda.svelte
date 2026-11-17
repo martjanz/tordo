@@ -1,25 +1,28 @@
 <script>
   import { listenMode } from '../lib/app.svelte.js'
-  import { SECTIONS } from '../lib/ayuda.js'
+  import { helpSections } from '../lib/ayuda.js'
+  import { locale, t } from '../lib/i18n/index.svelte.js'
+
+  const sections = $derived(helpSections(locale()))
 </script>
 
-<svelte:head><title>Ayuda · Tordo</title></svelte:head>
+<svelte:head><title>{t('help.title')} · Tordo</title></svelte:head>
 
 <div class="ayuda">
-  <h1>Ayuda</h1>
-  <p class="intro">Qué hace cada parte de Tordo, los atajos y algunas pautas de uso.</p>
-  <nav class="toc" aria-label="Contenido de la ayuda">
-    {#each SECTIONS as s (s.id)}<a href="#{s.id}">{s.title}</a>{/each}
+  <h1>{t('help.title')}</h1>
+  <p class="intro">{t('help.intro')}</p>
+  <nav class="toc" aria-label={t('help.contents')}>
+    {#each sections as s (s.id)}<a href="#{s.id}">{s.title}</a>{/each}
   </nav>
 
-  {#each SECTIONS as s (s.id)}
+  {#each sections as s (s.id)}
     <section id={s.id}>
       <h2>{s.title}</h2>
       <dl>
         {#each s.items as item}
           <dt>
             {#if item.keys}
-              {#each item.keys as k, i}{#if i > 0}<span class="or"> o </span>{/if}<kbd>{k}</kbd>{/each}
+              {#each item.keys as k, i}{#if i > 0}<span class="or">{' ' + t('help.or') + ' '}</span>{/if}<kbd>{k === 'Space' ? t('key.space') : k}</kbd>{/each}
             {:else if item.href}
               <a href={item.href}>{item.term}</a>
             {:else}
@@ -28,7 +31,7 @@
           </dt>
           <dd>
             {item.text}
-            {#if item.blockedInListen && listenMode()}<span class="blocked">No disponible en modo escucha.</span>{/if}
+            {#if item.blockedInListen && listenMode()}<span class="blocked">{t('help.blockedInListen')}</span>{/if}
           </dd>
         {/each}
       </dl>

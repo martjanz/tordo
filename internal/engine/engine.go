@@ -24,7 +24,16 @@ import (
 
 // ErrReadOnly means the app directory cannot be written: the configuration
 // cannot change.
-var ErrReadOnly = errors.New("modo consulta: la configuración no se puede modificar")
+var ErrReadOnly = errors.New("browse-only mode: settings cannot be changed")
+
+// PortError is a LAN port that could not be opened.
+type PortError struct {
+	Port int
+	Err  error
+}
+
+func (e *PortError) Error() string { return fmt.Sprintf("could not open port %d: %v", e.Port, e.Err) }
+func (e *PortError) Unwrap() error { return e.Err }
 
 // ValidationError marks a rejected configuration (not an I/O failure): Update
 // callers use it to tell "the request was invalid" from "saving failed".
@@ -210,7 +219,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 		// already on that port.
 		if changed || cfg.LAN.Enabled {
 			if err := e.LAN(cfg.LAN); err != nil {
-				return &ValidationError{fmt.Errorf("no se pudo abrir el puerto %d: %w", cfg.LAN.PortOrDefault(), err)}
+				return &ValidationError{&PortError{Port: cfg.LAN.PortOrDefault(), Err: err}}
 			}
 			lanMoved = changed
 		}
@@ -218,7 +227,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 	if err := config.Save(e.AppDir, cfg); err != nil {
 		if lanMoved {
 			if err2 := e.LAN(cur.LAN); err2 != nil {
-				log.Printf("no se pudo restaurar el acceso desde la red: %v", err2)
+				log.Printf("could not restore local network access on port %d: %v", cur.LAN.PortOrDefault(), err2)
 			}
 		}
 		return err
@@ -251,12 +260,13 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 }
 
 // sameParts reports whether a and b differ at most in what no part of the
-// runtime depends on (normalization, LAN, listen mode, rescan interval).
+// runtime depends on (normalization, LAN, listen mode, rescan interval, language).
 func sameParts(a, b config.Config) bool {
 	a.Normalize, b.Normalize = nil, nil
 	a.RescanMinutes, b.RescanMinutes = nil, nil
 	a.LAN, b.LAN = config.LAN{}, config.LAN{}
 	a.ListenMode, b.ListenMode = false, false
+	a.Language, b.Language = "", ""
 	// nil and empty lists are the same; the lists are taken out so DeepEqual
 	// judges whatever else the config holds.
 	same := slices.Equal(a.Roots, b.Roots) && slices.Equal(a.Ignore, b.Ignore)
@@ -270,7 +280,7 @@ func (e *Engine) build(cfg config.Config) *Runtime {
 		return rt
 	}
 	if cfg.DiscogsToken == "" {
-		log.Print("sin token de Discogs: los géneros salen de MusicBrainz, de sus enlaces a Discogs y de los tags")
+		log.Print("no Discogs token: genres come from MusicBrainz, its Discogs links and the tags")
 	}
 	var dc identify.Discogs
 	if e.Discogs != nil {
@@ -317,7 +327,7 @@ func (rt *Runtime) start(run func(*scan.Scanner, context.Context) error) {
 	go func() {
 		defer rt.scans.Done()
 		if err := run(rt.Scanner, ctx); err != nil && !errors.Is(err, scan.ErrBusy) && ctx.Err() == nil {
-			log.Printf("escaneo: %v", err)
+			log.Printf("scan: %v", err)
 		}
 	}()
 }
