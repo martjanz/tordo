@@ -16,21 +16,27 @@ export class ApiError extends Error {
   }
 }
 
+const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+// A body that is not ours (a proxy's page) is shown only when it is short.
+const MAX_RAW = 300
+const rawText = (raw) => (raw.trim().length <= MAX_RAW ? raw.trim() : '')
+
 // failure builds the ApiError of a non-2xx response from its body: the
 // server's {code, message, params}, or whatever text came (a proxy's page).
 function failure(status, raw, retryAfter) {
   let body = null
   try {
     const parsed = JSON.parse(raw)
-    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed
+    if (isObject(parsed)) body = parsed
   } catch {
     // not JSON: the text is the message
   }
   const code = typeof body?.code === 'string' ? body.code : ''
-  const params = body?.params !== null && typeof body?.params === 'object' ? body.params : {}
+  const params = isObject(body?.params) ? body.params : {}
   const key = 'error.' + code
   if (code && has(key)) return new ApiError(status, t(key, params), retryAfter, { code, params, notice: { key, params } })
-  const message = (typeof body?.message === 'string' && body.message) || (body ? '' : raw.trim()) || t('error.http', { status })
+  const message = (typeof body?.message === 'string' && body.message) || (body ? '' : rawText(raw)) || t('error.http', { status })
   return new ApiError(status, message, retryAfter, { code, params })
 }
 

@@ -3,7 +3,8 @@
   // Detection only: nothing is converted.
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count, duration, folderName, size } from '../lib/format.js'
+  import { duration, folderName, size } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
 
   let { onload } = $props()
@@ -39,10 +40,10 @@
   {#if data.files === 0}
     <p class="empty">No hay archivos en esos formatos.</p>
   {:else}
-    <p class="total">{count(data.files, 'archivo', 'archivos')} · {size(data.bytes)}</p>
+    <p class="total">{t('count.files', { n: data.files })} · {size(data.bytes)}</p>
     <p class="chips">
       {#each data.formats as f (f.key)}
-        <span class="chip">{f.label}: {count(f.files, 'archivo', 'archivos')} · {size(f.bytes)}</span>
+        <span class="chip">{f.label}: {t('count.files', { n: f.files })} · {size(f.bytes)}</span>
       {/each}
     </p>
     <ul class="items">
@@ -55,7 +56,7 @@
           {/if}
           <span class="artist">{it.artist}</span>
           <span class="fmt">{label(it.format)}</span>
-          <span class="meta">{count(it.files, 'archivo', 'archivos')} · {size(it.bytes)} · {duration(it.durationMs)}</span>
+          <span class="meta">{t('count.files', { n: it.files })} · {size(it.bytes)} · {duration(it.durationMs)}</span>
         </li>
       {/each}
     </ul>

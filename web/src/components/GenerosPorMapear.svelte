@@ -4,7 +4,7 @@
   // user's mappings, to undo one.
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { aliasLabel, genreChoice, genreOptions } from '../lib/review.js'
 
   let { onload } = $props()
@@ -69,7 +69,7 @@
       {#each unmapped as u (u.raw)}
         <li>
           <span class="raw">{u.raw}</span>
-          <span class="n">{count(u.albums, 'álbum', 'álbumes')}</span>
+          <span class="n">{t('count.albums', { n: u.albums })}</span>
           {#if app.status?.readOnly}
             <!-- browse-only: nothing to map -->
           {:else if editing === u.raw}

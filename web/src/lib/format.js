@@ -18,11 +18,6 @@ export function length(ms) {
   return min % 60 ? t('time.hoursMinutes', { h, m: min % 60 }) : t('time.hours', { n: h })
 }
 
-// count reads "1 pista", "12 pistas" (thousands as the language groups them).
-export function count(n, one, many) {
-  return `${formatNumber(n)} ${n === 1 ? one : many}`
-}
-
 const CODECS = {
   mp3: 'MP3',
   mp2: 'MP2',

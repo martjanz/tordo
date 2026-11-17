@@ -2,7 +2,7 @@
   // An artist card: a round picture (one of their album covers), name and
   // how many albums.
   import { albumCoverURL } from '../lib/api.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { artistHref } from '../lib/router.js'
   import Tapa from './Tapa.svelte'
 
@@ -12,7 +12,7 @@
 <a class="card" href={artistHref(artist.key)}>
   <Tapa srcs={artist.cover ? [albumCoverURL(artist.cover, 320)] : []} icon="user" round alt={artist.name} />
   <span class="name">{artist.name}</span>
-  <span class="sub">{count(artist.albums, 'álbum', 'álbumes')}</span>
+  <span class="sub">{t('count.albums', { n: artist.albums })}</span>
 </a>
 
 <style>

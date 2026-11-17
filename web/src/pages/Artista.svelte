@@ -8,7 +8,8 @@
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { albumCoverURL, api, artistMBURL } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count, country, years } from '../lib/format.js'
+  import { country, years } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumHref, exploreHref } from '../lib/router.js'
   import { artistStation } from '../lib/stations.js'
@@ -52,7 +53,7 @@
       <p class="sub">
         {#if artist.country}<a href={exploreHref({ country: artist.country })}>{country(artist.country)}</a> · {/if}
         {#if span}{span} · {/if}
-        {count(artist.albums.length, 'álbum', 'álbumes')}
+        {t('count.albums', { n: artist.albums.length })}
       </p>
       <p class="sub links">
         <a href={exploreHref({ artist: artist.key }, 'tracks')}>Ver sus pistas</a>

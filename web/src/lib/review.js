@@ -1,5 +1,6 @@
 // How identifications read: statuses, candidates, confidence.
 import { country } from './format.js'
+import { t } from './i18n/index.svelte.js'
 
 // percent reads a score: 0.873 → "87 %".
 export function percent(score) {
@@ -9,24 +10,24 @@ export function percent(score) {
 // candidateLine sums up a MusicBrainz candidate: "Soda Stereo · 1986 ·
 // Argentina · 9 pistas".
 export function candidateLine(c) {
-  return [c.artist, c.year || '', country(c.country), c.tracks ? `${c.tracks} pistas` : ''].filter(Boolean).join(' · ')
+  return [c.artist, c.year || '', country(c.country), c.tracks ? t('count.tracks', { n: c.tracks }) : ''].filter(Boolean).join(' · ')
 }
 
 // identification tells where an album's data comes from.
 export function identification(album) {
   switch (album.status) {
     case 'auto':
-      return `Identificado en MusicBrainz (${percent(album.confidence)})`
+      return t('review.status.auto', { percent: percent(album.confidence) })
     case 'manual':
-      return 'Identificado a mano en MusicBrainz'
+      return t('review.status.manual')
     case 'unmatched':
-      return 'Sin identificar: revisá los candidatos'
+      return t('review.status.unmatched')
     case 'ignored':
-      return 'No está en MusicBrainz'
+      return t('review.status.ignored')
     case 'selection':
-      return 'Selección de la carpeta: MusicBrainz no la conoce'
+      return t('review.status.selection')
   }
-  return 'Todavía sin buscar en MusicBrainz'
+  return t('review.status.none')
 }
 
 // genreLinks lists an album's genres for links to Explorar: each genre once,
@@ -63,7 +64,7 @@ export function searchURL(album) {
 // styles ("Latin › Samba"), and "not a genre" first. value encodes the
 // choice: genreChoice reads it back.
 export function genreOptions(taxonomy) {
-  const out = [{ value: '|', label: 'No es un género (ignorarlo)' }]
+  const out = [{ value: '|', label: t('review.notGenre') }]
   for (const g of taxonomy ?? []) {
     out.push({ value: `${g.name}|`, label: g.name })
     for (const s of g.styles) out.push({ value: `${g.name}|${s}`, label: `${g.name} › ${s}` })
@@ -79,6 +80,6 @@ export function genreChoice(value) {
 // aliasLabel reads a user's mapping: "Folk, World, & Country › Folk", or
 // "ignorado".
 export function aliasLabel(a) {
-  if (!a.genre) return 'ignorado'
+  if (!a.genre) return t('review.ignored')
   return a.style ? `${a.genre} › ${a.style}` : a.genre
 }

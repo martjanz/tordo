@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { chips, inside, parse, toSearch, valueLabel, withFacet, withOrder, withView } from './facets.js'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
+import { chips, facetLabel, FACETS, ORDERS, VIEWS, inside, parse, toSearch, valueLabel, withFacet, withOrder, withView } from './facets.js'
 
 describe('parse and toSearch', () => {
   it('round-trips queries, leaving defaults out', () => {
@@ -117,5 +118,26 @@ describe('listened', () => {
     const q = F.parse('?listened=never')
     expect(q.facets).toEqual({ listened: 'never' })
     expect(F.toSearch(q)).toBe('?listened=never')
+  })
+})
+
+describe('labels in other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it('reads the labels when they are used', () => {
+    const liked = FACETS.find((f) => f.name === 'liked')
+    expect(liked.label).toBe('Me gusta')
+    expect(facetLabel({ name: 'liked', label: 'x' }, 'albums')).toBe('Preferidos')
+    setLocale('en')
+    expect(liked.label).toBe('Liked')
+    expect(facetLabel(liked, 'albums')).toBe('Preferred')
+    expect(facetLabel({ name: 'liked' }, 'albums')).toBe('Preferred')
+    expect(VIEWS.map((v) => v.label)).toEqual(['Albums', 'Artists', 'Tracks'])
+    expect(ORDERS.artists[0].label).toBe('Name')
+    expect(valueLabel('quality', 'lossless')).toBe('Lossless')
+    expect(valueLabel('rating', '4')).toBe('★★★★ or more')
+    expect(valueLabel('liked', 'yes', null, 'albums')).toBe('Preferred')
+    setLocale('pt-BR')
+    expect(valueLabel('state', 'duplicated')).toBe('Com duplicados')
   })
 })

@@ -2,7 +2,7 @@
   // Explorar's bar: tabs, facet menus, order, and the chips of what is
   // applied.
   import { listenMode } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import Icono from './Icono.svelte'
   import { chips, FACETS, facetLabel, inside, ORDERS, valueLabel, VIEWS, withFacet, withOrder, withView } from '../lib/facets.js'
 
@@ -44,10 +44,10 @@
   // What the total counts: artists, tracks, or albums.
   const totalLabel = $derived(
     query.view === 'artists'
-      ? count(total, 'artista', 'artistas')
+      ? t('count.artists', { n: total })
       : query.view === 'tracks'
-        ? count(total, 'pista', 'pistas')
-        : count(total, 'álbum', 'álbumes'),
+        ? t('count.tracks', { n: total })
+        : t('count.albums', { n: total }),
   )
 </script>
 

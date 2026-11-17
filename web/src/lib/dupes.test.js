@@ -52,3 +52,15 @@ describe('fileQuality in English', () => {
     expect(fileQuality({ format: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('FLAC 16 bits / 44.1 kHz')
   })
 })
+
+describe('duplicates in other languages', () => {
+  afterEach(() => setLocale('es'))
+  it('reads kinds and group lines', () => {
+    expect(KINDS[0].label).toBe('Copias idénticas')
+    expect(KINDS[2].help).toContain('Mismo artista')
+    setLocale('en')
+    expect(KINDS.map((k) => k.label)).toEqual(['Identical copies', 'Same song in several formats', 'Suspects'])
+    expect(KINDS[0].empty).toBe('There are no identical copies.')
+    expect(groupLine({ kind: 'exact', files: [1, 2, 3], sizeBytes: 21000000, recoverable: 14000000 })).toBe('3 files · 21 MB · 14 MB recoverable')
+  })
+})

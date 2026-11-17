@@ -7,7 +7,8 @@
   import Tapa from '../components/Tapa.svelte'
   import { albumCoverURL, api, releaseURL } from '../lib/api.js'
   import { app, listenMode } from '../lib/app.svelte.js'
-  import { count, country, folderName, formatName, length, quality } from '../lib/format.js'
+  import { country, folderName, formatName, length, quality } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumStation } from '../lib/stations.js'
   import { genreLinks, identification } from '../lib/review.js'
@@ -41,7 +42,7 @@
   })
 
   const summary = $derived(
-    album ? [year, count(album.tracks.length, 'pista', 'pistas'), length(album.durationMs)].filter(Boolean).join(' · ') : '',
+    album ? [year, t('count.tracks', { n: album.tracks.length }), length(album.durationMs)].filter(Boolean).join(' · ') : '',
   )
 
   // formats sums up the album's formats: "FLAC 16/44,1", or several.
@@ -76,7 +77,7 @@
           {/each}
         </p>
       {/if}
-      <p class="sub">{formats}{unplayable ? ` · ${count(unplayable, 'pista necesita', 'pistas necesitan')} ffmpeg` : ''}</p>
+      <p class="sub">{formats}{unplayable ? ` · ${t('count.tracksNeedFfmpeg', { n: unplayable })}` : ''}</p>
       <a class="path" href={folderHref(album.dir)}>{folderName(album.dir)}</a>
       <div class="marks">
         <Preferido ref={album.id} size={20} />
@@ -97,7 +98,7 @@
             <span>{v.artist}</span>
             {#if v.year}<span>{v.year}</span>{/if}
             <span>{v.formats.map(formatName).join(' · ')}</span>
-            <span>{count(v.shared, 'tema', 'temas')} en común</span>
+            <span>{t('count.sharedSongs', { n: v.shared })}</span>
             {#if v.kind === 'exact'}<span class="exact">copia idéntica</span>{/if}
           </li>
         {/each}

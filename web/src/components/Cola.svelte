@@ -1,6 +1,7 @@
 <script>
   import { itemCoverURL } from '../lib/api.js'
-  import { count, duration } from '../lib/format.js'
+  import { duration } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { RowDrag } from '../lib/drag.svelte.js'
   import { can, clearUpcoming, jumpTo, moveTo, removeAt, shown, stopStation } from '../lib/playback.svelte.js'
   import * as Q from '../lib/queue.js'
@@ -101,7 +102,7 @@
       {/each}
       </div>
       {#if (p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN) > 0}
-        <p class="more">y {count((p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN), 'pista más', 'pistas más')}</p>
+        <p class="more">{t('count.moreTracks', { n: (p.queue.upcoming ?? next.length) - Math.min(next.length, SHOWN) })}</p>
       {/if}
     {:else}
       <p class="empty">No hay nada más en la cola.</p>

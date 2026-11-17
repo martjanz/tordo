@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { aliasLabel, candidateLine, genreChoice, genreLinks, genreOptions, identification, percent, searchURL, worthAccepting } from './review.js'
 
 describe('review', () => {
@@ -50,5 +51,18 @@ describe('review', () => {
     expect(searchURL({ title: 'Signos (MB)', tagTitle: 'Signos', artist: 'Soda Stereo' })).toBe(
       'https://musicbrainz.org/search?type=release&query=Signos%20Soda%20Stereo',
     )
+  })
+})
+
+describe('review in other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it('speaks English', () => {
+    setLocale('en')
+    expect(identification({ status: 'auto', confidence: 0.873 })).toBe('Identified on MusicBrainz (87 %)')
+    expect(identification({ status: 'unmatched' })).toBe('Unidentified: review the candidates')
+    expect(candidateLine({ artist: 'Soda Stereo', year: 1986, country: 'AR', tracks: 9 })).toBe('Soda Stereo · 1986 · Argentina · 9 tracks')
+    expect(aliasLabel({ genre: '' })).toBe('ignored')
+    expect(genreOptions([])[0].label).toBe('Not a genre (ignore it)')
   })
 })

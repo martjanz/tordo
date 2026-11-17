@@ -10,7 +10,7 @@
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { mine } from '../lib/mine.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { play } from '../lib/playback.svelte.js'
@@ -96,7 +96,7 @@
         <a class="card" href={listHref(p.id)}>
           <Tapa srcs={p.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={p.name} />
           <span class="name">{p.name}</span>
-          <span class="sub">{count(p.tracks, 'pista', 'pistas')}</span>
+          <span class="sub">{t('count.tracks', { n: p.tracks })}</span>
         </a>
       {/each}
       {#if writable}
@@ -164,7 +164,7 @@
             <Tapa srcs={withPicture(albumsOf(c)).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
           </a>
           <span class="name">{c.name}</span>
-          <span class="sub">{count(c.albumCount, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+          <span class="sub">{t('count.albums', { n: c.albumCount })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
         </div>
       {/each}
     </div>
@@ -184,7 +184,7 @@
           <Tapa srcs={withPicture(c.albums).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
         </a>
         <a class="name" href={folderHref(c.path)}>{c.name}</a>
-        <span class="sub">{count(c.albums.length, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+        <span class="sub">{t('count.albums', { n: c.albums.length })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
       </div>
     {/each}
   </div>

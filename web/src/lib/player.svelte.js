@@ -217,7 +217,7 @@ function onError() {
   const entry = Q.current(player.queue)
   player.loading = false
   if (!entry) return
-  notify(`No se pudo reproducir «${entry.title}».`)
+  notify(msg('play.failed', { title: entry.title }))
   if (++errors >= 3) {
     player.playing = false
     return
@@ -301,7 +301,7 @@ async function topUp() {
   topUpFailed = null
   player.ffmpeg = res.ffmpeg
   if (res.items.length === 0) {
-    notify('La estación se quedó sin pistas.')
+    notify(msg('station.ranOut'))
     player.queue = { ...player.queue, station: null }
     persist()
     return

@@ -3,6 +3,7 @@
 import { ApiError, api } from './api.js'
 import { app, notify } from './app.svelte.js'
 import { checkAuth } from './auth.svelte.js'
+import { msg } from './i18n/index.svelte.js'
 import * as P from './player.svelte.js'
 
 const initial = () => ({ on: false, connected: false, remote: null, session: 0, role: 'guest', view: null })
@@ -10,8 +11,8 @@ const initial = () => ({ on: false, connected: false, remote: null, session: 0, 
 export const rockola = $state(initial())
 export const rockolaAvailable = () => !!app.status?.jukebox?.speaker
 
-const LOST = 'Se perdió la conexión con la rockola.'
-const UNAVAILABLE = 'La rockola no está disponible: activá el audio en la compu.'
+const LOST = msg('rockola.lost')
+const UNAVAILABLE = msg('error.no_speaker')
 
 let source = null
 let helloSeen = false // a hello arrived and no state yet: the first speaker-off means "not available"

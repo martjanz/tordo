@@ -3,7 +3,8 @@
   // tracks span several discs; the artist when it is not the album's (with
   // a link to their page when there is one); the album with showAlbum.
   // Tracks the server cannot deliver (playable false) are dimmed.
-  import { count, duration, quality } from '../lib/format.js'
+  import { duration, quality } from '../lib/format.js'
+  import { t as translate } from '../lib/i18n/index.svelte.js'
   import { enqueue } from '../lib/playback.svelte.js'
   import { albumHref, artistHref } from '../lib/router.js'
   import { isLiked } from '../lib/marks.js'
@@ -44,7 +45,7 @@
           </span>
         {/if}
       </span>
-      {#if showPlays}<span class="plays">{count(t.plays ?? 0, 'vez', 'veces')}</span>{/if}
+      {#if showPlays}<span class="plays">{translate('count.times', { n: t.plays ?? 0 })}</span>{/if}
       <span class="quality">{quality(t)}</span>
       <span class="like" class:liked={isLiked(mine.marks, 'track', t.id)}><MeGusta kind="track" ref={t.id} size={16} /></span>
       <span class="time">{duration(t.durationMs)}</span>

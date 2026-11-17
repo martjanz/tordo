@@ -7,7 +7,8 @@
   import Tapa from '../components/Tapa.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count, duration, length } from '../lib/format.js'
+  import { duration, length } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { RowDrag } from '../lib/drag.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { move } from '../lib/order.js'
@@ -61,7 +62,7 @@
     untrack(refresh) // not tracking drag and the like
   })
 
-  const summary = $derived(list ? `${count(list.tracks, 'pista', 'pistas')} · ${length(list.durationMs)}` : '')
+  const summary = $derived(list ? `${t('count.tracks', { n: list.tracks })} · ${length(list.durationMs)}` : '')
 
   function startRename() {
     draft = list.name

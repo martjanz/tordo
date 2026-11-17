@@ -1,24 +1,24 @@
 // How the duplicates of Revisar read.
 import { formatName, size } from './format.js'
-import { formatNumber } from './i18n/index.svelte.js'
+import { formatNumber, t } from './i18n/index.svelte.js'
 
-export const KINDS = [
-  {
-    kind: 'exact', label: 'Copias idénticas', count: 'exact',
-    help: 'El mismo audio en varios archivos, aunque los tags difieran.',
-    empty: 'No hay copias idénticas.',
+// kindOf makes a kind whose label, help and empty text are read through t
+// when used, so they follow the language.
+const kindOf = (kind, count) => ({
+  kind,
+  count,
+  get label() {
+    return t(`dupes.${kind}.label`)
   },
-  {
-    kind: 'formats', label: 'Mismo tema en varios formatos', count: 'formats',
-    help: 'La misma grabación del mismo álbum en archivos distintos. MEJOR marca la de más calidad.',
-    empty: 'No hay temas repetidos en varios formatos.',
+  get help() {
+    return t(`dupes.${kind}.help`)
   },
-  {
-    kind: 'suspected', label: 'Sospechas', count: 'suspect',
-    help: 'Mismo artista, título y duración en álbumes distintos. Suele ser legítimo (un tema en su disco y en un compilado).',
-    empty: 'No hay sospechas de duplicado.',
+  get empty() {
+    return t(`dupes.${kind}.empty`)
   },
-]
+})
+
+export const KINDS = [kindOf('exact', 'exact'), kindOf('formats', 'formats'), kindOf('suspected', 'suspect')]
 
 // fileQuality reads a file's format: "FLAC 24 bits / 96 kHz", "MP3 320 kbps".
 // What the file does not say is left out.
@@ -35,7 +35,7 @@ export function fileQuality(f) {
 // groupLine sums a group up: "3 archivos · 21 MB", plus the space that
 // deleting the copies would recover when they are exact.
 export function groupLine(g) {
-  const parts = [`${g.files.length} archivos`, size(g.sizeBytes)]
-  if (g.kind === 'exact') parts.push(`${size(g.recoverable)} recuperables`)
+  const parts = [t('count.files', { n: g.files.length }), size(g.sizeBytes)]
+  if (g.kind === 'exact') parts.push(t('dupes.recoverable', { size: size(g.recoverable) }))
   return parts.join(' · ')
 }

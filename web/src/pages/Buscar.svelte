@@ -5,7 +5,7 @@
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { folderHref } from '../lib/router.js'
   import { searchable, total } from '../lib/search.js'
@@ -43,7 +43,7 @@
 {:else if error}
   <p class="empty">{error}</p>
 {:else if result}
-  <p class="sub">{count(total(result), 'resultado', 'resultados')} para «{q}»</p>
+  <p class="sub">{t('count.results', { n: total(result) })} para «{q}»</p>
   {#if total(result) === 0}
     <p class="empty">Nada con «{q}».</p>
   {/if}
@@ -79,7 +79,7 @@
       {#each result.folders as f (f.path)}
         <li>
           <a href={folderHref(f.path)}>{f.name}</a>
-          <span>{f.collection ? 'Colección · ' : ''}{count(f.tracks, 'pista', 'pistas')}</span>
+          <span>{f.collection ? 'Colección · ' : ''}{t('count.tracks', { n: f.tracks })}</span>
         </li>
       {/each}
     </ul>

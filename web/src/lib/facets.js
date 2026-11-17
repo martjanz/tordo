@@ -1,72 +1,65 @@
 // Explorar's query: tab, facets and order, as they appear in the URL.
 import { country, formatName } from './format.js'
+import { t } from './i18n/index.svelte.js'
 
-export const VIEWS = [
-  { value: 'albums', label: 'Álbumes' },
-  { value: 'artists', label: 'Artistas' },
-  { value: 'tracks', label: 'Pistas' },
-]
+// labelled makes an entry whose label is read through t when it is used, so
+// it follows the language.
+function labelled(entry, key) {
+  return Object.defineProperty({ ...entry }, 'label', { get: () => t(key), enumerable: true })
+}
+
+export const VIEWS = ['albums', 'artists', 'tracks'].map((value) => labelled({ value }, 'facets.view.' + value))
 
 // FACETS lists the facets of the bar, in order. The year lives inside the
 // decade menu and the style inside the genre menu; `more` facets go in the
 // "Más" menu.
 export const FACETS = [
-  { name: 'decade', label: 'Década' },
-  { name: 'artist', label: 'Artista' },
-  { name: 'country', label: 'País' },
-  { name: 'genre', label: 'Género' },
-  { name: 'collection', label: 'Colección' },
-  { name: 'liked', label: 'Me gusta' },
-  { name: 'rating', label: 'Puntaje' },
-  { name: 'listened', label: 'Escucha' },
-  { name: 'folder', label: 'Carpeta', more: true },
-  { name: 'quality', label: 'Calidad', more: true },
-  { name: 'format', label: 'Formato', more: true },
-  { name: 'state', label: 'Estado', more: true },
-]
+  { name: 'decade' },
+  { name: 'artist' },
+  { name: 'country' },
+  { name: 'genre' },
+  { name: 'collection' },
+  { name: 'liked' },
+  { name: 'rating' },
+  { name: 'listened' },
+  { name: 'folder', more: true },
+  { name: 'quality', more: true },
+  { name: 'format', more: true },
+  { name: 'state', more: true },
+].map((f) => labelled(f, 'facets.facet.' + f.name))
 
 // facetLabel is a facet's name in the bar. On the albums tab the "liked"
 // facet (same URL) reads Preferidos: albums are a shortlist, not favourites.
 export function facetLabel(facet, view) {
-  return facet.name === 'liked' && view === 'albums' ? 'Preferidos' : facet.label
+  return facet.name === 'liked' && view === 'albums' ? t('facets.preferred') : t('facets.facet.' + facet.name)
 }
 
 // NAMES are the facets in URL order, the year and style included.
 export const NAMES = ['decade', 'year', 'artist', 'country', 'genre', 'style', 'collection', 'folder', 'quality', 'format', 'state', 'liked', 'rating', 'listened']
 
 // ORDERS lists each tab's orders, its default first (as the server).
+// order makes an order entry; the artists' tab calls "title" Nombre.
+const order = (value, key = value) => labelled({ value }, 'facets.order.' + key)
+
 export const ORDERS = {
-  albums: [
-    { value: 'year', label: 'Año' },
-    { value: 'title', label: 'Título' },
-    { value: 'artist', label: 'Artista' },
-    { value: 'added', label: 'Agregado' },
-    { value: 'plays', label: 'Más escuchado' },
-    { value: 'random', label: 'Aleatorio' },
-  ],
-  artists: [
-    { value: 'title', label: 'Nombre' },
-    { value: 'count', label: 'Cantidad de álbumes' },
-    { value: 'added', label: 'Agregado' },
-    { value: 'plays', label: 'Más escuchado' },
-    { value: 'random', label: 'Aleatorio' },
-  ],
-  tracks: [
-    { value: 'artist', label: 'Artista' },
-    { value: 'year', label: 'Año' },
-    { value: 'title', label: 'Título' },
-    { value: 'added', label: 'Agregado' },
-    { value: 'plays', label: 'Más escuchado' },
-    { value: 'random', label: 'Aleatorio' },
-  ],
+  albums: [order('year'), order('title'), order('artist'), order('added'), order('plays'), order('random')],
+  artists: [order('title', 'name'), order('count'), order('added'), order('plays'), order('random')],
+  tracks: [order('artist'), order('year'), order('title'), order('added'), order('plays'), order('random')],
+}
+
+// labelsOf makes an object whose values are read through t when used.
+function labelsOf(prefix, keys) {
+  const out = {}
+  for (const [value, key] of Object.entries(keys)) Object.defineProperty(out, value, { get: () => t(prefix + key), enumerable: true })
+  return out
 }
 
 export const LABELS = {
-  quality: { lossless: 'Sin pérdida', lossy: 'Con pérdida' },
-  state: { unidentified: 'Sin identificar', unplayable: 'No reproducible', duplicated: 'Con duplicados' },
-  liked: { yes: 'Me gusta' },
-  listened: { never: 'Nunca escuchado', 'year-ago': 'Sin escuchar hace un año' },
-  rating: { 5: '★★★★★', 4: '★★★★ o más', 3: '★★★ o más', 2: '★★ o más', 1: '★ o más' },
+  quality: labelsOf('facets.quality.', { lossless: 'lossless', lossy: 'lossy' }),
+  state: labelsOf('facets.state.', { unidentified: 'unidentified', unplayable: 'unplayable', duplicated: 'duplicated' }),
+  liked: labelsOf('facets.liked.', { yes: 'yes' }),
+  listened: labelsOf('facets.listened.', { never: 'never', 'year-ago': 'yearAgo' }),
+  rating: labelsOf('facets.rating.', { 5: 'r5', 4: 'r4', 3: 'r3', 2: 'r2', 1: 'r1' }),
 }
 
 // defaultDir is the natural direction of an order: A to Z for names,
@@ -158,7 +151,7 @@ export function valueLabel(name, value, counted, view) {
     case 'format':
       return formatName(value)
     case 'liked':
-      return view === 'albums' ? 'Preferidos' : LABELS.liked[value] ?? value
+      return view === 'albums' ? t('facets.preferred') : LABELS.liked[value] ?? value
     case 'quality':
     case 'state':
     case 'rating':

@@ -81,4 +81,12 @@ describe('notify', () => {
     notify(msg('app.name'))
     expect(app.notices.map((n) => n.text)).toEqual(['hola', 'Tordo'])
   })
+
+  it('ignores an undefined or empty notice', () => {
+    notify(undefined)
+    notify(null)
+    notify('')
+    notify({})
+    expect(app.notices).toEqual([])
+  })
 })

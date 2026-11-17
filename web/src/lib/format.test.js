@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { setLocale } from './i18n/index.svelte.js'
-import { codecName, count, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { setLocale, t } from './i18n/index.svelte.js'
+import { codecName, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -11,14 +11,6 @@ describe('durations', () => {
     expect(length(48 * 60000)).toBe('48 min')
     expect(length(72 * 60000)).toBe('1 h 12 min')
     expect(length(120 * 60000)).toBe('2 h')
-  })
-})
-
-describe('count', () => {
-  it('agrees in number', () => {
-    expect(count(1, 'pista', 'pistas')).toBe('1 pista')
-    expect(count(12, 'pista', 'pistas')).toBe('12 pistas')
-    expect(count(0, 'álbum', 'álbumes')).toBe('0 álbumes')
   })
 })
 
@@ -104,12 +96,16 @@ describe('other languages', () => {
     expect(country('DE')).toBe('Germany')
     expect(length(72 * 60000)).toBe('1 h 12 min')
     expect(length(120 * 60000)).toBe('2 h')
+    expect(t('count.tracks', { n: 1 })).toBe('1 track')
+    expect(t('count.tracks', { n: 1234 })).toBe('1,234 tracks')
     expect(quality({ format: 'wav', codec: 'pcm', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('WAV 16/44.1')
   })
   it('formats in Spanish', () => {
     setLocale('es')
     expect(size(7_200_000)).toBe('7,2 MB')
-    expect(count(1234, 'pista', 'pistas')).toBe('1.234 pistas')
+    expect(t('count.tracks', { n: 1 })).toBe('1 pista')
+    expect(t('count.albums', { n: 0 })).toBe('0 álbumes')
+    expect(t('count.tracks', { n: 1234 })).toBe('1.234 pistas')
     expect(country('DE')).toBe('Alemania')
   })
   it('formats in Portuguese', () => {

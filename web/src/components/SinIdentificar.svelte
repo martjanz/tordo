@@ -4,7 +4,8 @@
   // corrected.
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count, folderName } from '../lib/format.js'
+  import { folderName } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { candidateLine, percent, searchURL, worthAccepting } from '../lib/review.js'
   import { albumHref, folderHref } from '../lib/router.js'
@@ -47,7 +48,7 @@
   // acceptAll takes the best candidate of every likely album, one at a time.
   async function acceptAll() {
     const list = likely
-    if (!confirm(`¿Aceptar el primer candidato de ${count(list.length, 'álbum', 'álbumes')}? Revisalos antes con «Ver solo esos».`)) return
+    if (!confirm(`¿Aceptar el primer candidato de ${t('count.albums', { n: list.length })}? Revisalos antes con «Ver solo esos».`)) return
     accepting = { done: 0, of: list.length }
     for (const a of list) {
       try {
@@ -71,7 +72,7 @@
       {#if accepting}
         Aceptando {accepting.done} de {accepting.of}…
       {:else}
-        {count(likely.length, 'álbum tiene', 'álbumes tienen')} un primer candidato de 70 % o más.
+        {t('count.albumsLikely', { n: likely.length })}
         <label><input type="checkbox" bind:checked={onlyLikely} /> Ver solo esos</label>
         <button onclick={acceptAll}>Aceptar el primer candidato de cada uno</button>
       {/if}
@@ -84,7 +85,7 @@
           <a class="thumb" href={albumHref(a.id)}><Tapa srcs={a.picture ? [albumCoverURL(a.id, 160)] : []} alt={a.title} /></a>
           <div class="text">
             <a class="title" href={albumHref(a.id)}>{a.tagTitle}</a>
-            <span class="meta">{[a.tagArtist, a.year || '', count(a.tracks, 'pista', 'pistas')].filter(Boolean).join(' · ')}</span>
+            <span class="meta">{[a.tagArtist, a.year || '', t('count.tracks', { n: a.tracks })].filter(Boolean).join(' · ')}</span>
             <a class="meta folder" href={folderHref(a.dir)}>{folderName(a.dir)}</a>
             {#if a.candidates.length}
               <span class="meta best">Mejor candidato: {a.candidates[0].title} — {candidateLine(a.candidates[0])} ({percent(a.candidates[0].score)})</span>

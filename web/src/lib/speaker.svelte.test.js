@@ -147,7 +147,7 @@ describe('replaced', () => {
     expect(speaker.connected).toBe(false)
     expect(sessionStorage.getItem('tordo.audio-compu')).toBe('')
     expect(last().closed).toBe(true)
-    expect(notify).toHaveBeenCalledWith('Otro navegador tomó el audio de esta compu.')
+    expect(notify).toHaveBeenCalledWith(msg('speaker.replaced'))
   })
 })
 

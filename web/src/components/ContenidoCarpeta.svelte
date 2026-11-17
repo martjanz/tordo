@@ -4,8 +4,8 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
-  import { count, duration, length, size } from '../lib/format.js'
-  import { formatNumber } from '../lib/i18n/index.svelte.js'
+  import { duration, length, size } from '../lib/format.js'
+  import { formatNumber, t } from '../lib/i18n/index.svelte.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { folderStation } from '../lib/stations.js'
@@ -76,7 +76,7 @@
         {#if folder.collection}<span class="label">Colección</span>{/if}
         <h1>{folder.name}</h1>
         <p class="sub">
-          {count(folder.albumCount, 'álbum', 'álbumes')} · {count(folder.trackCount, 'pista', 'pistas')} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
+          {t('count.albums', { n: folder.albumCount })} · {t('count.tracks', { n: folder.trackCount })} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
         </p>
         {#if album}<a class="album-link" href={albumHref(album.id)}>Ver álbum</a>{/if}
       </div>

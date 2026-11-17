@@ -5,7 +5,8 @@
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count, country, duration } from '../lib/format.js'
+  import { country, duration } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { artistHref, exploreHref, statsHref } from '../lib/router.js'
 
@@ -43,7 +44,7 @@
   const artists = $derived(data?.artists ?? [])
   const countries = $derived(data?.countries ?? [])
   const genres = $derived(data?.genres ?? [])
-  const plays = (n) => count(n, 'reproducción', 'reproducciones')
+  const plays = (n) => t('count.plays', { n })
 </script>
 
 <h1>Historial de escucha</h1>
@@ -58,7 +59,7 @@
     <p class="empty">Todavía no hay reproducciones en este período.</p>
   {:else}
     <p class="totals">
-      {plays(data.plays)} · {duration(data.listenedMs)} · {count(data.played, 'pista distinta', 'pistas distintas')}
+      {plays(data.plays)} · {duration(data.listenedMs)} · {t('count.distinctTracks', { n: data.played })}
     </p>
 
     {#if tracks.length}
@@ -130,11 +131,11 @@
       <h2>Por escuchar</h2>
       <ul class="rank">
         {#if data.never}
-          <li><a href={exploreHref({ listened: 'never' })}>{count(data.never, 'álbum nunca escuchado', 'álbumes nunca escuchados')} →</a></li>
+          <li><a href={exploreHref({ listened: 'never' })}>{t('count.albumsNever', { n: data.never })} →</a></li>
         {/if}
         {#if data.stale}
           <li>
-            <a href={exploreHref({ listened: 'year-ago' })}>{count(data.stale, 'álbum sin escuchar', 'álbumes sin escuchar')} hace más de un año →</a>
+            <a href={exploreHref({ listened: 'year-ago' })}>{t('count.albumsStale', { n: data.stale })} →</a>
           </li>
         {/if}
       </ul>

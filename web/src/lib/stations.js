@@ -2,6 +2,7 @@
 // define them, to know when to ask for more and to describe them.
 import { country } from './format.js'
 import { NAMES, valueLabel } from './facets.js'
+import { t } from './i18n/index.svelte.js'
 
 export const DEFAULT_RULES = { mode: 'tracks', artistGap: 3, avoidDays: 7 }
 export const LOW_WATER = 3 // ask for more when fewer than this remain after the current track
@@ -12,17 +13,44 @@ export function station(name, source, rules = DEFAULT_RULES) {
   return { name, source, ...rules }
 }
 
-export const LIKED = { name: 'Tus me gusta', source: { liked: true } }
+// The built-ins are named in the language of the moment they are read: name
+// is a getter over the *Name functions.
+export const likedName = () => t('station.liked')
+export const favoriteTracksName = () => t('station.favoriteTracks')
+export const preferredAlbumsName = () => t('station.preferredAlbums')
+export const libraryName = () => t('station.library')
+
+export const LIKED = {
+  get name() {
+    return likedName()
+  },
+  source: { liked: true },
+}
 // Favourite (♥) tracks and Preferidos albums, as stations from Explorar's
 // "liked" facet: the track mark on tracks, the album mark on albums.
-export const FAVORITE_TRACKS = { name: 'Tus canciones favoritas', source: { view: 'tracks', facets: { liked: 'yes' } } }
-export const PREFERRED_ALBUMS = { name: 'Álbumes preferidos', source: { view: 'albums', facets: { liked: 'yes' } } }
-export const LIBRARY = { name: 'Toda la colección', source: {} }
+export const FAVORITE_TRACKS = {
+  get name() {
+    return favoriteTracksName()
+  },
+  source: { view: 'tracks', facets: { liked: 'yes' } },
+}
+export const PREFERRED_ALBUMS = {
+  get name() {
+    return preferredAlbumsName()
+  },
+  source: { view: 'albums', facets: { liked: 'yes' } },
+}
+export const LIBRARY = {
+  get name() {
+    return libraryName()
+  },
+  source: {},
+}
 
-// decadeName: "1980" → "Los 80", "2000" → "Los 2000".
+// decadeName: "1980" → "Los 80", "2000" → "Los 2000" (in the current language).
 function decadeName(decade) {
   const n = Number(decade)
-  return n > 1900 && n < 2000 ? `Los ${n - 1900}` : `Los ${decade}`
+  return t('station.decade', { d: n > 1900 && n < 2000 ? n - 1900 : decade })
 }
 
 // exploreStation turns Explorar's query into a station. counts are the
@@ -33,7 +61,7 @@ export function exploreStation(query, counts = {}) {
     valueLabel(n, facets[n], (counts[n] ?? []).find((v) => v.value === facets[n]), query.view),
   )
   const view = query.view === 'tracks' ? 'tracks' : 'albums'
-  return { name: labels.length ? labels.join(' · ') : LIBRARY.name, source: { view, facets } }
+  return { name: labels.length ? labels.join(' · ') : libraryName(), source: { view, facets } }
 }
 
 // albumStation is the station of an album: not the album on loop but its
@@ -83,13 +111,11 @@ export function recentIds(q) {
     .filter((id) => id != null)
 }
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
-
 // summary reads a station's rules; rules at 0 are left out.
 export function summary(st) {
-  const parts = [st.mode === 'albums' ? 'Álbumes' : 'Pistas']
-  if (st.artistGap > 0) parts.push(`sin repetir artista en ${st.artistGap}`)
-  if (st.avoidDays > 0) parts.push(`evita lo escuchado en ${plural(st.avoidDays, 'día', 'días')}`)
+  const parts = [t(st.mode === 'albums' ? 'facets.view.albums' : 'facets.view.tracks')]
+  if (st.artistGap > 0) parts.push(t('station.artistGap', { n: st.artistGap }))
+  if (st.avoidDays > 0) parts.push(t('station.avoidDays', { n: st.avoidDays }))
   return parts.join(' · ')
 }
 
@@ -103,13 +129,13 @@ export function rowTitle(row) {
     case 'collection':
       return row.label || row.value
     case 'never':
-      return 'Nunca escuchados'
+      return t('station.row.never')
     case 'year-ago':
-      return 'Sin escuchar hace un año'
+      return t('station.row.yearAgo')
     case 'random':
-      return 'Álbumes al azar'
+      return t('station.row.random')
     case 'recent':
-      return 'Agregados recientemente'
+      return t('station.row.recent')
   }
   return row.value
 }

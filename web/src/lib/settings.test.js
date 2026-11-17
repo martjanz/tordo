@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { addRoot, body, changed, checkAll, draft, pinProblem, portProblem, rescanChoices, savedNotice } from './settings.js'
 
 const config = {
@@ -162,5 +163,19 @@ describe('rescanChoices', () => {
   })
   it('sends the choice as a number', () => {
     expect(body({ ...draft(config), rescanMinutes: '180' }).rescanMinutes).toBe(180)
+  })
+})
+
+describe('settings in other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it('speaks English', () => {
+    setLocale('en')
+    expect(pinProblem('123', true, true)).toBe('The PIN must have 6 to 12 digits, numbers only.')
+    expect(portProblem('80')).toBe('The port must be between 1024 and 65535.')
+    expect(rescanChoices(0)[1].label).toBe('Every 30 minutes')
+    expect(rescanChoices(45).find((c) => c.minutes === 45).label).toBe('Every 45 minutes')
+    expect(rescanChoices(1).find((c) => c.minutes === 1).label).toBe('Every minute')
+    expect(savedNotice({ setupPending: false, roots: [], ignore: [] }, draft({ roots: [], suggested: [], ignore: [], normalize: true, rescanMinutes: 0, lan: { enabled: false, port: 4747 } }))).toBe('Settings saved.')
   })
 })

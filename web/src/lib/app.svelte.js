@@ -82,10 +82,14 @@ export function stopStatus() {
 
 let seq = 0
 
-// notify shows a notice for 6 seconds. It takes a string or a msg() object.
+// notify shows a notice for 6 seconds. It takes a string or a msg() object;
+// nothing (undefined, an empty text, a msg() without a key) shows nothing.
 export function notify(m) {
+  if (m == null || (typeof m === 'object' && typeof m.key !== 'string')) return
+  const shown = text(m)
+  if (!shown) return
   const id = ++seq
-  app.notices.push({ id, text: text(m) })
+  app.notices.push({ id, text: shown })
   setTimeout(() => {
     app.notices = app.notices.filter((n) => n.id !== id)
   }, 6000)

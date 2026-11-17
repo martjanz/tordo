@@ -4,8 +4,7 @@
   import { tick } from 'svelte'
   import { albumCoverURL, api, itemCoverURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
-  import { formatNumber } from '../lib/i18n/index.svelte.js'
+  import { formatNumber, t } from '../lib/i18n/index.svelte.js'
   import { navigate, route } from '../lib/nav.svelte.js'
   import { searchHref } from '../lib/router.js'
   import { enterHref, isShortcut, move, options, searchable, total } from '../lib/search.js'
@@ -114,13 +113,13 @@
     const it = o.item
     switch (o.kind) {
       case 'artist':
-        return count(it.albums, 'álbum', 'álbumes')
+        return t('count.albums', { n: it.albums })
       case 'album':
         return [it.artist, it.year || ''].filter(Boolean).join(' · ')
       case 'track':
         return [it.artist, it.album].filter(Boolean).join(' · ')
     }
-    return it.collection ? 'Colección' : count(it.tracks, 'pista', 'pistas')
+    return it.collection ? 'Colección' : t('count.tracks', { n: it.tracks })
   }
 
   const ICONS = { artist: 'user', album: 'disc', track: 'disc', folder: 'folder' }

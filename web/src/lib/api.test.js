@@ -96,6 +96,21 @@ describe('errors', () => {
     expect((await error()).message).toBe('5')
   })
 
+  it('does not show a long raw body', async () => {
+    fail(502, 'x'.repeat(300))
+    expect((await error()).message).toBe('x'.repeat(300))
+    fail(502, '<html>' + 'x'.repeat(300) + '</html>')
+    expect((await error()).message).toBe('Error 502')
+  })
+
+  it('ignores params that are not an object', async () => {
+    fail(429, JSON.stringify({ code: 'too_many_attempts', message: 'x', params: ['a', 'b'] }))
+    const e = await error()
+    expect(e.params).toEqual({})
+    expect(e.notice).toEqual({ key: 'error.too_many_attempts', params: {} })
+    expect(e.message).toBe('Demasiados intentos. Probá de nuevo en {seconds} s.')
+  })
+
   it('says the status when the body is empty', async () => {
     fail(500, '')
     const e = await error()

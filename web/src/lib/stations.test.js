@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import * as Q from './queue.js'
 import * as S from './stations.js'
 
@@ -121,5 +122,35 @@ describe('rowTitle', () => {
     [{ kind: 'recent' }, 'Agregados recientemente'],
   ])('%j', (row, want) => {
     expect(S.rowTitle(row)).toBe(want)
+  })
+})
+
+describe('other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it.each([
+    ['es', 1985, 'Los 80'],
+    ['en', 1985, 'The 80s'],
+    ['pt-BR', 1985, 'Anos 80'],
+    ['es', 2003, 'Los 2000'],
+    ['en', 2003, 'The 2000s'],
+    ['pt-BR', 2003, 'Anos 2000'],
+  ])('names the decade station in %s for %d', (l, year, want) => {
+    setLocale(l)
+    expect(S.albumStation({ year }).name).toBe(want)
+  })
+  it('names the built-ins and summarizes in the current language', () => {
+    setLocale('en')
+    expect(S.LIKED.name).toBe('Your likes')
+    expect(S.likedName()).toBe('Your likes')
+    expect(S.LIBRARY.name).toBe('The whole collection')
+    expect(S.summary({ mode: 'albums', artistGap: 2, avoidDays: 1 })).toBe('Albums · no artist repeats within 2 · avoids what was played in the last 1 day')
+    expect(S.rowTitle({ kind: 'never' })).toBe('Never played')
+    setLocale('pt-BR')
+    expect(S.PREFERRED_ALBUMS.name).toBe('Álbuns preferidos')
+  })
+  it('keeps a getter for the name', () => {
+    expect(Object.getOwnPropertyDescriptor(S.LIKED, 'name').get).toBeTypeOf('function')
+    expect(S.LIKED.source).toEqual({ liked: true })
   })
 })
