@@ -22,7 +22,7 @@
         {#each s.items as item}
           <dt>
             {#if item.keys}
-              {#each item.keys as k, i}{#if i > 0}<span class="or"> {t('help.or')} </span>{/if}<kbd>{k === 'Space' ? t('key.space') : k}</kbd>{/each}
+              {#each item.keys as k, i}{#if i > 0}<span class="or">{' ' + t('help.or') + ' '}</span>{/if}<kbd>{k === 'Space' ? t('key.space') : k}</kbd>{/each}
             {:else if item.href}
               <a href={item.href}>{item.term}</a>
             {:else}
