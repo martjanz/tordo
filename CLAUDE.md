@@ -9,6 +9,7 @@ Sibling project of Cinexplorer (`/Users/martin/x-projects/cinexplorer`), same st
 ## Where things are
 
 - Design spec (source of truth): `docs/superpowers/specs/2026-10-01-tordo-design.md` (in Spanish).
+- Interface languages (es, en, pt-BR), English URLs/API vocabulary and error codes: `docs/superpowers/specs/2026-11-16-tordo-i18n-design.md`.
 - Implementation plans, one per milestone: `docs/superpowers/plans/`. Milestones M1–M5 are listed in the spec, §10.
 - Work one milestone per session: read the spec and that milestone's plan, then execute it.
 
@@ -19,7 +20,7 @@ Sibling project of Cinexplorer (`/Users/martin/x-projects/cinexplorer`), same st
   go to the app folder (`tordo.db`, `config.json`, `cache/`).
 - **Portable:** catalog paths are relative to the app folder and `/`-separated (`internal/appdir`).
 - **No cgo**, minimal dependencies (`modernc.org/sqlite` only, so far). External tools (ffprobe/ffmpeg) are optional.
-- User-facing text (UI, log and error messages) in **Spanish**; code, identifiers and comments in English.
+- UI text lives in `web/src/lib/i18n/` in es, en and pt-BR (en is the reference; every new string goes in all three; help in `lib/i18n/help/`). Server logs, CLI help and error messages are English; errors the UI shows carry a code (`internal/server/codes.go`). Code, identifiers and comments in English.
 - TDD: tests first, `go test ./...` must pass with no network.
 - Commit messages: never add `Co-Authored-By:` trailers.
 
