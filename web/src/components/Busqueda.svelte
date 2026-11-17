@@ -4,7 +4,7 @@
   import { tick } from 'svelte'
   import { albumCoverURL, api, itemCoverURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { count, number } from '../lib/format.js'
   import { navigate, route } from '../lib/nav.svelte.js'
   import { searchHref } from '../lib/router.js'
   import { enterHref, isShortcut, move, options, searchable, total } from '../lib/search.js'
@@ -158,7 +158,7 @@
           </a>
         {/each}
         {#if found > opts.length}
-          <a class="all" href={searchHref(q)} onclick={close}>Ver los {found.toLocaleString('es')} resultados →</a>
+          <a class="all" href={searchHref(q)} onclick={close}>Ver los {number(found)} resultados →</a>
         {/if}
       </div>
     {/if}

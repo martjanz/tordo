@@ -85,14 +85,35 @@
 {/if}
 
 {#if playlists && likedLists && collections}
+  {#snippet newList(inline)}
+    {#if creating}
+      <form class="new" class:inline onsubmit={create}>
+        <input bind:value={name} placeholder="Nombre de la lista" aria-label="Nombre de la lista" maxlength="200" use:focus
+          onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
+        <button class="primary" disabled={!name.trim()}>Crear</button>
+      </form>
+    {:else if inline}
+      <button class="primary start" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+        <Icono name="plus" size={14} /> Nueva lista
+      </button>
+    {:else}
+      <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+        <Icono name="plus" size={28} />
+        <span>Nueva lista</span>
+      </button>
+    {/if}
+  {/snippet}
+
   <h2>Listas de reproducción</h2>
   {#if playlists}
     {#if playlists.length === 0 && !writable}
       <p class="empty">Todavía no hay listas.</p>
+    {:else if playlists.length === 0}
+      <div class="first">
+        <p>Todavía no hay listas. Creá una acá o con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
+        {@render newList(true)}
+      </div>
     {:else}
-      {#if playlists.length === 0}
-        <p class="empty">Todavía no hay listas. Creá una acá o con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
-      {/if}
       <div class="grid">
         {#each playlists as p (p.id)}
           <a class="card" href={listHref(p.id)}>
@@ -102,20 +123,7 @@
           </a>
         {/each}
         {#if writable}
-          <div class="card">
-            {#if creating}
-              <form class="new" onsubmit={create}>
-                <input bind:value={name} placeholder="Nombre de la lista" aria-label="Nombre de la lista" maxlength="200" use:focus
-                  onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
-                <button class="primary" disabled={!name.trim()}>Crear</button>
-              </form>
-            {:else}
-              <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
-                <Icono name="plus" size={28} />
-                <span>Nueva lista</span>
-              </button>
-            {/if}
-          </div>
+          <div class="card">{@render newList(false)}</div>
         {/if}
       </div>
     {/if}
@@ -221,6 +229,36 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  /* No lists yet: the message and the way to make the first one, together. */
+  .first {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: var(--space-6) 16px;
+    text-align: center;
+    color: var(--muted);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+  }
+  .first p {
+    margin: 0;
+    max-width: 52ch;
+  }
+  .new.inline {
+    flex-direction: row;
+    width: min(100%, 360px);
+  }
+  .new.inline input {
+    flex: 1;
+    min-width: 0;
+  }
+  .start {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
   }
   .newcard {
     aspect-ratio: 1;

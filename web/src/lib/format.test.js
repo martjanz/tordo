@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { codecName, count, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { codecName, count, number, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -18,6 +18,19 @@ describe('count', () => {
     expect(count(1, 'pista', 'pistas')).toBe('1 pista')
     expect(count(12, 'pista', 'pistas')).toBe('12 pistas')
     expect(count(0, 'álbum', 'álbumes')).toBe('0 álbumes')
+  })
+  it('groups thousands from four digits, like five', () => {
+    expect(count(5269, 'pista', 'pistas')).toBe('5.269 pistas')
+    expect(count(229338, 'pista', 'pistas')).toBe('229.338 pistas')
+  })
+})
+
+describe('number', () => {
+  it('groups every count the same way', () => {
+    expect(number(999)).toBe('999')
+    expect(number(5269)).toBe('5.269')
+    expect(number(229338)).toBe('229.338')
+    expect(number(undefined)).toBe('0')
   })
 })
 

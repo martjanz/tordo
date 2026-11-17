@@ -5,6 +5,7 @@
   import { notify } from '../lib/app.svelte.js'
   import { loadLevel, revealPath, setOpen, tree } from '../lib/carpetas.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
+  import { number } from '../lib/format.js'
   import { folderHref } from '../lib/router.js'
   import { MIN } from '../lib/search.js'
   import { filterOpen, isFilterKey, keyAction, missingLevels, visibleRows } from '../lib/tree.js'
@@ -171,7 +172,7 @@
         <Icono name={node.album ? 'disc' : 'folder'} size={15} />
         <span class="name" class:hit={matching.has(node.path)} title={node.label}>{node.label}</span>
         {#if node.collection}<span class="label">Colección</span>{/if}
-        <span class="tracks">{node.tracks.toLocaleString('es')}</span>
+        <span class="tracks">{number(node.tracks)}</span>
       </li>
     {/each}
   </ul>

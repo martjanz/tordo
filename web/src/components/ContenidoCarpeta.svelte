@@ -4,7 +4,7 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, listenMode, notify } from '../lib/app.svelte.js'
   import { DEFAULT_SORT, bar, entries, nextSort, playableIds, sortEntries } from '../lib/folders.js'
-  import { count, duration, length, size } from '../lib/format.js'
+  import { count, duration, length, number, size } from '../lib/format.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
   import { folderStation } from '../lib/stations.js'
@@ -57,6 +57,9 @@
 <header>
   {#if isRoot}
     <h1>Carpetas</h1>
+    <p class="sub">
+      {count(folders.length, 'carpeta', 'carpetas')} · {count(folder.albumCount, 'álbum', 'álbumes')} · {count(folder.trackCount, 'pista', 'pistas')} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
+    </p>
   {:else}
     <nav class="trail" aria-label="Ubicación">
       <a href="/carpetas">Carpetas</a>
@@ -126,7 +129,7 @@
             </div>
           </td>
           <td class="bar-col"><div class="bar" style="width: {bar(f.sizeBytes, folder.sizeBytes)}%"></div></td>
-          <td class="num">{f.tracks.toLocaleString('es')}</td>
+          <td class="num">{number(f.tracks)}</td>
           <td class="num">{f.durationMs ? length(f.durationMs) : ''}</td>
           <td>{f.format}</td>
           <td class="num">{size(f.sizeBytes)}</td>

@@ -17,9 +17,15 @@ export function length(ms) {
   return min % 60 ? `${h} h ${min % 60} min` : `${h} h`
 }
 
+// number reads a count with a dot for thousands, from four digits on: "5.269".
+// es alone groups only from five digits, so "5269" would sit next to "229.338".
+export function number(n) {
+  return (n ?? 0).toLocaleString('es', { useGrouping: 'always' })
+}
+
 // count reads "1 pista", "12 pistas" (thousands with a dot: "1.234 pistas").
 export function count(n, one, many) {
-  return `${n.toLocaleString('es')} ${n === 1 ? one : many}`
+  return `${number(n)} ${n === 1 ? one : many}`
 }
 
 const CODECS = {

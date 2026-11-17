@@ -404,6 +404,13 @@ func (s *Store) Folder(p string) (FolderView, bool, error) {
 		v.Children = append(v.Children, fc)
 	}
 	if p == "" {
+		// The top level is the sum of its roots.
+		for _, c := range v.Children {
+			v.TrackCount += c.TrackCount
+			v.AlbumCount += c.AlbumCount
+			v.DurationMs += c.DurationMs
+			v.SizeBytes += c.SizeBytes
+		}
 		return v, true, nil
 	}
 	if v.Albums, err = s.queryAlbums(`SELECT `+albumCols+` FROM albums WHERE dir = ?`, p); err != nil {

@@ -94,8 +94,10 @@
 <svelte:head><title>Ajustes · Tordo</title></svelte:head>
 
 <div class="ajustes">
-  <h1>Ajustes</h1>
-  <p class="ayuda"><a href="/ayuda">Ayuda: atajos, secciones y conceptos</a></p>
+  <div class="head">
+    <h1>Ajustes</h1>
+    <a class="ayuda" href="/ayuda">Ayuda <span aria-hidden="true">→</span></a>
+  </div>
   {#if forbidden}
     <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
     {#if !auth.local}
@@ -211,9 +213,19 @@
     color: var(--muted);
     margin-top: 0;
   }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
   .ayuda {
-    margin-top: 0;
-    color: var(--muted);
+    flex: none;
+    font-size: var(--fs-sm);
+    color: var(--accent);
+  }
+  .ayuda:hover {
+    text-decoration: underline;
   }
   .warn {
     color: var(--warn);
