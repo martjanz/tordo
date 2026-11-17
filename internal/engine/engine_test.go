@@ -17,7 +17,7 @@ import (
 	"tordo/internal/store"
 )
 
-var errTest = errors.New("prueba")
+var errTest = errors.New("boom")
 
 // failMB is a MusicBrainz that fails every call: nothing touches the network.
 type failMB struct{}
@@ -353,7 +353,7 @@ func TestUpdateLAN(t *testing.T) {
 	bad.LAN.Port = 6000
 	err := e.Apply(bad)
 	var ve *ValidationError
-	if !errors.As(err, &ve) || ve.Error() != "could not open port 6000: prueba" {
+	if !errors.As(err, &ve) || ve.Error() != "could not open port 6000: boom" {
 		t.Fatalf("err %v", err)
 	}
 	if saved, _, _ := config.Load(e.AppDir); !reflect.DeepEqual(saved, other) {

@@ -108,7 +108,7 @@ func (s *Server) parts() parts {
 			p.scan = func() {
 				go func() {
 					if err := sc.Run(context.Background()); err != nil && !errors.Is(err, scan.ErrBusy) {
-						log.Printf("escaneo: %v", err)
+						log.Printf("scan: %v", err)
 					}
 				}()
 			}
@@ -327,7 +327,7 @@ func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("respuesta: %v", err)
+		log.Printf("response: %v", err)
 	}
 }
 

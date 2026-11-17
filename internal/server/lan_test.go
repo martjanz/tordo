@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -226,6 +227,8 @@ func TestLoginClosedAndReadOnly(t *testing.T) {
 	}
 	if err := s.ApplyLAN(config.LAN{Enabled: true, Port: freePort(t)}); err == nil {
 		t.Fatal("browse-only opened the LAN")
+	} else if !errors.Is(err, engine.ErrReadOnly) {
+		t.Fatalf("browse-only: %v", err)
 	}
 }
 
@@ -351,6 +354,10 @@ func TestApplyLAN(t *testing.T) {
 	tp := taken.Addr().(*net.TCPAddr).Port
 	if err := s.ApplyLAN(config.LAN{Enabled: true, Port: tp}); err == nil || !strings.Contains(err.Error(), strconv.Itoa(tp)) {
 		t.Fatalf("taken port: %v", err)
+	} else if strings.Contains(err.Error(), "could not open port") {
+		t.Fatalf("the engine adds the port context, ApplyLAN must not: %v", err)
+	} else if msg := (&engine.PortError{Port: tp, Err: err}).Error(); strings.Count(msg, "could not open port") != 1 {
+		t.Fatalf("port context must appear once: %q", msg)
 	}
 	if err := s.ApplyLAN(config.LAN{Enabled: false, Port: port2}); err != nil {
 		t.Fatal(err)

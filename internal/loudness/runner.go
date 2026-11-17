@@ -137,7 +137,7 @@ func (r *Runner) takeQueue() []int64 {
 func (r *Runner) pass(ctx context.Context) bool {
 	n, err := r.Catalog.LoudnessPendingCount()
 	if err != nil {
-		log.Printf("volumen: %v", err)
+		log.Printf("loudness: %v", err)
 		return false
 	}
 	r.mu.Lock()
@@ -162,7 +162,7 @@ func (r *Runner) pass(ctx context.Context) bool {
 			batch, err = r.Catalog.LoudnessPending(batchSize)
 		}
 		if err != nil {
-			log.Printf("volumen: %v", err)
+			log.Printf("loudness: %v", err)
 			return false
 		}
 		if len(batch) == 0 {
@@ -177,7 +177,7 @@ func (r *Runner) pass(ctx context.Context) bool {
 			if q := r.takeQueue(); len(q) > 0 {
 				first, err := r.Catalog.LoudnessJobs(q)
 				if err != nil {
-					log.Printf("volumen: %v", err)
+					log.Printf("loudness: %v", err)
 					return false
 				}
 				batch = append(first, batch...)
@@ -217,23 +217,23 @@ func (r *Runner) measure(ctx context.Context, analyze func(context.Context, stri
 		err = r.Catalog.SaveLoudness(job.Ref, &v, "")
 	} else {
 		if errors.Is(err, ErrNotStarted) {
-			log.Printf("volumen: %v", err)
+			log.Printf("loudness: %v", err)
 			return false, true
 		}
 		if temporaryRead(err) {
-			log.Printf("volumen: error de lectura en %s: %v", job.Path, err)
+			log.Printf("loudness: read error on %s: %v", job.Path, err)
 			return false, true
 		}
 		f, oerr := os.Open(file)
 		if oerr != nil {
-			log.Printf("volumen: no se puede leer %s: %v", job.Path, oerr)
+			log.Printf("loudness: cannot read %s: %v", job.Path, oerr)
 			return false, true
 		}
 		f.Close()
 		err = r.Catalog.SaveLoudness(job.Ref, nil, err.Error())
 	}
 	if err != nil {
-		log.Printf("volumen: %v", err)
+		log.Printf("loudness: %v", err)
 		return false, false
 	}
 	r.mu.Lock()

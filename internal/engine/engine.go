@@ -227,7 +227,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 	if err := config.Save(e.AppDir, cfg); err != nil {
 		if lanMoved {
 			if err2 := e.LAN(cur.LAN); err2 != nil {
-				log.Printf("no se pudo restaurar el acceso desde la red: %v", err2)
+				log.Printf("could not restore local network access: %v", err2)
 			}
 		}
 		return err
@@ -280,7 +280,7 @@ func (e *Engine) build(cfg config.Config) *Runtime {
 		return rt
 	}
 	if cfg.DiscogsToken == "" {
-		log.Print("sin token de Discogs: los géneros salen de MusicBrainz, de sus enlaces a Discogs y de los tags")
+		log.Print("no Discogs token: genres come from MusicBrainz, its Discogs links and the tags")
 	}
 	var dc identify.Discogs
 	if e.Discogs != nil {
@@ -327,7 +327,7 @@ func (rt *Runtime) start(run func(*scan.Scanner, context.Context) error) {
 	go func() {
 		defer rt.scans.Done()
 		if err := run(rt.Scanner, ctx); err != nil && !errors.Is(err, scan.ErrBusy) && ctx.Err() == nil {
-			log.Printf("escaneo: %v", err)
+			log.Printf("scan: %v", err)
 		}
 	}()
 }

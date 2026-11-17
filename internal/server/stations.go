@@ -106,7 +106,7 @@ func (s *Server) createStation(w http.ResponseWriter, r *http.Request) {
 	}
 	ss, ok, err := s.Store.Station(id)
 	if err != nil || !ok {
-		fail(w, errors.Join(err, errors.New("la estación desapareció al crearla")))
+		fail(w, errors.Join(err, errors.New("the station disappeared after creation")))
 		return
 	}
 	writeJSONStatus(w, http.StatusCreated, listed(ss))

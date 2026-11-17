@@ -175,7 +175,7 @@ func (s *Store) RateAlbum(id int64, stars int) (bool, error) {
 // LikeArtist likes or unlikes an artist by its catalog key.
 func (s *Store) LikeArtist(key string, liked bool) error {
 	if key == "" {
-		return errors.New("falta el artista")
+		return errors.New("missing artist")
 	}
 	return s.sideWrite(true, func(tx *sql.Tx) error { return setLike(tx, KindArtist, key, liked) })
 }

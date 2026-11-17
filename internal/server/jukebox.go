@@ -53,7 +53,7 @@ func (s *Server) stream(w http.ResponseWriter, r *http.Request, c *jukebox.Conn)
 	write := func(e jukebox.Event) bool {
 		data, err := json.Marshal(e.Data)
 		if err != nil {
-			log.Printf("rockola: %v", err)
+			log.Printf("jukebox: %v", err)
 			return true
 		}
 		if !deadline() {

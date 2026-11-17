@@ -118,12 +118,12 @@ func (s *Server) Prepare() <-chan struct{} {
 		// Read sequentially what the snapshot would otherwise read in
 		// scattered pages: seconds instead of minutes on a hard disk.
 		if _, err := s.Store.Preload(); err != nil {
-			log.Printf("catálogo: %v", err)
+			log.Printf("catalog: %v", err)
 		}
 		if _, err := s.freshCatalog(); err != nil {
-			log.Printf("catálogo: %v", err)
+			log.Printf("catalog: %v", err)
 		} else if _, _, err := s.freshPersonal(); err != nil {
-			log.Printf("catálogo: %v", err)
+			log.Printf("catalog: %v", err)
 		}
 	}()
 	return ready
@@ -196,7 +196,7 @@ func (s *Server) cacheLater(snap *store.Snapshot) {
 			st.toSave = nil
 			st.saveMu.Unlock()
 			if err := s.saveStartCache(snap); err != nil {
-				log.Printf("caché del catálogo: %v", err)
+				log.Printf("catalog cache: %v", err)
 			}
 			st.saveMu.Lock()
 			st.lastSave = time.Now()
@@ -241,9 +241,9 @@ func (s *Server) browse() (*catalog.Catalog, *store.Personal, error) {
 			go func() {
 				defer s.cat.refreshing.Store(false)
 				if _, err := s.catalog(); err != nil {
-					log.Printf("catálogo: %v", err)
+					log.Printf("catalog: %v", err)
 				} else if _, err := s.personal(); err != nil {
-					log.Printf("catálogo: %v", err)
+					log.Printf("catalog: %v", err)
 				}
 			}()
 		}

@@ -262,7 +262,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		if newPin {
 			if err := s.Store.DeleteSessions(); err != nil {
-				log.Printf("no se pudieron cerrar las sesiones: %v", err)
+				log.Printf("could not close the sessions: %v", err)
 			}
 			s.jukebox().DropRemoteSessions()
 		}
@@ -272,7 +272,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, engine.ErrReadOnly):
 		fail(w, err)
 	default:
-		log.Printf("no se pudo guardar config.json: %v", err)
+		log.Printf("could not save config.json: %v", err)
 		writeError(w, http.StatusInternalServerError, codeConfigSaveFailed, "could not save config.json", nil)
 	}
 }

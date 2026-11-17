@@ -91,21 +91,21 @@ func Load(file string) (Data, error) {
 	defer f.Close()
 	zr, err := gzip.NewReader(f)
 	if err != nil {
-		return d, fmt.Errorf("caché del catálogo ilegible: %w", err)
+		return d, fmt.Errorf("unreadable catalog cache: %w", err)
 	}
 	dec := gob.NewDecoder(zr)
 	var v int
 	if err := dec.Decode(&v); err != nil {
-		return d, fmt.Errorf("caché del catálogo ilegible: %w", err)
+		return d, fmt.Errorf("unreadable catalog cache: %w", err)
 	}
 	if v != version {
-		return d, fmt.Errorf("caché del catálogo de otra versión (%d)", v)
+		return d, fmt.Errorf("catalog cache of another version (%d)", v)
 	}
 	if err := dec.Decode(&d); err != nil {
-		return Data{}, fmt.Errorf("caché del catálogo ilegible: %w", err)
+		return Data{}, fmt.Errorf("unreadable catalog cache: %w", err)
 	}
 	if _, err := io.Copy(io.Discard, zr); err != nil {
-		return Data{}, fmt.Errorf("caché del catálogo ilegible: %w", err)
+		return Data{}, fmt.Errorf("unreadable catalog cache: %w", err)
 	}
 	return d, nil
 }

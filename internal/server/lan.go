@@ -15,6 +15,7 @@ import (
 
 	"tordo/internal/auth"
 	"tordo/internal/config"
+	"tordo/internal/engine"
 	"tordo/internal/jukebox"
 	"tordo/internal/qr"
 	"tordo/internal/store"
@@ -62,7 +63,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 		return nil
 	}
 	if s.readOnly() {
-		return fmt.Errorf("modo consulta: no se puede abrir el acceso desde la red")
+		return engine.ErrReadOnly
 	}
 	port := c.PortOrDefault()
 	if l.srv != nil && l.port == port {
@@ -72,7 +73,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 	// IPv6 address.
 	ln, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		return fmt.Errorf("could not open port %d: %w", port, err)
+		return err // the engine adds the port context (engine.PortError)
 	}
 	l.closeLocked()
 	l.srv = s.HTTPServer(s.LANHandler())
@@ -80,7 +81,7 @@ func (s *Server) ApplyLAN(c config.LAN) error {
 	l.port = ln.Addr().(*net.TCPAddr).Port
 	go func(srv *http.Server) {
 		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			log.Printf("red local: %v", err)
+			log.Printf("local network: %v", err)
 		}
 	}(l.srv)
 	return nil
