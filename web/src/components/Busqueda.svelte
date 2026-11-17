@@ -150,7 +150,7 @@
             <div class="label group">{GROUPS[o.kind]}</div>
           {/if}
           <a class="option" class:selected={selected === i} href={o.href} onclick={close} role="option" aria-selected={selected === i}>
-            <span class="thumb"><Tapa small srcs={picture(o)} icon={ICONS[o.kind]} round={o.kind === 'artist'} /></span>
+            <span class="thumb"><Tapa small srcs={picture(o)} icon={ICONS[o.kind]} name={o.kind === 'folder' ? '' : (o.item.name ?? o.item.title)} round={o.kind === 'artist'} /></span>
             <span class="text">
               <span class="title">{o.item.name ?? o.item.title}</span>
               <span class="meta">{meta(o)}</span>

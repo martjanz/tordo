@@ -1,7 +1,9 @@
 <script>
-  // A station card: a square with the radio icon, its name and its rules.
+  // A station card: its name set on an accent-lit gradient with a radio badge,
+  // then its name and its rules.
   import { DEFAULT_RULES, station as makeStation, summary } from '../lib/stations.js'
   import Icono from './Icono.svelte'
+  import Tapa from './Tapa.svelte'
 
   let { station, onplay, ondelete = null } = $props()
 
@@ -16,10 +18,10 @@
 <div class="card">
   {#if onplay}
     <button class="pic" onclick={() => onplay(full)} aria-label="Reproducir la estación {station.name}">
-      <Icono name="radio" size={40} />
+      <Tapa name={station.name} badge="radio" tint="var(--accent)" />
     </button>
   {:else}
-    <span class="pic"><Icono name="radio" size={40} /></span>
+    <span class="pic"><Tapa name={station.name} badge="radio" tint="var(--accent)" /></span>
   {/if}
   <span class="title">{station.name}</span>
   <span class="sub">{summary(full)}</span>
@@ -39,15 +41,18 @@
     min-width: 0;
   }
   .pic {
-    aspect-ratio: 1;
+    display: block;
     width: 100%;
+    padding: 0;
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
-    color: var(--accent);
+    border: 0;
+    background: none;
+    text-align: left;
     border-radius: var(--radius-lg);
+    cursor: pointer;
+  }
+  span.pic {
+    cursor: default;
   }
   .title,
   .sub {

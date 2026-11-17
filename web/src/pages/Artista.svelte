@@ -36,6 +36,15 @@
   // person's birth, not when they started).
   const span = $derived(artist ? years(artist.firstYear, artist.lastYear) : '')
 
+  // The picture: a mosaic of four of their covers, else the one cover, else
+  // their initials.
+  const pictures = $derived.by(() => {
+    if (!artist) return []
+    const ids = artist.albums.filter((a) => a.picture !== false).map((a) => a.id)
+    if (ids.length >= 4) return ids.slice(0, 4).map((id) => albumCoverURL(id, 320))
+    return artist.cover ? [albumCoverURL(artist.cover, 640)] : []
+  })
+
   const TYPES = { Person: 'Solista', Group: 'Grupo', Orchestra: 'Orquesta', Choir: 'Coro' }
 </script>
 
@@ -44,7 +53,7 @@
 {:else if artist}
   <div class="head">
     <div class="pic">
-      <Tapa srcs={artist.cover ? [albumCoverURL(artist.cover, 640)] : []} icon="user" round alt={artist.name} />
+      <Tapa srcs={pictures} round alt={artist.name} />
     </div>
     <div class="info">
       <span class="label">{TYPES[artist.type] ?? 'Artista'}</span>
