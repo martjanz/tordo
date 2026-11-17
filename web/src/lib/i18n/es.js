@@ -215,6 +215,16 @@ export default {
     albumsNever: { one: '{n} álbum nunca escuchado', other: '{n} álbumes nunca escuchados' },
     albumsStale: { one: '{n} álbum sin escuchar hace más de un año', other: '{n} álbumes sin escuchar hace más de un año' },
   },
+  help: {
+    title: 'Ayuda',
+    intro: 'Qué hace cada parte de Tordo, los atajos y algunas pautas de uso.',
+    contents: 'Contenido de la ayuda',
+    or: 'o',
+    blockedInListen: 'No disponible en modo escucha.',
+  },
+  key: {
+    space: 'Espacio',
+  },
   nav: {
     home: 'Inicio',
     explore: 'Explorar',

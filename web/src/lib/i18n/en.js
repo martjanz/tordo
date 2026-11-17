@@ -215,6 +215,16 @@ export default {
     albumsNever: { one: '{n} album never played', other: '{n} albums never played' },
     albumsStale: { one: '{n} album not played in over a year', other: '{n} albums not played in over a year' },
   },
+  help: {
+    title: 'Help',
+    intro: 'What each part of Tordo does, the shortcuts and some usage guidelines.',
+    contents: 'Help contents',
+    or: 'or',
+    blockedInListen: 'Not available in listen mode.',
+  },
+  key: {
+    space: 'Space',
+  },
   nav: {
     home: 'Home',
     explore: 'Explore',

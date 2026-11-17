@@ -101,7 +101,7 @@
 
         {#each p.notes as note (note)}<p class="note">{note}</p>{/each}
 
-        <a class="more" href="/help#como-funciona" onclick={close}>{t('status.howItWorks')}</a>
+        <a class="more" href="/help#how-it-works" onclick={close}>{t('status.howItWorks')}</a>
       </div>
     {/if}
   </span>

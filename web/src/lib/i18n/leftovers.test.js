@@ -10,10 +10,6 @@ const SPANISH = /[áéíóúñ¿¡ÁÉÍÓÚÑ]/
 
 const SRC = fileURLToPath(new URL('../../', import.meta.url))
 
-// PENDING lists the files not migrated yet, one path per line. The list can
-// only shrink: a file listed here that no longer has Spanish text fails.
-const PENDING = ['lib/ayuda.js', 'pages/Ayuda.svelte']
-
 // ALLOW lists the accepted exceptions: a line of the file that contains text.
 // Each one needs a reason.
 const ALLOW = [
@@ -99,18 +95,9 @@ describe('the comment stripper', () => {
 describe('leftover Spanish', () => {
   const files = sources()
 
-  it('lists existing files only', () => {
-    for (const rel of PENDING) expect(files, rel).toContain(rel)
-  })
-
-  it('is not in any file that was migrated', () => {
-    const found = files.filter((rel) => !PENDING.includes(rel)).flatMap((rel) => spanishLines(rel).map((l) => `${rel}:${l.line}: ${l.text}`))
+  it('is not in any source file', () => {
+    const found = files.flatMap((rel) => spanishLines(rel).map((l) => `${rel}:${l.line}: ${l.text}`))
     expect(found).toEqual([])
-  })
-
-  it('is still in every pending file (the list only shrinks)', () => {
-    const clean = PENDING.filter((rel) => files.includes(rel) && spanishLines(rel).length === 0)
-    expect(clean, 'remove these files from PENDING').toEqual([])
   })
 
   it('has no stale exceptions', () => {
