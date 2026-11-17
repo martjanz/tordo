@@ -5,7 +5,7 @@
   // server answers it.
   import { api, releaseURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
-  import { candidateLine, percent } from '../lib/review.js'
+  import { candidateLine, confidenceLevel, percent } from '../lib/review.js'
 
   let { album, onchange } = $props()
 
@@ -40,7 +40,7 @@
       {#each album.candidates as c (c.releaseId)}
         <li class:current={c.releaseId === album.releaseId}>
           <button onclick={() => choose(c.releaseId)} disabled={busy}>Elegir</button>
-          <span class="score">{percent(c.score)}</span>
+          <span class="score {confidenceLevel(c.score)}">{percent(c.score)}</span>
           <span class="text">
             <span class="title">{c.title}</span>
             <span class="meta">{candidateLine(c)}</span>
@@ -92,6 +92,12 @@
     font-variant-numeric: tabular-nums;
     color: var(--muted);
     font-size: var(--fs-sm);
+  }
+  .score.high {
+    color: var(--ok);
+  }
+  .score.mid {
+    color: var(--warn);
   }
   .text {
     flex: 1;
