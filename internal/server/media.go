@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -36,7 +35,7 @@ func trackFormat(f store.TrackFile) stream.Format {
 func (s *Server) streamTrack(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 		return
 	}
 	f, ok, err := s.Store.TrackFile(id)
@@ -45,32 +44,13 @@ func (s *Server) streamTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		http.Error(w, "pista no encontrada", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeTrackNotFound, "track not found", nil)
 		return
 	}
 	s.Streamer.Serve(w, r, appdir.Abs(s.AppDir, f.Path), trackFormat(f), r.URL.Query().Get("transcode") == "1")
 }
 
-// httpError is a request the server refuses, with the status and text to answer.
-type httpError struct {
-	code int
-	msg  string
-}
-
-func (e *httpError) Error() string { return e.msg }
-
-// answer writes err as the response: an *httpError with its status, anything
-// else as an internal error.
-func answer(w http.ResponseWriter, err error) {
-	var he *httpError
-	if errors.As(err, &he) {
-		http.Error(w, he.msg, he.code)
-		return
-	}
-	fail(w, err)
-}
-
-func badID() error { return &httpError{http.StatusBadRequest, "id inválido"} }
+func badID() error { return reject(http.StatusBadRequest, codeInvalidID, "invalid id", nil) }
 
 // resolve lists the tracks a play query names: album, folder, artist,
 // track (repeatable), playlist (its available entries in order) or liked=1
@@ -86,7 +66,7 @@ func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 		if _, ok, err := s.Store.Album(id); err != nil {
 			return nil, err
 		} else if !ok {
-			return nil, &httpError{http.StatusNotFound, "álbum no encontrado"}
+			return nil, errAlbumNotFound
 		}
 		return s.Store.PlayAlbum(id)
 	case q.Has("folder"):
@@ -94,7 +74,7 @@ func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 	case q.Has("artist"):
 		items, ok, err := s.playArtist(q.Get("artist"))
 		if err == nil && !ok {
-			return nil, &httpError{http.StatusNotFound, "artista no encontrado"}
+			return nil, errArtistNotFound
 		}
 		return items, err
 	case q.Has("track"):
@@ -114,7 +94,7 @@ func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 		}
 		items, ok, err := s.Store.PlayPlaylist(id)
 		if err == nil && !ok {
-			return nil, &httpError{http.StatusNotFound, "lista no encontrada"}
+			return nil, errPlaylistNotFound
 		}
 		return items, err
 	case q.Get("liked") == "1":
@@ -124,7 +104,7 @@ func (s *Server) resolve(q url.Values) ([]store.PlayItem, error) {
 		}
 		return s.Store.PlayTracks(ids)
 	}
-	return nil, &httpError{http.StatusBadRequest, "falta qué reproducir: album, folder, artist, track, playlist o liked"}
+	return nil, reject(http.StatusBadRequest, codeNothingToPlay, "album, folder, artist, track, playlist or liked is required", nil)
 }
 
 // play answers GET /api/play: the tracks to queue for an album
@@ -137,7 +117,7 @@ func (s *Server) play(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	items, err := s.resolve(q)
 	if err != nil {
-		answer(w, err)
+		fail(w, err)
 		return
 	}
 	if q.Get("shuffle") == "1" {
@@ -224,12 +204,12 @@ func (s *Server) trackCover(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) coverByID(w http.ResponseWriter, r *http.Request, serve func(http.ResponseWriter, *http.Request, int64)) {
 	if s.Covers == nil {
-		http.Error(w, "sin carátula", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeNoCover, "no cover", nil)
 		return
 	}
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "id inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 		return
 	}
 	serve(w, r, id)
@@ -301,14 +281,14 @@ func (s *Server) prioritizeUnmeasured(ids []int64, gains map[int64]loudness.Trac
 func (s *Server) gains(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()["track"]
 	if len(q) == 0 || len(q) > maxGains {
-		http.Error(w, "se esperan entre 1 y 100 pistas", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidTrackCount, "expected 1 to 100 tracks", nil)
 		return
 	}
 	ids := make([]int64, len(q))
 	for i, v := range q {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			http.Error(w, "id inválido", http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, codeInvalidID, "invalid id", nil)
 			return
 		}
 		ids[i] = id

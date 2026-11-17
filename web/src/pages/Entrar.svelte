@@ -2,6 +2,7 @@
   import { onDestroy, tick } from 'svelte'
   import { api } from '../lib/api.js'
   import { deviceName } from '../lib/device.js'
+  import { t } from '../lib/i18n/index.svelte.js'
 
   let pin = $state('')
   let busy = $state(false)
@@ -34,9 +35,9 @@
       location.reload()
       return
     } catch (e) {
-      if (e.status === 401) error = 'PIN incorrecto.'
+      if (e.status === 401) error = t('login.wrong')
       else if (e.status === 429) countdown(e.retryAfter || 30)
-      else if (e.status === 403) error = 'El acceso desde la red está apagado.'
+      else if (e.status === 403) error = t('login.lanOff')
       else error = e.message
       pin = ''
     }
@@ -46,10 +47,10 @@
   }
 </script>
 
-<svelte:head><title>Entrar · Tordo</title></svelte:head>
+<svelte:head><title>{t('login.enter')} · Tordo</title></svelte:head>
 
 <form class="entrar" onsubmit={submit}>
-  <h1>Ingresá el PIN de Tordo</h1>
+  <h1>{t('login.title')}</h1>
   <input
     type="password"
     inputmode="numeric"
@@ -62,10 +63,10 @@
     disabled={busy}
   />
   <button class="primary" type="submit" disabled={busy || locked || pin === ''}>
-    {busy ? 'Entrando…' : 'Entrar'}
+    {busy ? t('login.entering') : t('login.enter')}
   </button>
   {#if locked}
-    <p class="warn" role="alert">Demasiados intentos. Probá de nuevo en {wait} s.</p>
+    <p class="warn" role="alert">{t('error.too_many_attempts', { seconds: wait })}</p>
   {:else if error}
     <p class="warn" role="alert">{error}</p>
   {/if}

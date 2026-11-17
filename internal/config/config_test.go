@@ -201,3 +201,35 @@ func TestListenModeRoundTrip(t *testing.T) {
 		t.Fatalf("default = %+v (%v)", cfg, err)
 	}
 }
+
+func TestLanguageOrAuto(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"", ""}, {"es", "es"}, {"en", "en"}, {"pt-BR", "pt-BR"}, {"pt-br", "pt-BR"}, {"EN", "en"}, {"fr", ""}, {"pt", ""},
+	} {
+		if got := (Config{Language: c.in}).LanguageOrAuto(); got != c.want {
+			t.Errorf("LanguageOrAuto(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestLoadLanguageNotString(t *testing.T) {
+	app := appUnder(t)
+	if err := os.WriteFile(filepath.Join(app, FileName), []byte(`{"roots":[],"language":5}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := Load(app)
+	if err != nil || cfg.LanguageOrAuto() != "" {
+		t.Fatalf("cfg = %+v, err = %v", cfg, err)
+	}
+}
+
+func TestLoadLanguageFromFile(t *testing.T) {
+	app := appUnder(t)
+	if err := os.WriteFile(filepath.Join(app, FileName), []byte(`{"roots":[],"language":"pt-BR"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := Load(app)
+	if err != nil || cfg.Language != "pt-BR" {
+		t.Fatalf("cfg = %+v, err = %v", cfg, err)
+	}
+}

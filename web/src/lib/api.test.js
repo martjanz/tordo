@@ -37,7 +37,7 @@ describe('calls', () => {
 
   it('asks the server', async () => {
     const calls = recorder()
-    await api.explore('?decada=1980&ver=pistas', 120, 60)
+    await api.explore('?decade=1980&view=tracks', 120, 60)
     await api.explore('')
     await api.artist('sui generis/x')
     await api.find('soda st')
@@ -48,10 +48,10 @@ describe('calls', () => {
     await api.folderTree('../musica/a b')
     await api.folderTreeSearch('zitar')
     expect(calls).toEqual([
-      ['GET', '/api/explore?decada=1980&ver=pistas&desde=120&limite=60', null],
-      ['GET', '/api/explore?limite=120', null],
+      ['GET', '/api/explore?decade=1980&view=tracks&from=120&limit=60', null],
+      ['GET', '/api/explore?limit=120', null],
       ['GET', '/api/artists/sui%20generis%2Fx', null],
-      ['GET', '/api/search?q=soda+st&limite=6', null],
+      ['GET', '/api/search?q=soda+st&limit=6', null],
       ['PUT', '/api/folders/collection', '{"path":"../musica/x","collection":false}'],
       ['PUT', '/api/albums/4/identification', '{"releaseId":"abc"}'],
       ['DELETE', '/api/genres/aliases?raw=M%C3%BAsica+uruguaya', null],
@@ -63,16 +63,81 @@ describe('calls', () => {
   })
 })
 
+describe('errors', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const fail = (status, body) => vi.stubGlobal('fetch', async () => ({ ok: false, status, headers: { get: () => null }, text: async () => body }))
+  const error = () => api.status().then(() => null, (e) => e)
+
+  it('translates a known code and keeps the key for other devices', async () => {
+    fail(404, JSON.stringify({ code: 'album_not_found', message: 'album not found' }))
+    const e = await error()
+    expect(e).toBeInstanceOf(ApiError)
+    expect(e).toMatchObject({ status: 404, code: 'album_not_found', message: 'álbum no encontrado', notice: { key: 'error.album_not_found', params: {} } })
+  })
+
+  it('fills the params of the message', async () => {
+    fail(429, JSON.stringify({ code: 'too_many_attempts', message: 'x', params: { seconds: 30 } }))
+    const e = await error()
+    expect(e.message).toBe('Demasiados intentos. Probá de nuevo en 30 s.')
+    expect(e.notice).toEqual({ key: 'error.too_many_attempts', params: { seconds: 30 } })
+  })
+
+  it('falls back to the server message for an unknown code', async () => {
+    fail(500, JSON.stringify({ code: 'zzz', message: 'boom' }))
+    const e = await error()
+    expect(e).toMatchObject({ message: 'boom', code: 'zzz', notice: 'boom' })
+  })
+
+  it('shows the text of a body that is not JSON', async () => {
+    fail(502, '<html>Bad Gateway</html>')
+    expect((await error()).message).toBe('<html>Bad Gateway</html>')
+    fail(500, '5')
+    expect((await error()).message).toBe('5')
+  })
+
+  it('does not show a long raw body', async () => {
+    fail(502, 'x'.repeat(300))
+    expect((await error()).message).toBe('x'.repeat(300))
+    fail(502, '<html>' + 'x'.repeat(300) + '</html>')
+    expect((await error()).message).toBe('Error 502')
+  })
+
+  it('ignores params that are not an object', async () => {
+    fail(429, JSON.stringify({ code: 'too_many_attempts', message: 'x', params: ['a', 'b'] }))
+    const e = await error()
+    expect(e.params).toEqual({})
+    expect(e.notice).toEqual({ key: 'error.too_many_attempts', params: {} })
+    expect(e.message).toBe('Demasiados intentos. Probá de nuevo en {seconds} s.')
+  })
+
+  it('says the status when the body is empty', async () => {
+    fail(500, '')
+    const e = await error()
+    expect(e.message).toBe('Error 500')
+    fail(500, '{}')
+    expect((await error()).message).toBe('Error 500')
+  })
+
+  it('reports a network failure', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('failed')
+    })
+    const e = await error()
+    expect(e).toMatchObject({ status: 0, code: 'network', message: 'No se pudo contactar a Tordo. ¿Sigue abierto?', notice: { key: 'error.network' } })
+  })
+})
+
 describe('stations', () => {
   afterEach(() => vi.unstubAllGlobals())
-  const st = { name: 'Rock', source: { view: 'pistas', facets: { genero: 'Rock' } }, mode: 'pistas', artistGap: 3, avoidDays: 7 }
+  const st = { name: 'Rock', source: { view: 'tracks', facets: { genre: 'Rock' } }, mode: 'tracks', artistGap: 3, avoidDays: 7 }
 
   it('writes the station query without the id', () => {
     const q = new URLSearchParams(stationQuery({ ...st, id: 4, createdAt: 'x' }, [1, 2, 3]))
     expect(JSON.parse(q.get('def'))).toEqual(st)
-    expect(q.get('recientes')).toBe('1,2,3')
-    expect(new URLSearchParams(stationQuery(st, [])).has('recientes')).toBe(false)
-    expect(new URLSearchParams(stationQuery(st)).has('recientes')).toBe(false)
+    expect(q.get('recent')).toBe('1,2,3')
+    expect(new URLSearchParams(stationQuery(st, [])).has('recent')).toBe(false)
+    expect(new URLSearchParams(stationQuery(st)).has('recent')).toBe(false)
   })
 
   it('asks the server', async () => {
@@ -86,15 +151,15 @@ describe('stations', () => {
     await api.updateStation(9, { ...st, id: 9 })
     await api.deleteStation(9)
     await api.home(42)
-    await api.stats('anio', 10)
+    await api.stats('year', 10)
     await api.stationNext(st, [4, 5])
     expect(calls.map((c) => c.slice(0, 2))).toEqual([
       ['GET', '/api/stations'],
       ['POST', '/api/stations'],
       ['PUT', '/api/stations/9'],
       ['DELETE', '/api/stations/9'],
-      ['GET', '/api/home?semilla=42'],
-      ['GET', '/api/stats?periodo=anio&limite=10'],
+      ['GET', '/api/home?seed=42'],
+      ['GET', '/api/stats?period=year&limit=10'],
       ['GET', '/api/station/next?' + stationQuery(st, [4, 5])],
     ])
     expect(JSON.parse(calls[1][2])).toEqual(st)
@@ -124,7 +189,7 @@ describe('config, lan and auth', () => {
     await api.auth()
     await api.login('123456', 'Celu')
     await api.logout()
-    await api.duplicates('formatos')
+    await api.duplicates('formats')
     await api.toConvert()
     expect(calls).toEqual([
       ['GET', '/api/config', null],
@@ -137,7 +202,7 @@ describe('config, lan and auth', () => {
       ['GET', '/api/auth', null],
       ['POST', '/api/auth/login', '{"pin":"123456","device":"Celu"}'],
       ['POST', '/api/auth/logout', '{}'],
-      ['GET', '/api/review/duplicates?tipo=formatos', null],
+      ['GET', '/api/review/duplicates?kind=formats', null],
       ['GET', '/api/review/formats', null],
     ])
   })

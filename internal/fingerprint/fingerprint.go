@@ -98,7 +98,7 @@ func oggPage(r io.ReaderAt, off int64, buf []byte) (data, n int64, err error) {
 		return 0, 0, err
 	}
 	if string(buf[:4]) != "OggS" {
-		return 0, 0, errors.New("página Ogg inválida")
+		return 0, 0, errors.New("invalid Ogg page")
 	}
 	segs := int(buf[26])
 	if _, err := r.ReadAt(buf[27:27+segs], off+27); err != nil {

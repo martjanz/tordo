@@ -9,7 +9,8 @@
   import { albumCoverURL, api, releaseURL } from '../lib/api.js'
   import { app, listenMode } from '../lib/app.svelte.js'
   import { albumMeta } from '../lib/album.js'
-  import { count, folderName, formatName } from '../lib/format.js'
+  import { artistLabel, folderName, formatName } from '../lib/format.js'
+  import { msg, t, text } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumStation } from '../lib/stations.js'
   import { identification } from '../lib/review.js'
@@ -30,7 +31,7 @@
         if (!stale) (album = a), (error = '')
       })
       .catch((e) => {
-        if (!stale) error = e.status === 404 ? 'Este álbum ya no está en el catálogo.' : e.message
+        if (!stale) error = e.status === 404 ? msg('album.gone') : e.message
       })
     return () => (stale = true)
   })
@@ -45,7 +46,7 @@
 </script>
 
 {#if error}
-  <p class="empty">{error}</p>
+  <p class="empty">{text(error)}</p>
 {:else if album}
   <div class="head">
     {#if album.picture}
@@ -53,10 +54,10 @@
     {/if}
     <div class="pic"><Tapa srcs={album.picture ? [albumCoverURL(album.id, 640)] : []} alt={album.title} /></div>
     <div class="info">
-      <span class="label">{album.compilation ? 'Compilado' : 'Álbum'}</span>
+      <span class="label">{album.compilation ? t('album.kindCompilation') : t('album.kindAlbum')}</span>
       <h1>{album.title}</h1>
       <p class="artist">
-        {#if album.artistKey}<a href={artistHref(album.artistKey)}>{album.artist}</a>{:else}{album.artist}{/if}
+        {#if album.artistKey}<a href={artistHref(album.artistKey)}>{artistLabel(album.artist)}</a>{:else}{artistLabel(album.artist)}{/if}
       </p>
       <p class="meta">
         {#each meta as group, i (i)}{#if i}{' '}<span class="dot">·</span>{' '}{/if}{#each group as item, j (j)}{#if j}, {/if}{#if item.href}<a href={item.href}>{item.label}</a>{:else}{item.label}{/if}{/each}{/each}
@@ -74,44 +75,44 @@
 
   {#if album.versions?.length && !listenMode()}
     <section class="versions">
-      <h2>Versiones</h2>
+      <h2>{t('album.versions')}</h2>
       <ul>
         {#each album.versions as v (v.albumId)}
           <li>
             <a class="vtitle" href={albumHref(v.albumId)}>{v.title}</a>
-            <span>{v.artist}</span>
+            <span>{artistLabel(v.artist)}</span>
             {#if v.year}<span>{v.year}</span>{/if}
             <span>{v.formats.map(formatName).join(' · ')}</span>
-            <span>{count(v.shared, 'tema', 'temas')} en común</span>
-            {#if v.kind === 'exacta'}<span class="exact">copia idéntica</span>{/if}
+            <span>{t('count.sharedSongs', { n: v.shared })}</span>
+            {#if v.kind === 'exact'}<span class="exact">{t('album.exactCopy')}</span>{/if}
           </li>
         {/each}
       </ul>
-      <a class="sub" href={duplicatesHref(album.versions.some((v) => v.kind === 'exacta') ? 'exactas' : 'formatos')}>Ver duplicados →</a>
+      <a class="sub" href={duplicatesHref(album.versions.some((v) => v.kind === 'exact') ? 'exact' : 'formats')}>{t('album.seeDuplicates')}</a>
     </section>
   {/if}
 
   <section class="details">
-    <h2>Detalles</h2>
+    <h2>{t('album.details')}</h2>
     <dl>
-      <dt>Carpeta</dt>
+      <dt>{t('album.folder')}</dt>
       <dd><a class="path" href={folderHref(album.dir)} title={album.dir}>{folderName(album.dir)}</a></dd>
-      <dt>Identificación</dt>
+      <dt>{t('album.identification')}</dt>
       <dd>
         {identification(album)}
-        {#if identified}· <a href={releaseURL(album.releaseId)} target="_blank" rel="noreferrer">ver en MusicBrainz ↗</a>{/if}
+        {#if identified}· <a href={releaseURL(album.releaseId)} target="_blank" rel="noreferrer">{t('album.viewMB')}</a>{/if}
       </dd>
       {#if album.title !== album.tagTitle}
-        <dt>En los tags</dt>
-        <dd>«{album.tagTitle}»</dd>
+        <dt>{t('album.inTagsLabel')}</dt>
+        <dd>{t('album.tagTitle', { title: album.tagTitle })}</dd>
       {/if}
     </dl>
     {#if !app.status?.readOnly && !listenMode()}
       {#if correcting}
         <Identificar {album} onchange={corrected} />
-        <button onclick={() => (correcting = false)}>Cerrar</button>
+        <button onclick={() => (correcting = false)}>{t('common.close')}</button>
       {:else}
-        <button class="fix" onclick={() => (correcting = true)}>Corregir identificación</button>
+        <button class="fix" onclick={() => (correcting = true)}>{t('album.correct')}</button>
       {/if}
     {/if}
   </section>

@@ -21,13 +21,13 @@ const (
 )
 
 var (
-	ErrNoSpeaker      = errors.New("La rockola no está disponible: activá el audio en la compu.")
-	ErrNotSpeaker     = errors.New("este navegador ya no es el parlante")
-	ErrUnknownCommand = errors.New("orden desconocida")
-	ErrForbidden      = errors.New("Solo el anfitrión puede hacer esto.")
-	ErrUnknownRemote  = errors.New("control desconocido")
-	ErrTooMany        = errors.New("Demasiados controles conectados a la rockola.")
-	ErrBusy           = errors.New("La compu no responde: probá de nuevo.")
+	ErrNoSpeaker      = errors.New("jukebox is not available: no speaker")
+	ErrNotSpeaker     = errors.New("this browser is no longer the speaker")
+	ErrUnknownCommand = errors.New("unknown command")
+	ErrForbidden      = errors.New("only the host can do this")
+	ErrUnknownRemote  = errors.New("unknown remote")
+	ErrTooMany        = errors.New("too many remotes connected to the jukebox")
+	ErrBusy           = errors.New("the speaker is not responding")
 )
 
 // MaxRemotes is how many remotes may be connected at once.
@@ -148,16 +148,17 @@ func (h *Hub) Publish(token string, state json.RawMessage) error {
 	return nil
 }
 
-// Notice sends a text to one remote (the one whose command caused it). An
+// Notice sends a notice to one remote (the one whose command caused it): a
+// JSON string, or a message key with params that the phone translates. An
 // unknown remote (it left) is not an error.
-func (h *Hub) Notice(token, remote, text string) error {
+func (h *Hub) Notice(token, remote string, notice json.RawMessage) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.speaker == nil || token != h.token {
 		return ErrNotSpeaker
 	}
 	if c, ok := h.remotes[remote]; ok {
-		h.sendLocked(c, Event{"notice", map[string]string{"text": text}})
+		h.sendLocked(c, Event{"notice", map[string]json.RawMessage{"notice": notice}})
 	}
 	return nil
 }

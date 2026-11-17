@@ -5,6 +5,7 @@
   // server answers it.
   import { api, releaseURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { candidateLine, percent } from '../lib/review.js'
 
   let { album, onchange } = $props()
@@ -39,29 +40,29 @@
     <ul class="candidates">
       {#each album.candidates as c (c.releaseId)}
         <li class:current={c.releaseId === album.releaseId}>
-          <button onclick={() => choose(c.releaseId)} disabled={busy}>Elegir</button>
+          <button onclick={() => choose(c.releaseId)} disabled={busy}>{t('review.identify.choose')}</button>
           <span class="score">{percent(c.score)}</span>
           <span class="text">
             <span class="title">{c.title}</span>
             <span class="meta">{candidateLine(c)}</span>
           </span>
-          <a href={releaseURL(c.releaseId)} target="_blank" rel="noreferrer" title="Ver en MusicBrainz">↗</a>
+          <a href={releaseURL(c.releaseId)} target="_blank" rel="noreferrer" title={t('review.identify.viewMB')}>↗</a>
         </li>
       {/each}
     </ul>
   {:else}
-    <p class="none">MusicBrainz no ofreció candidatos.</p>
+    <p class="none">{t('review.identify.none')}</p>
   {/if}
   <form {onsubmit}>
-    <input bind:value={pasted} placeholder="Pegá un enlace de musicbrainz.org/release/…" aria-label="Lanzamiento de MusicBrainz" />
-    <button type="submit" disabled={busy || !pasted.trim()}>Usar</button>
+    <input bind:value={pasted} placeholder={t('review.identify.paste')} aria-label={t('review.identify.releaseLabel')} />
+    <button type="submit" disabled={busy || !pasted.trim()}>{t('review.identify.use')}</button>
   </form>
   <div class="more">
     {#if album.status !== 'ignored'}
-      <button onclick={ignore} disabled={busy}>No está en MusicBrainz</button>
+      <button onclick={ignore} disabled={busy}>{t('review.identify.notInMB')}</button>
     {/if}
     {#if album.status === 'manual' || album.status === 'ignored'}
-      <button onclick={reset} disabled={busy}>Volver a la identificación automática</button>
+      <button onclick={reset} disabled={busy}>{t('review.identify.backToAuto')}</button>
     {/if}
   </div>
 </div>

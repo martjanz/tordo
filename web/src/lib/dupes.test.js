@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { KINDS, fileQuality, groupLine } from './dupes.js'
 
 describe('fileQuality', () => {
@@ -22,17 +23,44 @@ describe('fileQuality', () => {
 describe('groupLine', () => {
   it('counts files and size, and the recoverable space of exact copies', () => {
     const files = [{}, {}, {}]
-    expect(groupLine({ kind: 'exacta', files, sizeBytes: 21_000_000, recoverable: 14_000_000 })).toBe('3 archivos · 21 MB · 14 MB recuperables')
-    expect(groupLine({ kind: 'formatos', files: files.slice(0, 2), sizeBytes: 9_000_000, recoverable: 0 })).toBe('2 archivos · 9,0 MB')
+    expect(groupLine({ kind: 'exact', files, sizeBytes: 21_000_000, recoverable: 14_000_000 })).toBe('3 archivos · 21 MB · 14 MB recuperables')
+    expect(groupLine({ kind: 'formats', files: files.slice(0, 2), sizeBytes: 9_000_000, recoverable: 0 })).toBe('2 archivos · 9,0 MB')
   })
 })
 
 describe('KINDS', () => {
+  it('has the help and empty texts of every kind, and the kinds the router accepts', () => {
+    for (const k of KINDS) {
+      expect(k.help, k.kind).toBeTruthy()
+      expect(k.empty, k.kind).toBeTruthy()
+    }
+    expect(KINDS.map((k) => k.kind)).toEqual(['exact', 'formats', 'suspected'])
+  })
   it('lists the kinds with the key of their count', () => {
     expect(KINDS.map((k) => [k.kind, k.count])).toEqual([
-      ['exactas', 'exact'],
-      ['formatos', 'formats'],
-      ['sospechas', 'suspect'],
+      ['exact', 'exact'],
+      ['formats', 'formats'],
+      ['suspected', 'suspect'],
     ])
+  })
+})
+
+describe('fileQuality in English', () => {
+  afterEach(() => setLocale('es'))
+  it('uses the English decimal point', () => {
+    setLocale('en')
+    expect(fileQuality({ format: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100 })).toBe('FLAC 16 bits / 44.1 kHz')
+  })
+})
+
+describe('duplicates in other languages', () => {
+  afterEach(() => setLocale('es'))
+  it('reads kinds and group lines', () => {
+    expect(KINDS[0].label).toBe('Copias idénticas')
+    expect(KINDS[2].help).toContain('Mismo artista')
+    setLocale('en')
+    expect(KINDS.map((k) => k.label)).toEqual(['Identical copies', 'Same song in several formats', 'Suspects'])
+    expect(KINDS[0].empty).toBe('There are no identical copies.')
+    expect(groupLine({ kind: 'exact', files: [1, 2, 3], sizeBytes: 21000000, recoverable: 14000000 })).toBe('3 files · 21 MB · 14 MB recoverable')
   })
 })

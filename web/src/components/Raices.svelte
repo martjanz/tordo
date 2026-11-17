@@ -1,5 +1,6 @@
 <script>
   import { api } from '../lib/api.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { addRoot, checkAll } from '../lib/settings.js'
 
   // d is the settings draft; the folders are d.roots.
@@ -30,8 +31,8 @@
 
 {#if d.roots.length > 1}
   <div class="all">
-    <button type="button" class="link" onclick={() => (d = checkAll(d, true))} {disabled}>Marcar todas</button>
-    <button type="button" class="link" onclick={() => (d = checkAll(d, false))} {disabled}>Desmarcar todas</button>
+    <button type="button" class="link" onclick={() => (d = checkAll(d, true))} {disabled}>{t('roots.checkAll')}</button>
+    <button type="button" class="link" onclick={() => (d = checkAll(d, false))} {disabled}>{t('roots.uncheckAll')}</button>
   </div>
 {/if}
 <ul>
@@ -40,18 +41,18 @@
       <label>
         <input type="checkbox" bind:checked={root.checked} {disabled} />
         <span class="text">
-          <span class="name">{label(root.path)}{#if !root.available}<small>no disponible</small>{/if}</span>
+          <span class="name">{label(root.path)}{#if !root.available}<small>{t('roots.unavailable')}</small>{/if}</span>
           {#if root.path !== label(root.path)}<span class="path">{root.path}</span>{/if}
         </span>
       </label>
     </li>
   {:else}
-    <li class="none">No hay carpetas al lado de la de Tordo: agregá una.</li>
+    <li class="none">{t('roots.none')}</li>
   {/each}
 </ul>
 <form onsubmit={add}>
-  <input type="text" bind:value={path} placeholder="Otra carpeta: D:\música o ../discos" {disabled} aria-label="Otra carpeta" />
-  <button type="submit" disabled={disabled || checking || !path.trim()}>Agregar</button>
+  <input type="text" bind:value={path} placeholder={t('roots.otherPlaceholder')} {disabled} aria-label={t('roots.otherLabel')} />
+  <button type="submit" disabled={disabled || checking || !path.trim()}>{t('roots.add')}</button>
 </form>
 {#if error}<p class="error">{error}</p>{/if}
 

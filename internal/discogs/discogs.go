@@ -19,9 +19,9 @@ import (
 const BaseURL = "https://api.discogs.com"
 
 var (
-	ErrNotFound     = errors.New("no existe en Discogs")
-	ErrUnauthorized = errors.New("Discogs rechazó el token")
-	ErrNoToken      = errors.New("sin token de Discogs")
+	ErrNotFound     = errors.New("not found on Discogs")
+	ErrUnauthorized = errors.New("Discogs rejected the token")
+	ErrNoToken      = errors.New("no Discogs token")
 )
 
 type Client struct {

@@ -6,9 +6,9 @@ const data = {
   likedTracks: [],
   liked: [{ id: 2 }],
   rotating: [
-    { kind: 'decada', value: '1980', albums: [{ id: 3 }] },
-    { kind: 'azar', value: '', albums: [] },
-    { kind: 'recientes', value: '', albums: [{ id: 4 }] },
+    { kind: 'decade', value: '1980', albums: [{ id: 3 }] },
+    { kind: 'random', value: '', albums: [] },
+    { kind: 'recent', value: '', albums: [{ id: 4 }] },
   ],
 }
 const keys = (sections) => sections.map((s) => s.key)
@@ -29,7 +29,7 @@ describe('seededRandom', () => {
 
 describe('homeSections', () => {
   it('holds the stations, the non-empty fixed rows and the rotating rows with albums', () => {
-    expect(keys(homeSections(data, 7)).sort()).toEqual(['continue', 'decada:1980', 'liked', 'recientes:', 'stations'])
+    expect(keys(homeSections(data, 7)).sort()).toEqual(['continue', 'decade:1980', 'liked', 'recent:', 'stations'])
   })
 
   it('keeps the order for a seed and varies it across seeds', () => {

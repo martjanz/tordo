@@ -31,7 +31,7 @@ func ids(ts []*Track) []int64 {
 
 func TestStationClean(t *testing.T) {
 	st := Station{Name: "  " + strings.Repeat("ñ", 300) + " ", Mode: "x", ArtistGap: -1, AvoidDays: 9999,
-		Source: Source{Folder: " a/b ", Playlist: 3, Liked: true, View: ViewTracks, Facets: map[string]string{"pais": "AR"}}}
+		Source: Source{Folder: " a/b ", Playlist: 3, Liked: true, View: ViewTracks, Facets: map[string]string{"country": "AR"}}}
 	got := st.Clean()
 	if got.Source.Folder != "a/b" || got.Source.Playlist != 0 || got.Source.Liked || got.Source.View != "" || got.Source.Facets != nil ||
 		got.Mode != ModeTracks || got.ArtistGap != 0 || got.AvoidDays != MaxAvoidDays {
@@ -46,8 +46,8 @@ func TestStationClean(t *testing.T) {
 	if got := (Station{Source: Source{Liked: true, View: ViewAlbums}, Mode: ModeAlbums}).Clean(); !got.Source.Liked || got.Source.View != "" || got.Mode != ModeAlbums {
 		t.Fatalf("liked: %+v", got)
 	}
-	got = Station{Source: Source{View: ViewArtists, Facets: map[string]string{"pais": "AR", "decada": "1985", "nope": "x"}}}.Clean()
-	if got.Source.View != ViewAlbums || !reflect.DeepEqual(got.Source.Facets, map[string]string{"pais": "AR"}) {
+	got = Station{Source: Source{View: ViewArtists, Facets: map[string]string{"country": "AR", "decade": "1985", "nope": "x"}}}.Clean()
+	if got.Source.View != ViewAlbums || !reflect.DeepEqual(got.Source.Facets, map[string]string{"country": "AR"}) {
 		t.Fatalf("query: %+v", got.Source)
 	}
 	got = Station{Source: Source{Facets: map[string]string{"nope": "x"}}}.Clean()
@@ -66,8 +66,8 @@ func TestStationPool(t *testing.T) {
 		list []int64
 		want []int64
 	}{
-		{"artist tracks", Source{View: ViewTracks, Facets: map[string]string{"artista": soda}}, nil, nil, []int64{101, 102, 201}},
-		{"albums", Source{View: ViewAlbums, Facets: map[string]string{"pais": "AR"}}, nil, nil, []int64{101, 102}},
+		{"artist tracks", Source{View: ViewTracks, Facets: map[string]string{"artist": soda}}, nil, nil, []int64{101, 102, 201}},
+		{"albums", Source{View: ViewAlbums, Facets: map[string]string{"country": "AR"}}, nil, nil, []int64{101, 102}},
 		{"folder", Source{Folder: la}, nil, nil, []int64{101, 102, 301}},
 		{"playlist", Source{Playlist: 1}, nil, []int64{301, 999, 301}, []int64{301}},
 		{"liked", Source{Liked: true}, p, nil, []int64{101, 102, 301, 401}},
@@ -113,7 +113,7 @@ func TestNextTracksRules(t *testing.T) {
 func TestNextArtistGap(t *testing.T) {
 	fixNow(t)
 	c := build()
-	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"decada": "1980"}}, Mode: ModeTracks, ArtistGap: 1}
+	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"decade": "1980"}}, Mode: ModeTracks, ArtistGap: 1}
 	for seed := range uint64(20) {
 		out := c.Next(st, StationInput{Rand: rand.New(rand.NewPCG(seed, 2)), Recent: []int64{101}}, 2)
 		if len(out) != 2 || out[0] != 301 || out[1] == 301 {
@@ -127,13 +127,13 @@ func TestNextAvoidsRecentPlays(t *testing.T) {
 	c := build()
 	yesterday := stationNow.Add(-24 * time.Hour).UnixMilli()
 	p := &store.Personal{Plays: map[int64]store.Plays{101: {Count: 1, Last: yesterday}, 102: {Count: 1, Last: yesterday}}}
-	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"estilo": "Pop Rock"}}, Mode: ModeTracks, AvoidDays: 7}
+	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"style": "Pop Rock"}}, Mode: ModeTracks, AvoidDays: 7}
 	out := c.Next(st, StationInput{Personal: p, Rand: rng()}, 2)
 	slices.Sort(out)
 	if !slices.Equal(out, []int64{101, 102}) {
 		t.Fatalf("relaxed: %v", out)
 	}
-	st.Source = Source{View: ViewTracks, Facets: map[string]string{"decada": "1980"}}
+	st.Source = Source{View: ViewTracks, Facets: map[string]string{"decade": "1980"}}
 	out = c.Next(st, StationInput{Personal: p, Rand: rng()}, 2)
 	slices.Sort(out)
 	if !slices.Equal(out, []int64{201, 301}) {
@@ -145,7 +145,7 @@ func TestNextWeights(t *testing.T) {
 	fixNow(t)
 	c := build()
 	p := &store.Personal{Tracks: map[int64]store.Mark{101: {Liked: true, Rating: 5}}}
-	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"decada": "1980"}}, Mode: ModeTracks}
+	st := Station{Source: Source{View: ViewTracks, Facets: map[string]string{"decade": "1980"}}, Mode: ModeTracks}
 	r := rng()
 	n := 0
 	for range 3000 {
@@ -181,7 +181,7 @@ func TestNextAlbums(t *testing.T) {
 
 func TestNextEmpty(t *testing.T) {
 	c := build()
-	if got := c.Next(Station{Source: Source{View: ViewTracks, Facets: map[string]string{"pais": "BR"}}, Mode: ModeTracks}, StationInput{Rand: rng()}, 10); len(got) != 0 {
+	if got := c.Next(Station{Source: Source{View: ViewTracks, Facets: map[string]string{"country": "BR"}}, Mode: ModeTracks}, StationInput{Rand: rng()}, 10); len(got) != 0 {
 		t.Fatalf("nothing: %v", got)
 	}
 	if got := c.Next(Station{Source: Source{Playlist: 1}, Mode: ModeAlbums}, StationInput{Rand: rng()}, 10); len(got) != 0 {

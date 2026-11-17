@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -204,8 +205,8 @@ func TestLoginLimiter(t *testing.T) {
 	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "30" {
 		t.Fatalf("locked: %d %q", rec.Code, rec.Header().Get("Retry-After"))
 	}
-	if !strings.Contains(rec.Body.String(), "30 s") {
-		t.Fatalf("body = %q", rec.Body)
+	if e := wantError(t, rec, http.StatusTooManyRequests, codeTooManyAttempts); e.Params["seconds"] != float64(30) {
+		t.Fatalf("params = %v", e.Params)
 	}
 	clock = clock.Add(30 * time.Second)
 	if rec := login(h, testPIN, ""); rec.Code != http.StatusOK {
@@ -226,6 +227,8 @@ func TestLoginClosedAndReadOnly(t *testing.T) {
 	}
 	if err := s.ApplyLAN(config.LAN{Enabled: true, Port: freePort(t)}); err == nil {
 		t.Fatal("browse-only opened the LAN")
+	} else if !errors.Is(err, engine.ErrReadOnly) {
+		t.Fatalf("browse-only: %v", err)
 	}
 }
 
@@ -351,6 +354,10 @@ func TestApplyLAN(t *testing.T) {
 	tp := taken.Addr().(*net.TCPAddr).Port
 	if err := s.ApplyLAN(config.LAN{Enabled: true, Port: tp}); err == nil || !strings.Contains(err.Error(), strconv.Itoa(tp)) {
 		t.Fatalf("taken port: %v", err)
+	} else if strings.Contains(err.Error(), "could not open port") {
+		t.Fatalf("the engine adds the port context, ApplyLAN must not: %v", err)
+	} else if msg := (&engine.PortError{Port: tp, Err: err}).Error(); strings.Count(msg, "could not open port") != 1 {
+		t.Fatalf("port context must appear once: %q", msg)
 	}
 	if err := s.ApplyLAN(config.LAN{Enabled: false, Port: port2}); err != nil {
 		t.Fatal(err)
@@ -493,9 +500,7 @@ func TestSessionExpiresAfter90IdleDays(t *testing.T) {
 		t.Fatalf("auth of an expired session: %+v", a)
 	}
 	rec := phone(h, "GET", "/api/status", "", withCookie(c2)...)
-	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "ingresá el PIN") {
-		t.Fatalf("expired: %d %s", rec.Code, rec.Body)
-	}
+	wantError(t, rec, http.StatusUnauthorized, codePINRequired)
 	if cc := cookieOf(rec); cc == nil || cc.MaxAge >= 0 {
 		t.Fatalf("cookie not cleared: %+v", cc)
 	}
@@ -525,6 +530,26 @@ func TestLANGateCoversEveryRoute(t *testing.T) {
 		rec := phone(h, method, path, "", "Content-Type", "application/json")
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s without a session: %d", rt.pattern, rec.Code)
+		}
+	}
+}
+
+func TestAuthLanguage(t *testing.T) {
+	s := lanServer(t)
+	for _, lang := range []string{"pt-BR", ""} {
+		cfg := s.Engine.Current().Config
+		cfg.Language = lang
+		s.Engine.Use(&engine.Runtime{Config: cfg})
+		for name, rec := range map[string]*httptest.ResponseRecorder{
+			"mac": mac(s.LANHandler(), "GET", "/api/auth", ""), "phone": phone(s.LANHandler(), "GET", "/api/auth", ""),
+		} {
+			var a struct {
+				Language *string `json:"language"`
+			}
+			decode(t, rec, &a)
+			if a.Language == nil || *a.Language != lang {
+				t.Fatalf("%s: auth language = %v, want %q (%s)", name, a.Language, lang, rec.Body)
+			}
 		}
 	}
 }

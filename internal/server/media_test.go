@@ -282,9 +282,7 @@ func TestPlayPlaylistAndLiked(t *testing.T) {
 		t.Errorf("unknown playlist: %d", rec.Code)
 	}
 	rec := do(t, h, "GET", "/api/play", "")
-	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "playlist o liked") {
-		t.Errorf("nothing: %d %s", rec.Code, rec.Body)
-	}
+	wantError(t, rec, http.StatusBadRequest, codeNothingToPlay)
 }
 
 // onlyAlbum returns the id of the catalog's only album.

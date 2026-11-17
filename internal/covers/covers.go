@@ -38,7 +38,7 @@ const maxCandidates = 3
 // maxImage caps a folder image: anything larger is not a cover.
 const maxImage = 32 << 20
 
-var errNone = errors.New("sin imagen")
+var errNone = errors.New("no image")
 
 type Covers struct {
 	Store    *store.Store
@@ -104,12 +104,12 @@ func (c *Covers) ServeTrack(w http.ResponseWriter, r *http.Request, id int64) {
 
 func (c *Covers) serve(w http.ResponseWriter, r *http.Request, srcs []source, ok bool, err error) {
 	if err != nil {
-		log.Printf("carátula: %v", err)
-		http.Error(w, "error interno", http.StatusInternalServerError)
+		log.Printf("cover: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	if !ok || len(srcs) == 0 {
-		http.Error(w, "sin carátula", http.StatusNotFound)
+		http.Error(w, "no cover", http.StatusNotFound)
 		return
 	}
 	size := thumbSize(r.URL.Query().Get("size"))
@@ -124,12 +124,12 @@ func (c *Covers) serve(w http.ResponseWriter, r *http.Request, srcs []source, ok
 	}
 	data, mime, err := c.picture(srcs, size, tag)
 	if errors.Is(err, errNone) {
-		http.Error(w, "sin carátula", http.StatusNotFound)
+		http.Error(w, "no cover", http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		log.Printf("carátula: %v", err)
-		http.Error(w, "error interno", http.StatusInternalServerError)
+		log.Printf("cover: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", mime)
@@ -182,7 +182,7 @@ func (c *Covers) picture(srcs []source, size int, tag string) ([]byte, string, e
 	}
 	if cached != "" {
 		if err := writeAtomic(cached, thumb); err != nil {
-			log.Printf("miniatura: %v", err)
+			log.Printf("thumbnail: %v", err)
 		}
 	}
 	return thumb, "image/jpeg", nil
@@ -196,7 +196,7 @@ func original(srcs []source) ([]byte, string, error) {
 				return data, mime, nil
 			}
 			if !errors.Is(err, audiofile.ErrNoPicture) {
-				log.Printf("carátula de %s: %v", s.path, err)
+				log.Printf("cover for %s: %v", s.path, err)
 			}
 			continue
 		}

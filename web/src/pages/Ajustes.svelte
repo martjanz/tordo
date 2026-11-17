@@ -3,12 +3,14 @@
   import Cargando from '../components/Cargando.svelte'
   import AudioDeEstaCompu from '../components/AudioDeEstaCompu.svelte'
   import Dispositivos from '../components/Dispositivos.svelte'
+  import Idioma from '../components/Idioma.svelte'
   import Raices from '../components/Raices.svelte'
   import RedLocal from '../components/RedLocal.svelte'
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
   import { notify, refreshStatus, settingsSaved } from '../lib/app.svelte.js'
   import { auth, checkAuth } from '../lib/auth.svelte.js'
+  import { applyLanguage, t } from '../lib/i18n/index.svelte.js'
   import { body, changed, draft, pinProblem, portProblem, rescanChoices, savedNotice } from '../lib/settings.js'
 
   let config = $state(null)
@@ -74,6 +76,23 @@
     toggling = false
   }
 
+  // The language saves at once, like listen mode; the page changes language
+  // when the server has it. A failure keeps the previous selection.
+  let langKey = $state(0) // remounts the select to put the old value back
+  async function setLanguage(language) {
+    error = ''
+    try {
+      const saved = await api.saveConfig({ language })
+      config = { ...config, language: saved.language }
+      d = { ...d, language: saved.language }
+      applyLanguage(saved.language)
+      refreshStatus()
+    } catch (e) {
+      notify(e.message)
+      langKey++
+    }
+  }
+
   async function save() {
     saving = true
     error = ''
@@ -91,53 +110,54 @@
   }
 </script>
 
-<svelte:head><title>Ajustes · Tordo</title></svelte:head>
+<svelte:head><title>{t('nav.settings')} · Tordo</title></svelte:head>
 
 <div class="ajustes">
   <div class="head">
-    <h1>Ajustes</h1>
-    <a class="ayuda" href="/ayuda">Ayuda <span aria-hidden="true">→</span></a>
+    <h1>{t('nav.settings')}</h1>
+    <a class="ayuda" href="/help">{t('settings.helpLink')} <span aria-hidden="true">→</span></a>
   </div>
   {#if forbidden}
-    <p class="warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
+    <p class="warn">{t('error.settings_local_only')}</p>
     {#if !auth.local}
-      <button onclick={logout}>Cerrar sesión en este dispositivo</button>
+      <button onclick={logout}>{t('settings.logout')}</button>
       {#if error}<p class="warn" role="alert">{error}</p>{/if}
     {/if}
   {:else if loadError}
     <p class="warn" role="alert">{loadError}</p>
   {:else if d}
     {#if config.readOnly}
-      <p class="warn">Modo consulta: la configuración no se puede cambiar.</p>
+      <p class="warn">{t('settings.readOnly')}</p>
     {/if}
 
     <section>
-      <h2>Carpetas</h2>
-      <p class="help">
-        Quitar una carpeta la saca del catálogo (las correcciones se conservan). Una carpeta que no está disponible,
-        como un disco desenchufado, se mantiene tal cual. Tordo solo lee la música: nunca mueve, renombra ni borra archivos.
-      </p>
+      <h2>{t('settings.language.title')}</h2>
+      {#key langKey}
+        <Idioma value={config.language ?? ''} onchange={setLanguage} disabled={config.readOnly} />
+      {/key}
+    </section>
+
+    <section>
+      <h2>{t('settings.folders.title')}</h2>
+      <p class="help">{t('settings.folders.help')}</p>
       <Raices bind:d disabled={config.readOnly} />
       <label class="ignore">
-        <span class="label">Carpetas a ignorar</span>
+        <span class="label">{t('settings.folders.ignore')}</span>
         <textarea
           bind:value={d.ignore}
           rows="3"
           disabled={config.readOnly}
-          placeholder={'Un patrón por línea, por ejemplo:\nSamples\n*.tmp'}
+          placeholder={t('settings.folders.ignorePlaceholder')}
         ></textarea>
       </label>
       <label class="rescan">
-        <span class="label">Buscar cambios en las carpetas</span>
+        <span class="label">{t('settings.folders.rescan')}</span>
         <select bind:value={d.rescanMinutes} disabled={config.readOnly}>
           {#each rescanChoices(config.rescanMinutes) as choice (choice.minutes)}
             <option value={choice.minutes}>{choice.label}</option>
           {/each}
         </select>
-        <small>
-          Compara tamaños y fechas, sin abrir los archivos. Si no hay cambios no pasa nada más. Un disco externo dormido se
-          despierta en cada búsqueda.
-        </small>
+        <small>{t('settings.folders.rescanHelp')}</small>
       </label>
     </section>
 
@@ -149,19 +169,19 @@
     </section>
 
     <section>
-      <h2>Reproducción</h2>
+      <h2>{t('settings.playback')}</h2>
       <label class="check">
         <input type="checkbox" bind:checked={d.normalize} disabled={config.readOnly} />
         <span>
-          Normalizar el volumen
-          <small>Empareja el volumen entre temas, solo bajando los más fuertes.</small>
+          {t('settings.normalize')}
+          <small>{t('settings.normalizeHelp')}</small>
         </span>
       </label>
       {#if auth.local}<AudioDeEstaCompu />{/if}
     </section>
 
     <section>
-      <h2>Modo escucha</h2>
+      <h2>{t('nav.listenMode')}</h2>
       <label class="check">
         <input
           type="checkbox"
@@ -170,17 +190,14 @@
           onchange={(e) => setListenMode(e.currentTarget.checked)}
         />
         <span>
-          Modo escucha
-          <small>
-            Oculta Revisar y la curaduría, y bloquea identificaciones, escaneos, colecciones y cambios de géneros. Los ♥,
-            las ★, las listas y las estaciones siguen funcionando.
-          </small>
+          {t('nav.listenMode')}
+          <small>{t('settings.listenHelp')}</small>
         </span>
       </label>
     </section>
 
-    <section id="red">
-      <h2>Red local</h2>
+    <section id="network">
+      <h2>{t('settings.network')}</h2>
       {#key version}
         <RedLocal bind:d {config} disabled={config.readOnly} />
         {#if config.lan.enabled}<Dispositivos disabled={config.readOnly} />{/if}
@@ -191,9 +208,9 @@
       {#if error}<p class="warn" role="alert">{error}</p>{/if}
       <div class="actions">
         <button class="primary" onclick={save} disabled={!dirty || saving || lanInvalid || !d.roots.some((r) => r.checked)}>
-          {saving ? 'Guardando…' : 'Guardar'}
+          {saving ? t('common.saving') : t('common.save')}
         </button>
-        {#if dirty}<button onclick={() => ((d = draft(config)), version++)} disabled={saving}>Descartar</button>{/if}
+        {#if dirty}<button onclick={() => ((d = draft(config)), version++)} disabled={saving}>{t('settings.discard')}</button>{/if}
       </div>
     {/if}
   {:else}

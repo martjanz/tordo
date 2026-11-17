@@ -4,14 +4,15 @@
   import { tick } from 'svelte'
   import { albumCoverURL, api, itemCoverURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
-  import { count, number } from '../lib/format.js'
+  import { artistLabel } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { navigate, route } from '../lib/nav.svelte.js'
   import { searchHref } from '../lib/router.js'
   import { enterHref, isShortcut, move, options, searchable, total } from '../lib/search.js'
   import Icono from './Icono.svelte'
   import Tapa from './Tapa.svelte'
 
-  const GROUPS = { artist: 'Artistas', album: 'Álbumes', track: 'Pistas', folder: 'Carpetas' }
+  const GROUPS = { artist: 'facets.view.artists', album: 'facets.view.albums', track: 'facets.view.tracks', folder: 'nav.folders' }
 
   let open = $state(false)
   let q = $state('')
@@ -113,13 +114,13 @@
     const it = o.item
     switch (o.kind) {
       case 'artist':
-        return count(it.albums, 'álbum', 'álbumes')
+        return t('count.albums', { n: it.albums })
       case 'album':
-        return [it.artist, it.year || ''].filter(Boolean).join(' · ')
+        return [artistLabel(it.artist), it.year || ''].filter(Boolean).join(' · ')
       case 'track':
-        return [it.artist, it.album].filter(Boolean).join(' · ')
+        return [artistLabel(it.artist), it.album].filter(Boolean).join(' · ')
     }
-    return it.collection ? 'Colección' : count(it.tracks, 'pista', 'pistas')
+    return it.collection ? t('facets.facet.collection') : t('count.tracks', { n: it.tracks })
   }
 
   const ICONS = { artist: 'user', album: 'disc', track: 'disc', folder: 'folder' }
@@ -135,19 +136,19 @@
       {oninput}
       {onkeydown}
       type="search"
-      placeholder="Artista, álbum, tema, carpeta…"
-      aria-label="Buscar en el catálogo"
+      placeholder={t('search.placeholder')}
+      aria-label={t('search.label')}
       autocomplete="off"
       spellcheck="false"
     />
     {#if result && searchable(q)}
       <div class="panel" role="listbox">
         {#if found === 0}
-          <p class="none">Nada con «{q}».</p>
+          <p class="none">{t('search.none', { q })}</p>
         {/if}
         {#each opts as o, i (o.kind + (o.item.key ?? o.item.id ?? o.item.path))}
           {#if i === 0 || opts[i - 1].kind !== o.kind}
-            <div class="label group">{GROUPS[o.kind]}</div>
+            <div class="label group">{t(GROUPS[o.kind])}</div>
           {/if}
           <a class="option" class:selected={selected === i} href={o.href} onclick={close} role="option" aria-selected={selected === i}>
             <span class="thumb"><Tapa small srcs={picture(o)} icon={ICONS[o.kind]} name={o.kind === 'folder' ? '' : (o.item.name ?? o.item.title)} round={o.kind === 'artist'} /></span>
@@ -158,12 +159,12 @@
           </a>
         {/each}
         {#if found > opts.length}
-          <a class="all" href={searchHref(q)} onclick={close}>Ver los {number(found)} resultados →</a>
+          <a class="all" href={searchHref(q)} onclick={close}>{t('search.all', { n: found })}</a>
         {/if}
       </div>
     {/if}
   {:else}
-    <button class="icon" onclick={show} title="Buscar (Ctrl+K)" aria-label="Buscar">
+    <button class="icon" onclick={show} title={t('search.openTitle')} aria-label={t('search.open')}>
       <Icono name="search" size={18} />
     </button>
   {/if}

@@ -2,6 +2,7 @@
   // The "⋯" menu for a track, album, folder… ({tracks}, {album}, …): queue
   // actions, adding to a list and, with a rating ({kind, id}), the stars.
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { enqueue } from '../lib/playback.svelte.js'
   import AgregarALista from './AgregarALista.svelte'
   import Icono from './Icono.svelte'
@@ -34,15 +35,15 @@
 
 <span class="menu" bind:this={root}>
   <button class="icon more" onclick={() => (open = !open)} aria-haspopup="menu" aria-expanded={open}
-    title="Más opciones" aria-label="Más opciones"><Icono name="more" size={16} /></button>
+    title={t('menu.more')} aria-label={t('menu.more')}><Icono name="more" size={16} /></button>
   {#if open && adding}
     <AgregarALista right {what} onclose={() => ((adding = false), (open = false))} />
   {:else if open}
     <div class="pop" role="menu">
-      <button role="menuitem" onclick={() => choose(true)}><Icono name="next_up" size={14} /> Reproducir a continuación</button>
-      <button role="menuitem" onclick={() => choose(false)}><Icono name="queue" size={14} /> Agregar a la cola</button>
+      <button role="menuitem" onclick={() => choose(true)}><Icono name="next_up" size={14} /> {t('menu.playNext')}</button>
+      <button role="menuitem" onclick={() => choose(false)}><Icono name="queue" size={14} /> {t('queue.add')}</button>
       {#if !app.status?.readOnly}
-        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}><Icono name="lists" size={14} /> Agregar a una lista…</button>
+        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}><Icono name="lists" size={14} /> {t('menu.addToList')}</button>
         {#if rating}<div class="rate"><Puntaje kind={rating.kind} id={rating.id} size={16} /></div>{/if}
       {/if}
     </div>

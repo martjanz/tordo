@@ -11,8 +11,8 @@ import (
 
 // Station modes.
 const (
-	ModeTracks = "pistas"  // track by track
-	ModeAlbums = "albumes" // a whole album, then another
+	ModeTracks = "tracks" // track by track
+	ModeAlbums = "albums" // a whole album, then another
 )
 
 // StationBatch is how many tracks a station adds at a time.
@@ -30,7 +30,7 @@ const (
 // maxStationName is the longest station name, in runes.
 const maxStationName = 200
 
-// Source is what a station plays from: one of an Explorar query (View and
+// Source is what a station plays from: one of an Explore query (View and
 // Facets; no facets: the whole library), a folder and everything under it,
 // a playlist, or the liked music.
 type Source struct {
@@ -51,8 +51,8 @@ type Station struct {
 }
 
 // Clean returns the station as Next reads it: one kind of source (folder,
-// then playlist, then liked, then the Explorar query), well formed facets
-// only, a known mode and view (pistas by default), rules within limits, the
+// then playlist, then liked, then the Explore query), well formed facets
+// only, a known mode and view (tracks by default), rules within limits, the
 // name trimmed and cut to 200 runes.
 func (s Station) Clean() Station {
 	out := Station{Mode: ModeTracks, ArtistGap: min(max(s.ArtistGap, 0), MaxArtistGap), AvoidDays: min(max(s.AvoidDays, 0), MaxAvoidDays)}

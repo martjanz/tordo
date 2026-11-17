@@ -9,7 +9,8 @@
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { albumCoverURL, api, artistMBURL } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count, country, years } from '../lib/format.js'
+  import { artistLabel, country, years } from '../lib/format.js'
+  import { msg, t, text } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumHref, exploreHref } from '../lib/router.js'
   import { artistStation } from '../lib/stations.js'
@@ -28,7 +29,7 @@
         if (!stale) (artist = a), (error = '')
       })
       .catch((e) => {
-        if (!stale) error = e.status === 404 ? 'Este artista ya no está en el catálogo.' : e.message
+        if (!stale) error = e.status === 404 ? msg('artist.gone') : e.message
       })
     return () => (stale = true)
   })
@@ -46,26 +47,26 @@
     return artist.cover ? [albumCoverURL(artist.cover, 640)] : []
   })
 
-  const TYPES = { Person: 'Solista', Group: 'Grupo', Orchestra: 'Orquesta', Choir: 'Coro' }
+  const TYPES = { Person: 'artist.person', Group: 'artist.group', Orchestra: 'artist.orchestra', Choir: 'artist.choir' }
 </script>
 
 {#if error}
-  <p class="empty">{error}</p>
+  <p class="empty">{text(error)}</p>
 {:else if artist}
   <div class="head">
     <div class="pic">
       <Tapa srcs={pictures} round alt={artist.name} />
     </div>
     <div class="info">
-      <span class="label">{TYPES[artist.type] ?? 'Artista'}</span>
+      <span class="label">{t(TYPES[artist.type] ?? 'facets.facet.artist')}</span>
       <h1>{artist.name}</h1>
       <p class="sub">
-        {#if artist.country}<a href={exploreHref({ pais: artist.country })}>{country(artist.country)}</a> · {/if}
+        {#if artist.country}<a href={exploreHref({ country: artist.country })}>{country(artist.country)}</a> · {/if}
         {#if span}{span} · {/if}
-        {count(artist.albums.length, 'álbum', 'álbumes')}
+        {t('count.albums', { n: artist.albums.length })}
       </p>
       <p class="sub links">
-        <a href={exploreHref({ artista: artist.key }, 'pistas')}>Ver sus pistas</a>
+        <a href={exploreHref({ artist: artist.key }, 'tracks')}>{t('artist.seeTracks')}</a>
         {#if artist.mbid}· <a href={artistMBURL(artist.mbid)} target="_blank" rel="noreferrer">MusicBrainz ↗</a>{/if}
       </p>
       <div class="acts">
@@ -76,7 +77,7 @@
   </div>
 
   {#if artist.top?.length}
-    <h2>Más escuchadas</h2>
+    <h2>{t('artist.top')}</h2>
     <ListaPistas
       tracks={artist.top}
       numbered={false}
@@ -86,7 +87,7 @@
   {/if}
 
   {#if artist.albums.length}
-    <h2>Álbumes</h2>
+    <h2>{t('facets.view.albums')}</h2>
     <div class="grid">
       {#each artist.albums as a (a.id)}
         <TarjetaAlbum album={a} />
@@ -95,11 +96,11 @@
   {/if}
 
   {#if artist.appearances.length}
-    <h2>En compilados y otros álbumes</h2>
+    <h2>{t('artist.appearances')}</h2>
     {#each artist.appearances as ap (ap.album.id)}
       <p class="appearance">
         <a href={albumHref(ap.album.id)}>{ap.album.title}</a>
-        <span>{[ap.album.artist, ap.album.year || ''].filter(Boolean).join(' · ')}</span>
+        <span>{[artistLabel(ap.album.artist), ap.album.year || ''].filter(Boolean).join(' · ')}</span>
       </p>
       <ListaPistas
         tracks={ap.tracks}

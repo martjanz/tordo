@@ -11,7 +11,7 @@ import (
 )
 
 // ErrNoPicture means the file has no embedded picture the readers understand.
-var ErrNoPicture = errors.New("el archivo no tiene imagen")
+var ErrNoPicture = errors.New("the file has no picture")
 
 // picture collects the embedded picture while a file is read for Picture. It
 // keeps the first one, or a front cover (picture type 3) over any other.
@@ -146,7 +146,7 @@ func (p *picture) finish(s source) error {
 	if p.flac {
 		d, mime, ok := flacPicture(p.data)
 		if !ok {
-			return fmt.Errorf("%w: bloque PICTURE inválido", ErrFormat)
+			return fmt.Errorf("%w: invalid PICTURE block", ErrFormat)
 		}
 		p.data, p.mime = d, mime
 	}

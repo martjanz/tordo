@@ -27,9 +27,9 @@ import (
 const dbName = "tordo.db"
 
 func main() {
-	dir := flag.String("dir", os.Getenv("TORDO_DIR"), "carpeta de la app (por defecto, la del ejecutable)")
-	port := flag.Int("port", 0, "puerto HTTP (0 = uno libre)")
-	noBrowser := flag.Bool("no-browser", false, "no abrir el navegador")
+	dir := flag.String("dir", os.Getenv("TORDO_DIR"), "app folder (default: the executable's folder)")
+	port := flag.Int("port", 0, "HTTP port (0 = a free one)")
+	noBrowser := flag.Bool("no-browser", false, "do not open the browser")
 	flag.Parse()
 	if err := run(*dir, *port, !*noBrowser); err != nil {
 		log.Fatal(err)
@@ -54,13 +54,13 @@ func run(dirOverride string, port int, browser bool) error {
 		return err
 	}
 	url := "http://" + ln.Addr().String() + "/"
-	log.Printf("Tordo en %s (Ctrl+C para salir)", url)
+	log.Printf("Tordo at %s (Ctrl+C to quit)", url)
 	if urls := a.server.LANURLs(); len(urls) > 0 {
-		log.Printf("Desde la red: %s", urls[0])
+		log.Printf("From the network: %s", urls[0])
 	}
 	if browser {
 		if err := platform.Open(url); err != nil {
-			log.Printf("no se pudo abrir el navegador: %v", err)
+			log.Printf("could not open the browser: %v", err)
 		}
 	}
 	return a.server.HTTPServer(a.server.Handler()).Serve(ln)
@@ -91,7 +91,7 @@ func setup(dirOverride string) (*app, error) {
 		CatalogCache: filepath.Join(appDir, "cache", "catalog.gob.gz")}
 	eng := &engine.Engine{AppDir: appDir, Store: st, ReadOnly: readOnly, MB: musicbrainz.New()}
 	if readOnly {
-		log.Print("la carpeta de la app no es escribible: modo consulta")
+		log.Print("the app folder is not writable: browse-only mode")
 	} else {
 		if ffmpeg != "" {
 			a.loud = &loudness.Runner{Catalog: st, AppDir: appDir, FFmpeg: ffmpeg}
@@ -111,14 +111,14 @@ func setup(dirOverride string) (*app, error) {
 	}
 	pending := created && !readOnly
 	if pending {
-		log.Print("Primera vez: elegí las carpetas en el navegador (asistente).")
+		log.Print("First run: choose the folders in the browser (setup assistant).")
 	}
 	thumbs := "" // browse-only mode writes nothing, thumbnails included
 	if !readOnly {
 		thumbs = filepath.Join(appDir, "cache", "thumbs")
 	}
 	if ffmpeg == "" {
-		log.Print("sin ffmpeg: WMA, APE, WavPack, AIFF y ALAC no se pueden reproducir")
+		log.Print("no ffmpeg: WMA, APE, WavPack, AIFF and ALAC cannot be played")
 	}
 	a.server.Streamer = stream.Streamer{FFmpeg: ffmpeg}
 	a.server.Covers = covers.New(st, appDir, thumbs)
