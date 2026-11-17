@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   // A playlist: its entries in order, which can be played, reordered by
   // dragging (pointer events: mouse and touch) or with Alt+arrows, and removed.
+  import Cargando from '../components/Cargando.svelte'
   import Acciones from '../components/Acciones.svelte'
   import Icono from '../components/Icono.svelte'
   import Tapa from '../components/Tapa.svelte'
@@ -208,6 +209,8 @@
       {/each}
     </ol>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

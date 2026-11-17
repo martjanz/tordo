@@ -1,6 +1,7 @@
 <script>
   // Revisar → Duplicados: groups of files that hold, or may hold, the same
   // music, by kind. Tordo never deletes: this is only to decide.
+  import Cargando from './Cargando.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { KINDS, fileQuality, groupLine } from '../lib/dupes.js'
@@ -96,6 +97,8 @@
       <button onclick={() => (shown += PAGE)}>Mostrar más</button>
     {/if}
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

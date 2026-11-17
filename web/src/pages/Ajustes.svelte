@@ -1,5 +1,6 @@
 <script>
   import { untrack } from 'svelte'
+  import Cargando from '../components/Cargando.svelte'
   import AudioDeEstaCompu from '../components/AudioDeEstaCompu.svelte'
   import Dispositivos from '../components/Dispositivos.svelte'
   import Raices from '../components/Raices.svelte'
@@ -193,6 +194,8 @@
         {#if dirty}<button onclick={() => ((d = draft(config)), version++)} disabled={saving}>Descartar</button>{/if}
       </div>
     {/if}
+  {:else}
+    <Cargando />
   {/if}
 </div>
 

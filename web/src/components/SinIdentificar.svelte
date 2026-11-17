@@ -2,6 +2,7 @@
   // The Sin identificar queue: albums MusicBrainz matched below the
   // threshold, with their candidates. An album leaves the queue once
   // corrected.
+  import Cargando from './Cargando.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { count, folderName } from '../lib/format.js'
@@ -108,6 +109,8 @@
       </li>
     {/each}
   </ul>
+{:else}
+  <Cargando />
 {/if}
 
 <style>

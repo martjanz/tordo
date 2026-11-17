@@ -1,4 +1,5 @@
 <script>
+  import Cargando from '../components/Cargando.svelte'
   import Acciones from '../components/Acciones.svelte'
   import Preferido from '../components/Preferido.svelte'
   import Puntaje from '../components/Puntaje.svelte'
@@ -114,6 +115,8 @@
       {/if}
     {/if}
   </section>
+{:else}
+  <Cargando />
 {/if}
 
 <style>
