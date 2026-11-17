@@ -227,7 +227,7 @@ func (e *Engine) Update(f func(cur config.Config) (config.Config, error)) error 
 	if err := config.Save(e.AppDir, cfg); err != nil {
 		if lanMoved {
 			if err2 := e.LAN(cur.LAN); err2 != nil {
-				log.Printf("could not restore local network access: %v", err2)
+				log.Printf("could not restore local network access on port %d: %v", cur.LAN.PortOrDefault(), err2)
 			}
 		}
 		return err

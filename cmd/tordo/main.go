@@ -28,7 +28,7 @@ const dbName = "tordo.db"
 
 func main() {
 	dir := flag.String("dir", os.Getenv("TORDO_DIR"), "app folder (default: the executable's folder)")
-	port := flag.Int("port", 0, "puerto HTTP (0 = uno libre)")
+	port := flag.Int("port", 0, "HTTP port (0 = a free one)")
 	noBrowser := flag.Bool("no-browser", false, "do not open the browser")
 	flag.Parse()
 	if err := run(*dir, *port, !*noBrowser); err != nil {

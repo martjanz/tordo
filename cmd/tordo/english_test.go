@@ -16,7 +16,7 @@ var spanishChars = regexp.MustCompile(`[áéíóúñ¿¡ÁÉÍÓÚÑ]`)
 
 // Common Spanish words without accents, to catch messages that the accent
 // check misses.
-var spanishWords = regexp.MustCompile(`(?i)\b(de|del|en|con|que|por|para|una?|se|es|sin|falta|faltan|hay|ya|desde|tras|para|los|las|el|la|volumen|rockola|escaneo|respuesta|pedido|miniatura|cabecera|corto|paquete|demasiado|formato|archivo|carpeta|red local|pista|desaparecio|ilegible|invalido|invalida|pudo|ejecutarse|reproducirse|necesita|salir|truncad[oa]s?)\b`)
+var spanishWords = regexp.MustCompile(`(?i)\b(de|del|con|que|por|para|una|sin|falta|faltan|hay|ya|desde|tras|los|las|el|puerto|uno|libre|abrir|leer|guardar|buscar|cuerpo|volumen|rockola|escaneo|respuesta|pedido|miniatura|cabecera|corto|paquete|demasiado|formato|archivo|carpeta|red local|pista|desaparecio|ilegible|invalido|invalida|pudo|ejecutarse|reproducirse|necesita|salir|truncad[oa]s?|invalidos?)\b`)
 
 // messageCall reports whether a call expression is one whose literal
 // arguments are user-visible messages.
