@@ -40,10 +40,11 @@
     <li>
       <label>
         <input type="checkbox" bind:checked={root.checked} {disabled} />
-        <span class="name">{label(root.path)}</span>
-        {#if !root.available}<small>{t('roots.unavailable')}</small>{/if}
+        <span class="text">
+          <span class="name">{label(root.path)}{#if !root.available}<small>{t('roots.unavailable')}</small>{/if}</span>
+          {#if root.path !== label(root.path)}<span class="path">{root.path}</span>{/if}
+        </span>
       </label>
-      <span class="path">{root.path}</span>
     </li>
   {:else}
     <li class="none">{t('roots.none')}</li>
@@ -79,10 +80,6 @@
     padding: 0;
   }
   li {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
     padding: 6px 0;
     border-bottom: 1px solid var(--line);
   }
@@ -91,10 +88,23 @@
     align-items: baseline;
     gap: 8px;
   }
+  .text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
   .name {
     color: var(--strong);
   }
+  /* The path as written in config.json, right under the name it reads as. */
+  .path {
+    font-size: var(--fs-sm);
+    color: var(--faint);
+    overflow-wrap: anywhere;
+  }
   small {
+    margin-left: 8px;
+    font-size: var(--fs-sm);
     color: var(--warn);
   }
   .none {
@@ -111,11 +121,5 @@
   .error {
     color: var(--warn);
     margin: 6px 0 0;
-  }
-  @media (max-width: 640px) {
-    li {
-      flex-direction: column;
-      gap: 2px;
-    }
   }
 </style>

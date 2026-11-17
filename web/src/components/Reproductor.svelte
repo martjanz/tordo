@@ -185,7 +185,7 @@
       </header>
       <div class="stage">
         {#key entry.key}
-          <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} /></div>
+          <div class="big-pic"><Tapa srcs={[itemCoverURL(entry, 640)]} alt={entry.album || entry.title} /></div>
         {/key}
         <div class="info">
           <div class="big-text">

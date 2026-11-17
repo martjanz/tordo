@@ -85,14 +85,35 @@
 {/if}
 
 {#if playlists && likedLists && collections}
+  {#snippet newList(inline)}
+    {#if creating}
+      <form class="new" class:inline onsubmit={create}>
+        <input bind:value={name} placeholder={t('playlist.name')} aria-label={t('playlist.name')} maxlength="200" use:focus
+          onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
+        <button class="primary" disabled={!name.trim()}>{t('playlist.create')}</button>
+      </form>
+    {:else if inline}
+      <button class="primary start" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+        <Icono name="plus" size={14} /> {t('lists.newList')}
+      </button>
+    {:else}
+      <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+        <Icono name="plus" size={28} />
+        <span>{t('lists.newList')}</span>
+      </button>
+    {/if}
+  {/snippet}
+
   <h2>{t('lists.playlists')}</h2>
   {#if playlists}
     {#if playlists.length === 0 && !writable}
       <p class="empty">{t('lists.noneReadOnly')}</p>
+    {:else if playlists.length === 0}
+      <div class="first">
+        <p>{t('lists.noneWritable')}</p>
+        {@render newList(true)}
+      </div>
     {:else}
-      {#if playlists.length === 0}
-        <p class="empty">{t('lists.noneWritable')}</p>
-      {/if}
       <div class="grid">
         {#each playlists as p (p.id)}
           <a class="card" href={listHref(p.id)}>
@@ -102,20 +123,7 @@
           </a>
         {/each}
         {#if writable}
-          <div class="card">
-            {#if creating}
-              <form class="new" onsubmit={create}>
-                <input bind:value={name} placeholder={t('playlist.name')} aria-label={t('playlist.name')} maxlength="200" use:focus
-                  onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
-                <button class="primary" disabled={!name.trim()}>{t('playlist.create')}</button>
-              </form>
-            {:else}
-              <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
-                <Icono name="plus" size={28} />
-                <span>{t('lists.newList')}</span>
-              </button>
-            {/if}
-          </div>
+          <div class="card">{@render newList(false)}</div>
         {/if}
       </div>
     {/if}
@@ -219,6 +227,36 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  /* No lists yet: the message and the way to make the first one, together. */
+  .first {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: var(--space-6) 16px;
+    text-align: center;
+    color: var(--muted);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+  }
+  .first p {
+    margin: 0;
+    max-width: 52ch;
+  }
+  .new.inline {
+    flex-direction: row;
+    width: min(100%, 360px);
+  }
+  .new.inline input {
+    flex: 1;
+    min-width: 0;
+  }
+  .start {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
   }
   .newcard {
     aspect-ratio: 1;

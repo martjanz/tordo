@@ -113,8 +113,10 @@
 <svelte:head><title>{t('nav.settings')} · Tordo</title></svelte:head>
 
 <div class="ajustes">
-  <h1>{t('nav.settings')}</h1>
-  <p class="ayuda"><a href="/help">{t('settings.helpLink')}</a></p>
+  <div class="head">
+    <h1>{t('nav.settings')}</h1>
+    <a class="ayuda" href="/help">{t('settings.helpLink')} <span aria-hidden="true">→</span></a>
+  </div>
   {#if forbidden}
     <p class="warn">{t('error.settings_local_only')}</p>
     {#if !auth.local}
@@ -228,9 +230,19 @@
     color: var(--muted);
     margin-top: 0;
   }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
   .ayuda {
-    margin-top: 0;
-    color: var(--muted);
+    flex: none;
+    font-size: var(--fs-sm);
+    color: var(--accent);
+  }
+  .ayuda:hover {
+    text-decoration: underline;
   }
   .warn {
     color: var(--warn);

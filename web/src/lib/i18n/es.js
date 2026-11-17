@@ -31,7 +31,7 @@ export default {
     port: {
       range: 'El puerto tiene que estar entre 1024 y 65535.',
     },
-    helpLink: 'Ayuda: atajos, secciones y conceptos',
+    helpLink: 'Ayuda',
     logout: 'Cerrar sesión en este dispositivo',
     readOnly: 'Modo consulta: la configuración no se puede cambiar.',
     discard: 'Descartar',
@@ -202,6 +202,7 @@ export default {
     tracks: { one: '{n} pista', other: '{n} pistas' },
     albums: { one: '{n} álbum', other: '{n} álbumes' },
     artists: { one: '{n} artista', other: '{n} artistas' },
+    folders: { one: '{n} carpeta', other: '{n} carpetas' },
     files: { one: '{n} archivo', other: '{n} archivos' },
     sharedSongs: { one: '{n} tema en común', other: '{n} temas en común' },
     results: { one: '{n} resultado', other: '{n} resultados' },

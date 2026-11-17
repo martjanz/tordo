@@ -121,6 +121,16 @@ describe('locale', () => {
     setLocale('es')
     expect(formatNumber(1234567)).toBe('1.234.567')
   })
+  it('formatNumber groups four-digit counts like longer ones', () => {
+    setLocale('es')
+    expect(formatNumber(5269)).toBe('5.269')
+    expect(formatNumber(229338)).toBe('229.338')
+    expect(formatNumber(999)).toBe('999')
+    setLocale('pt-BR')
+    expect(formatNumber(5269)).toBe('5.269')
+    setLocale('en')
+    expect(formatNumber(5269)).toBe('5,269')
+  })
   it('ignores unknown locales', () => {
     setLocale('xx')
     expect(locale()).toBe('es')

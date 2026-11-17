@@ -31,7 +31,7 @@ export default {
     port: {
       range: 'A porta deve estar entre 1024 e 65535.',
     },
-    helpLink: 'Ajuda: atalhos, seções e conceitos',
+    helpLink: 'Ajuda',
     logout: 'Encerrar a sessão neste dispositivo',
     readOnly: 'Modo somente leitura: as configurações não podem ser alteradas.',
     discard: 'Descartar',
@@ -202,6 +202,7 @@ export default {
     tracks: { one: '{n} faixa', other: '{n} faixas' },
     albums: { one: '{n} álbum', other: '{n} álbuns' },
     artists: { one: '{n} artista', other: '{n} artistas' },
+    folders: { one: '{n} pasta', other: '{n} pastas' },
     files: { one: '{n} arquivo', other: '{n} arquivos' },
     sharedSongs: { one: '{n} música em comum', other: '{n} músicas em comum' },
     results: { one: '{n} resultado', other: '{n} resultados' },

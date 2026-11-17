@@ -91,8 +91,10 @@ export function numberLocale() {
   return NUMBER_LOCALES[current]
 }
 
+// formatNumber groups thousands from four digits on in every language: es
+// alone groups only from five, so "5269" would sit next to "229.338".
 export function formatNumber(n, options) {
-  return new Intl.NumberFormat(numberLocale(), options).format(n)
+  return new Intl.NumberFormat(numberLocale(), { useGrouping: 'always', ...options }).format(n)
 }
 
 const pluralRules = new Map()

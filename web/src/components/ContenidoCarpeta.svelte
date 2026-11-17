@@ -58,6 +58,9 @@
 <header>
   {#if isRoot}
     <h1>{t('nav.folders')}</h1>
+    <p class="sub">
+      {t('count.folders', { n: folders.length })} · {t('count.albums', { n: folder.albumCount })} · {t('count.tracks', { n: folder.trackCount })} · {length(folder.durationMs)} · {size(folder.sizeBytes)}
+    </p>
   {:else}
     <nav class="trail" aria-label={t('folders.location')}>
       <a href="/folders">{t('nav.folders')}</a>

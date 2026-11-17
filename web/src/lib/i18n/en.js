@@ -31,7 +31,7 @@ export default {
     port: {
       range: 'The port must be between 1024 and 65535.',
     },
-    helpLink: 'Help: shortcuts, sections and concepts',
+    helpLink: 'Help',
     logout: 'Sign out on this device',
     readOnly: 'Browse-only mode: the settings cannot be changed.',
     discard: 'Discard',
@@ -202,6 +202,7 @@ export default {
     tracks: { one: '{n} track', other: '{n} tracks' },
     albums: { one: '{n} album', other: '{n} albums' },
     artists: { one: '{n} artist', other: '{n} artists' },
+    folders: { one: '{n} folder', other: '{n} folders' },
     files: { one: '{n} file', other: '{n} files' },
     sharedSongs: { one: '{n} song in common', other: '{n} songs in common' },
     results: { one: '{n} result', other: '{n} results' },
