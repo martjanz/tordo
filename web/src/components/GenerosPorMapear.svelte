@@ -2,6 +2,7 @@
   // Géneros por mapear: raw genre values from the tags that no mapping
   // knows, most used first, to map onto the taxonomy (or ignore); and the
   // user's mappings, to undo one.
+  import Cargando from './Cargando.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { t } from '../lib/i18n/index.svelte.js'
@@ -102,6 +103,8 @@
       {/each}
     </ul>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>
@@ -124,7 +127,7 @@
   }
   .n {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     flex: 1;
   }
   select {

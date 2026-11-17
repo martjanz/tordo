@@ -207,9 +207,9 @@
     height: 30px;
     box-sizing: border-box;
     padding-right: 6px;
-    font-size: 14px;
+    font-size: var(--fs-md);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius);
     white-space: nowrap;
   }
   li:hover {
@@ -244,11 +244,11 @@
   .tracks {
     color: var(--muted);
     font-variant-numeric: tabular-nums;
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
   .note {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     margin: 8px 4px;
   }
 </style>

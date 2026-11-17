@@ -1,5 +1,6 @@
 <script>
   // Every result of a search, by kind (the header's search shows a few).
+  import Cargando from '../components/Cargando.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
@@ -84,11 +85,13 @@
       {/each}
     </ul>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .folders {
@@ -107,7 +110,7 @@
     color: var(--strong);
   }
   .folders span {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--faint);
   }
 </style>

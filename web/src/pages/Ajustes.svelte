@@ -1,5 +1,6 @@
 <script>
   import { untrack } from 'svelte'
+  import Cargando from '../components/Cargando.svelte'
   import AudioDeEstaCompu from '../components/AudioDeEstaCompu.svelte'
   import Dispositivos from '../components/Dispositivos.svelte'
   import Idioma from '../components/Idioma.svelte'
@@ -210,6 +211,8 @@
         {#if dirty}<button onclick={() => ((d = draft(config)), version++)} disabled={saving}>{t('settings.discard')}</button>{/if}
       </div>
     {/if}
+  {:else}
+    <Cargando />
   {/if}
 </div>
 
@@ -252,16 +255,7 @@
     margin-top: 6px;
     resize: vertical;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-    font-size: 13px;
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    padding: 6px 8px;
-  }
-  .check {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
+    font-size: var(--fs-sm);
   }
   small {
     display: block;

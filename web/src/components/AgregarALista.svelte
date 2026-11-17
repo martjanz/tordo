@@ -92,7 +92,7 @@
     max-width: calc(100vw - 2 * var(--gutter));
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     padding: 6px;
     box-shadow: 0 6px 20px rgb(0 0 0 / 0.4);
     text-align: left;
@@ -122,13 +122,13 @@
     background: none;
     text-align: left;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
   }
   li button:hover:not(:disabled) {
     background: var(--line);
   }
   .sub {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--muted);
     white-space: nowrap;
   }

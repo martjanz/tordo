@@ -101,7 +101,7 @@
     flex: 1;
     min-width: 0;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .note {
     margin: 6px 0 0;

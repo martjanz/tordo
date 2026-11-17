@@ -34,7 +34,7 @@
     white-space: nowrap;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
 </style>

@@ -151,7 +151,7 @@
             <div class="label group">{t(GROUPS[o.kind])}</div>
           {/if}
           <a class="option" class:selected={selected === i} href={o.href} onclick={close} role="option" aria-selected={selected === i}>
-            <span class="thumb"><Tapa srcs={picture(o)} icon={ICONS[o.kind]} round={o.kind === 'artist'} /></span>
+            <span class="thumb"><Tapa small srcs={picture(o)} icon={ICONS[o.kind]} name={o.kind === 'folder' ? '' : (o.item.name ?? o.item.title)} round={o.kind === 'artist'} /></span>
             <span class="text">
               <span class="title">{o.item.name ?? o.item.title}</span>
               <span class="meta">{meta(o)}</span>
@@ -220,7 +220,7 @@
     color: var(--strong);
   }
   .meta {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
   }
   .group {
@@ -234,7 +234,7 @@
   .all {
     display: block;
     padding: 8px 12px 4px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--accent);
     border-top: 1px solid var(--line);
     margin-top: 6px;

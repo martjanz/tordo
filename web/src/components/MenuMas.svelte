@@ -1,5 +1,6 @@
 <script>
-  // A small menu for a track: queue actions and rating.
+  // The "⋯" menu for a track, album, folder… ({tracks}, {album}, …): queue
+  // actions, adding to a list and, with a rating ({kind, id}), the stars.
   import { app } from '../lib/app.svelte.js'
   import { t } from '../lib/i18n/index.svelte.js'
   import { enqueue } from '../lib/playback.svelte.js'
@@ -7,14 +8,14 @@
   import Icono from './Icono.svelte'
   import Puntaje from './Puntaje.svelte'
 
-  let { track } = $props()
+  let { what, rating = null } = $props()
 
   let open = $state(false)
   let adding = $state(false) // the list picker replaces the menu
   let root = $state()
 
   function choose(next) {
-    enqueue({ tracks: [track.id] }, { next })
+    enqueue(what, { next })
     open = false
   }
 
@@ -36,14 +37,14 @@
   <button class="icon more" onclick={() => (open = !open)} aria-haspopup="menu" aria-expanded={open}
     title={t('menu.more')} aria-label={t('menu.more')}><Icono name="more" size={16} /></button>
   {#if open && adding}
-    <AgregarALista right what={{ tracks: [track.id] }} onclose={() => ((adding = false), (open = false))} />
+    <AgregarALista right {what} onclose={() => ((adding = false), (open = false))} />
   {:else if open}
     <div class="pop" role="menu">
-      <button role="menuitem" onclick={() => choose(true)}>{t('menu.playNext')}</button>
-      <button role="menuitem" onclick={() => choose(false)}>{t('queue.add')}</button>
+      <button role="menuitem" onclick={() => choose(true)}><Icono name="next_up" size={14} /> {t('menu.playNext')}</button>
+      <button role="menuitem" onclick={() => choose(false)}><Icono name="queue" size={14} /> {t('queue.add')}</button>
       {#if !app.status?.readOnly}
-        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}>{t('menu.addToList')}</button>
-        <div class="rate"><Puntaje kind="track" id={track.id} size={16} /></div>
+        <button role="menuitem" onclick={(e) => (e.stopPropagation(), (adding = true))}><Icono name="lists" size={14} /> {t('menu.addToList')}</button>
+        {#if rating}<div class="rate"><Puntaje kind={rating.kind} id={rating.id} size={16} /></div>{/if}
       {/if}
     </div>
   {/if}
@@ -52,6 +53,7 @@
 <style>
   .menu {
     position: relative;
+    display: inline-flex;
   }
   .pop {
     position: absolute;
@@ -61,7 +63,7 @@
     min-width: 220px;
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     padding: 4px;
     display: flex;
     flex-direction: column;
@@ -72,7 +74,14 @@
     background: none;
     text-align: left;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .pop > button :global(svg) {
+    color: var(--muted);
   }
   .pop > button:hover {
     background: var(--line);

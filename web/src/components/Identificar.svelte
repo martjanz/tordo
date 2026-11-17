@@ -92,7 +92,7 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .text {
     flex: 1;
@@ -110,7 +110,7 @@
     color: var(--strong);
   }
   .meta {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
   }
   .none {

@@ -159,7 +159,7 @@
     border-bottom: 2px solid transparent;
     border-radius: 0;
     padding: 4px 0;
-    font-size: 15px;
+    font-size: var(--fs-md);
     color: var(--muted);
   }
   .tabs button.on {
@@ -173,7 +173,7 @@
     gap: 8px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--line);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
   .facet {
     position: relative;
@@ -247,6 +247,9 @@
   .total {
     color: var(--faint);
   }
+  .right select {
+    padding-block: 3px; /* as tall as the facet buttons */
+  }
   .dir {
     padding: 3px 9px;
   }
@@ -264,7 +267,7 @@
   .chip {
     border-color: var(--accent);
     color: var(--accent);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     padding: 2px 10px;
     border-radius: 12px;
   }

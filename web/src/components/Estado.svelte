@@ -116,7 +116,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
     white-space: nowrap;
     background: none;
@@ -168,10 +168,10 @@
     width: 320px;
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     padding: 14px 16px;
     box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--text);
     white-space: normal;
     cursor: default;
@@ -187,7 +187,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 15px;
+    font-size: var(--fs-md);
   }
   .head strong {
     color: var(--strong);
@@ -196,7 +196,7 @@
   .error {
     margin: 8px 0 0;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     background: rgb(224 80 80 / 0.12);
     color: var(--text);
     overflow-wrap: anywhere;
@@ -234,7 +234,7 @@
     place-items: center;
     border-radius: 50%;
     border: 1px solid var(--line-strong);
-    font-size: 10px;
+    font-size: var(--fs-xs);
     font-variant-numeric: tabular-nums;
   }
   .steps .done {
@@ -244,7 +244,7 @@
     border-color: transparent;
     background: var(--line);
     color: var(--ok);
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
   .steps .busy,
   .steps .warn {
@@ -279,13 +279,13 @@
     position: relative;
     height: 6px;
     margin-top: 6px;
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: var(--line);
     overflow: hidden;
   }
   .fill {
     height: 100%;
-    border-radius: 3px;
+    border-radius: var(--radius);
     background: var(--accent);
     transition: width 0.6s ease;
   }
@@ -296,7 +296,7 @@
   .eta {
     margin-top: 6px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
 
   .facts {
@@ -307,13 +307,13 @@
   }
   .facts div {
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius);
     background: var(--surface);
   }
   .facts dd {
     margin: 0;
     color: var(--strong);
-    font-size: 15px;
+    font-size: var(--fs-md);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
@@ -322,7 +322,7 @@
   }
   .facts dt {
     color: var(--faint);
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .note {
@@ -334,7 +334,7 @@
     display: inline-block;
     margin-top: 12px;
     color: var(--accent);
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
 
   @keyframes pulse {

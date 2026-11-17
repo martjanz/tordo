@@ -2,6 +2,7 @@
   import { untrack } from 'svelte'
   // A playlist: its entries in order, which can be played, reordered by
   // dragging (pointer events: mouse and touch) or with Alt+arrows, and removed.
+  import Cargando from '../components/Cargando.svelte'
   import Acciones from '../components/Acciones.svelte'
   import Icono from '../components/Icono.svelte'
   import Tapa from '../components/Tapa.svelte'
@@ -209,6 +210,8 @@
       {/each}
     </ol>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>
@@ -226,12 +229,12 @@
     min-width: 0;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     margin: 0 0 6px;
   }
   .rename {
-    font-size: 24px;
+    font-size: var(--fs-xl);
     font-weight: 700;
     width: min(100%, 480px);
   }
@@ -315,7 +318,7 @@
     color: var(--strong);
   }
   .artist {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .artist a:hover {
@@ -326,11 +329,11 @@
     opacity: 0.55;
   }
   .na {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     color: var(--faint);
   }
   .time {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     font-variant-numeric: tabular-nums;
     min-width: 40px;

@@ -124,7 +124,7 @@
     padding: 0 0 12px;
     margin: 0 0 24px;
     border-bottom: 1px solid var(--line);
-    font-size: 12px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--faint);
@@ -136,11 +136,7 @@
     color: var(--muted);
   }
   h2 {
-    font-size: 18px;
-    letter-spacing: 0;
-    text-transform: none;
-    color: var(--strong);
-    margin: 0 0 8px;
+    margin: 0 0 var(--space-2);
   }
   .help {
     color: var(--muted);
@@ -158,16 +154,7 @@
     margin-top: 8px;
     resize: vertical;
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-    font-size: 13px;
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    padding: 6px 8px;
-  }
-  .check {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
+    font-size: var(--fs-sm);
   }
   small {
     display: block;

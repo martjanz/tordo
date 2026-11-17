@@ -2,6 +2,7 @@
   // Lists: the playlists, favourite tracks (♥), Preferidos albums (bookmark), what
   // else the user likes (artists, collections) and the collections found in
   // the folders.
+  import Cargando from '../components/Cargando.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import Icono from '../components/Icono.svelte'
   import MeGusta from '../components/MeGusta.svelte'
@@ -83,109 +84,113 @@
   <p class="empty">{error}</p>
 {/if}
 
-<h2>{t('lists.playlists')}</h2>
-{#if playlists}
-  {#if playlists.length === 0 && !writable}
-    <p class="empty">{t('lists.noneReadOnly')}</p>
-  {:else}
-    {#if playlists.length === 0}
-      <p class="empty">{t('lists.noneWritable')}</p>
-    {/if}
-    <div class="grid">
-      {#each playlists as p (p.id)}
-        <a class="card" href={listHref(p.id)}>
-          <Tapa srcs={p.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={p.name} />
-          <span class="name">{p.name}</span>
-          <span class="sub">{t('count.tracks', { n: p.tracks })}</span>
-        </a>
-      {/each}
-      {#if writable}
-        <div class="card">
-          {#if creating}
-            <form class="new" onsubmit={create}>
-              <input bind:value={name} placeholder={t('playlist.name')} aria-label={t('playlist.name')} maxlength="200" use:focus
-                onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
-              <button class="primary" disabled={!name.trim()}>{t('playlist.create')}</button>
-            </form>
-          {:else}
-            <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
-              <Icono name="plus" size={28} />
-              <span>{t('lists.newList')}</span>
-            </button>
-          {/if}
-        </div>
+{#if playlists && likedLists && collections}
+  <h2>{t('lists.playlists')}</h2>
+  {#if playlists}
+    {#if playlists.length === 0 && !writable}
+      <p class="empty">{t('lists.noneReadOnly')}</p>
+    {:else}
+      {#if playlists.length === 0}
+        <p class="empty">{t('lists.noneWritable')}</p>
       {/if}
-    </div>
+      <div class="grid">
+        {#each playlists as p (p.id)}
+          <a class="card" href={listHref(p.id)}>
+            <Tapa srcs={p.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={p.name} />
+            <span class="name">{p.name}</span>
+            <span class="sub">{t('count.tracks', { n: p.tracks })}</span>
+          </a>
+        {/each}
+        {#if writable}
+          <div class="card">
+            {#if creating}
+              <form class="new" onsubmit={create}>
+                <input bind:value={name} placeholder={t('playlist.name')} aria-label={t('playlist.name')} maxlength="200" use:focus
+                  onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
+                <button class="primary" disabled={!name.trim()}>{t('playlist.create')}</button>
+              </form>
+            {:else}
+              <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+                <Icono name="plus" size={28} />
+                <span>{t('lists.newList')}</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
   {/if}
-{/if}
 
-<h2>{t('lists.favoriteSongs')}</h2>
-{#if likedLists}
-  {#if likedLists.tracks.length === 0}
-    <p class="empty">{t('lists.noFavorites')}</p>
-  {:else}
-    <div class="bar">
-      <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> {t('player.play')}</button>
-      <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> {t('player.shuffle')}</button>
-    </div>
-    <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(track) => play({ liked: true }, { startId: track.id })} />
+  <h2>{t('lists.favoriteSongs')}</h2>
+  {#if likedLists}
+    {#if likedLists.tracks.length === 0}
+      <p class="empty">{t('lists.noFavorites')}</p>
+    {:else}
+      <div class="bar">
+        <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> {t('player.play')}</button>
+        <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> {t('player.shuffle')}</button>
+      </div>
+      <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(track) => play({ liked: true }, { startId: track.id })} />
+    {/if}
   {/if}
-{/if}
 
-<h2>{t('station.preferredAlbums')}</h2>
-{#if likedLists}
-  {#if likedLists.albums.length === 0}
-    <p class="empty">{t('lists.noPreferred')}</p>
-  {:else}
-    <div class="grid">
-      {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
-    </div>
+  <h2>{t('station.preferredAlbums')}</h2>
+  {#if likedLists}
+    {#if likedLists.albums.length === 0}
+      <p class="empty">{t('lists.noPreferred')}</p>
+    {:else}
+      <div class="grid">
+        {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
+      </div>
+    {/if}
   {/if}
-{/if}
 
-<h2>{t('facets.liked.yes')}</h2>
-{#if likedLists}
-  <div class="tabs" role="tablist">
-    {#each tabs as tb (tb.id)}
-      <button role="tab" aria-selected={tab === tb.id} class:on={tab === tb.id} onclick={() => (tab = tb.id)}>{tb.label} · {tb.n}</button>
-    {/each}
-  </div>
-  {#if tabs.find((tb) => tb.id === tab).n === 0}
-    <p class="empty">{t('lists.nothingLiked')}</p>
-  {:else if tab === 'artists'}
-    <div class="grid">
-      {#each likedLists.artists as a (a.key)}<TarjetaArtista artist={a} />{/each}
+  <h2>{t('facets.liked.yes')}</h2>
+  {#if likedLists}
+    <div class="tabs" role="tablist">
+      {#each tabs as tb (tb.id)}
+        <button role="tab" aria-selected={tab === tb.id} class:on={tab === tb.id} onclick={() => (tab = tb.id)}>{tb.label} · {tb.n}</button>
+      {/each}
     </div>
-  {:else}
+    {#if tabs.find((tb) => tb.id === tab).n === 0}
+      <p class="empty">{t('lists.nothingLiked')}</p>
+    {:else if tab === 'artists'}
+      <div class="grid">
+        {#each likedLists.artists as a (a.key)}<TarjetaArtista artist={a} />{/each}
+      </div>
+    {:else}
+      <div class="grid">
+        {#each likedLists.collections as c (c.path)}
+          <div class="card">
+            <a href={folderHref(c.path)}>
+              <Tapa srcs={withPicture(albumsOf(c)).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
+            </a>
+            <span class="name">{c.name}</span>
+            <span class="sub">{t('count.albums', { n: c.albumCount })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  {/if}
+
+  <h2>{t('lists.collections')}</h2>
+  {#if collections?.length === 0}
+    <p class="empty">{t('lists.noCollections')}</p>
+  {:else if collections}
     <div class="grid">
-      {#each likedLists.collections as c (c.path)}
+      {#each collections as c (c.path)}
         <div class="card">
           <a href={folderHref(c.path)}>
-            <Tapa srcs={withPicture(albumsOf(c)).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
+            <Tapa srcs={withPicture(c.albums).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
           </a>
-          <span class="name">{c.name}</span>
-          <span class="sub">{t('count.albums', { n: c.albumCount })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+          <a class="name" href={folderHref(c.path)}>{c.name}</a>
+          <span class="sub">{t('count.albums', { n: c.albums.length })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
         </div>
       {/each}
     </div>
   {/if}
-{/if}
-
-<h2>{t('lists.collections')}</h2>
-{#if collections?.length === 0}
-  <p class="empty">{t('lists.noCollections')}</p>
-{:else if collections}
-  <div class="grid">
-    {#each collections as c (c.path)}
-      <div class="card">
-        <a href={folderHref(c.path)}>
-          <Tapa srcs={withPicture(c.albums).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
-        </a>
-        <a class="name" href={folderHref(c.path)}>{c.name}</a>
-        <span class="sub">{t('count.albums', { n: c.albums.length })} <MeGusta kind="collection" ref={c.path} size={16} /></span>
-      </div>
-    {/each}
-  </div>
+{:else if !error}
+  <Cargando />
 {/if}
 
 <style>
@@ -207,7 +212,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .new {
@@ -223,6 +228,7 @@
     justify-content: center;
     gap: 6px;
     border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
     color: var(--muted);
   }
   .tabs {

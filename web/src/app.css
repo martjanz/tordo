@@ -13,15 +13,39 @@
   --warn: #e0a040;
   --ok: #5cb85c;
   --down: #e05050;
-  --radius: 4px;
-  --gutter: 16px;
+  /* Type scale: every font size in the app comes from here. */
+  --fs-xs: 12px; /* labels, badges, times */
+  --fs-sm: 13px; /* secondary text */
+  --fs-md: 15px; /* body */
+  --fs-lg: 18px; /* section headings */
+  --fs-xl: 24px;
+  --fs-2xl: 32px; /* page titles */
+  /* A header with a big cover (the album page): one step under the Sonando view. */
+  --fs-display: clamp(24px, 2vw + 12px, 44px);
+  /* The Sonando view's big text, which grows with the screen. */
+  --fs-hero: clamp(24px, 3.6vw + 8px, 64px);
+  --fs-hero-long: clamp(22px, 2.6vw + 8px, 46px);
+  --fs-hero-sub: clamp(17px, 1.2vw + 10px, 28px);
+  --fs-hero-meta: clamp(14px, 0.5vw + 11px, 18px);
+  /* Spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius: 4px; /* small controls */
+  --radius-lg: 8px; /* covers, cards, menus */
+  --gutter: var(--space-4);
+  --page-max: 1400px; /* main and the nav bar; see .page-wide */
   --nav-h: 55px; /* the sticky bar at the top (Nav.svelte), without its margin */
   --player-h: 72px;
   --tabs-h: 0px; /* the bottom tabs, on phones */
   color-scheme: dark;
   font-family: 'Inter Variable', system-ui, sans-serif;
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: var(--fs-md);
+  line-height: 1.5;
 }
 
 @media (max-width: 640px) {
@@ -31,8 +55,19 @@
   }
 }
 
+html {
+  /* Keep room for the scrollbar on pages that do not scroll, so the layout does not
+     shift sideways when moving between pages. */
+  scrollbar-gutter: stable;
+  /* Inherited by every scroll container. */
+  scrollbar-color: var(--line-strong) transparent;
+}
+
 * {
   box-sizing: border-box;
+  /* Not inherited, so it goes on every element: thin scrollbars, without the native
+     arrow buttons. */
+  scrollbar-width: thin;
 }
 
 body {
@@ -53,7 +88,8 @@ a:hover {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -101,35 +137,116 @@ button.icon.on {
   color: var(--accent);
 }
 
+/* Text fields, selects and textareas: the same height, border and focus as a
+   button, on the surface color. Components only size and place them. */
+input:where(:not([type]), [type='text'], [type='search'], [type='password'], [type='number'], [type='email'], [type='url']),
+select,
+textarea {
+  background-color: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+}
+
+input:where(:not([type]), [type='text'], [type='search'], [type='password'], [type='number'], [type='email'], [type='url']):hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+::placeholder {
+  color: var(--faint);
+  opacity: 1;
+}
+
+textarea {
+  padding: 6px 10px;
+  line-height: 1.4;
+}
+
+/* Like the facet buttons: no native dropdown, a chevron drawn in --muted. */
+select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239ba3ac' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  cursor: pointer;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: default;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* Pages made of covers (Inicio, Explorar) use the whole screen, with a
+   gutter that grows with it; on the others text keeps a readable width. Set
+   on main and on the nav bar, so their edges line up. */
+.page-wide {
+  --page-max: none;
+  --gutter: clamp(var(--space-4), 1.5vw + 4px, var(--space-6));
+}
+
 main {
-  max-width: 1400px;
+  max-width: var(--page-max);
   margin: 0 auto;
-  padding: 0 var(--gutter) 48px;
+  padding: 0 var(--gutter) var(--space-7);
 }
 
 h1 {
-  font-size: 26px;
+  font-size: var(--fs-2xl);
+  font-weight: 700;
   line-height: 1.2;
+  letter-spacing: -0.025em;
   color: var(--strong);
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
 }
 
+@media (max-width: 640px) {
+  h1 {
+    font-size: var(--fs-xl);
+  }
+}
+
+/* A section heading. Small uppercase text is for true labels (.label). */
 h2 {
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--faint);
-  font-weight: 600;
-  margin: 32px 0 12px;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--strong);
+  margin: var(--space-6) 0 var(--space-3);
 }
 
 .label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -137,14 +254,14 @@ h2 {
 
 .path {
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--faint);
   word-break: break-all;
 }
 
 .empty {
   color: var(--muted);
-  padding: 48px 0;
+  padding: var(--space-7) 0;
   text-align: center;
 }
 
@@ -152,19 +269,35 @@ h2 {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px 16px;
+  gap: var(--space-5) var(--space-4);
 }
 
 @media (max-width: 640px) {
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 16px 12px;
+    gap: var(--space-4) var(--space-3);
   }
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+/* A checkbox and its text, which may wrap or carry a <small> line below. */
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.check > input {
+  margin-top: calc((1lh - 16px) / 2); /* centered on the first line */
+}
+
+.check small {
+  display: block;
+  color: var(--faint);
 }

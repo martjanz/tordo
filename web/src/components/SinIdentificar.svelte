@@ -2,6 +2,7 @@
   // The Sin identificar queue: albums MusicBrainz matched below the
   // threshold, with their candidates. An album leaves the queue once
   // corrected.
+  import Cargando from './Cargando.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { folderName } from '../lib/format.js'
@@ -109,6 +110,8 @@
       </li>
     {/each}
   </ul>
+{:else}
+  <Cargando />
 {/if}
 
 <style>
@@ -148,7 +151,7 @@
     font-weight: 500;
   }
   .meta {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -157,7 +160,7 @@
   .folder,
   .best {
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
   .buttons {
     display: flex;
@@ -166,7 +169,7 @@
     flex: none;
   }
   .search {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .panel {

@@ -9,7 +9,8 @@
   import Icono from './Icono.svelte'
 
   // bare shows only the brand (the first-use assistant).
-  let { page, bare = false } = $props()
+  // wide: the page uses the whole screen (lib/shelf.js), and so does the bar.
+  let { page, bare = false, wide = false } = $props()
 
   // A single list belongs to Listas, the statistics to Inicio.
   const isActive = (s) =>
@@ -29,7 +30,7 @@
 </script>
 
 <header>
-  <nav>
+  <nav class:page-wide={wide}>
     <a class="brand" class:alone={bare} href="/">
       <svg viewBox="0 0 32 32" width="20" height="20" aria-hidden="true">
         <circle cx="16" cy="16" r="10.5" fill="none" stroke="currentColor" stroke-width="2.5" />
@@ -91,7 +92,7 @@
     margin-bottom: 16px;
   }
   header nav {
-    max-width: 1400px;
+    max-width: var(--page-max);
     margin: 0 auto;
     padding: 12px var(--gutter);
     display: flex;
@@ -101,7 +102,7 @@
   .sections {
     display: flex;
     gap: 20px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
@@ -113,7 +114,7 @@
     padding-right: 20px;
     border-right: 1px solid var(--line-strong);
     color: var(--strong);
-    font-size: 18px;
+    font-size: var(--fs-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
   }
@@ -131,7 +132,7 @@
     flex: 1;
   }
   .modo {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -142,7 +143,7 @@
   }
   .chip {
     font: inherit;
-    font-size: 11px;
+    font-size: var(--fs-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--accent);
@@ -162,7 +163,7 @@
     color: var(--muted);
   }
   .help {
-    font-size: 16px;
+    font-size: var(--fs-md);
     font-weight: 700;
     width: 18px;
     justify-content: center;
@@ -202,7 +203,7 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
-      font-size: 11px;
+      font-size: var(--fs-xs);
       color: var(--faint);
     }
     .tabs a.active {

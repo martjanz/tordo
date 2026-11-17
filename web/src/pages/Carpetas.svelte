@@ -1,5 +1,6 @@
 <script>
   // The folders as they are on disk: a tree on the left, the open folder on the right.
+  import Cargando from '../components/Cargando.svelte'
   import ArbolCarpetas from '../components/ArbolCarpetas.svelte'
   import ContenidoCarpeta from '../components/ContenidoCarpeta.svelte'
   import ListaCarpeta from '../components/ListaCarpeta.svelte'
@@ -124,6 +125,8 @@
           <ListaCarpeta path={folder.path} {rootPath} {folder} />
         </div>
       {/key}
+    {:else}
+      <Cargando />
     {/if}
   </div>
 {:else}
@@ -136,6 +139,8 @@
         <p class="empty">{text(error)}</p>
       {:else if folder}
         <ContenidoCarpeta {folder} />
+      {:else}
+        <Cargando />
       {/if}
     </section>
   </div>

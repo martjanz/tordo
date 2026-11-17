@@ -1,6 +1,7 @@
 <script>
   // Tu escucha: what was played in a period (week, month, year, always).
   import { untrack } from 'svelte'
+  import Cargando from '../components/Cargando.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import TarjetaAlbum from '../components/TarjetaAlbum.svelte'
   import { api } from '../lib/api.js'
@@ -136,6 +137,8 @@
       </ul>
     </section>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>
@@ -167,7 +170,7 @@
   }
   .plays,
   .n {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .rank {

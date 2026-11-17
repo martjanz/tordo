@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setLocale, t } from './i18n/index.svelte.js'
-import { artistLabel, codecName, country, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
+import { artistLabel, codecName, country, dominantQuality, duration, folderName, formatName, length, quality, size, since, years } from './format.js'
 
 describe('durations', () => {
   it('reads track lengths and totals', () => {
@@ -11,6 +11,25 @@ describe('durations', () => {
     expect(length(48 * 60000)).toBe('48 min')
     expect(length(72 * 60000)).toBe('1 h 12 min')
     expect(length(120 * 60000)).toBe('2 h')
+  })
+})
+
+describe('dominantQuality', () => {
+  const flac = { codec: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100 }
+  const hires = { codec: 'flac', lossless: true, bitDepth: 24, sampleRate: 96000 }
+  const mp3 = { codec: 'mp3', bitrate: 320 }
+  it('is the format most tracks share', () => {
+    expect(dominantQuality([flac, flac, flac])).toBe('FLAC 16/44,1')
+    expect(dominantQuality([flac, hires, flac])).toBe('FLAC 16/44,1')
+  })
+  it('is none when no format holds a majority', () => {
+    expect(dominantQuality([flac, mp3])).toBe('')
+    expect(dominantQuality([flac, flac, hires, mp3])).toBe('')
+    expect(dominantQuality([])).toBe('')
+    expect(dominantQuality(undefined)).toBe('')
+  })
+  it('is the only one for one track', () => {
+    expect(dominantQuality([mp3])).toBe('MP3 320')
   })
 })
 

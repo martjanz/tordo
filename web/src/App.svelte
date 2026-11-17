@@ -9,6 +9,7 @@
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
   import { appLink, resolve } from './lib/router.js'
+  import { widePage } from './lib/shelf.js'
   import { pageBlocked } from './lib/status.js'
   import Ajustes from './pages/Ajustes.svelte'
   import Album from './pages/Album.svelte'
@@ -26,6 +27,7 @@
   import Revisar from './pages/Revisar.svelte'
 
   const current = $derived(resolve(route.path, route.search))
+  const wide = $derived(widePage(current.page))
 
   // Until the first-use settings are saved, every page is the assistant.
   $effect(() => {
@@ -102,9 +104,9 @@
     <main><Entrar /></main>
   {/if}
 {:else}
-<Nav page={current.page} bare={current.page === 'bienvenida'} />
+<Nav page={current.page} bare={current.page === 'bienvenida'} {wide} />
 
-<main>
+<main class:page-wide={wide}>
   {#if current.page === 'inicio'}
     <Inicio />
   {:else if current.page === 'estadisticas'}

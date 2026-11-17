@@ -52,7 +52,7 @@
     flex-wrap: wrap;
     gap: 6px 16px;
     margin-bottom: 8px;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -76,7 +76,7 @@
   }
   kbd {
     font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     background: var(--surface-2);
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);

@@ -58,6 +58,18 @@ export function artistLabel(name) {
   return name === 'Various Artists' ? t('album.variousArtists') : name
 }
 
+// dominantQuality is the format more than half the tracks share ("" when
+// none does): a track list shows the format only on the tracks that differ.
+export function dominantQuality(tracks) {
+  const n = {}
+  for (const track of tracks ?? []) {
+    const q = quality(track)
+    n[q] = (n[q] ?? 0) + 1
+    if (n[q] * 2 > tracks.length) return q
+  }
+  return ''
+}
+
 // folderName is the last part of a catalog path.
 export function folderName(path) {
   return (path ?? '').split('/').filter((p) => p && p !== '..').pop() ?? ''

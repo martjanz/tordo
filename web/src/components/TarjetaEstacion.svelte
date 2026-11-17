@@ -1,8 +1,10 @@
 <script>
-  // A station card: a square with the radio icon, its name and its rules.
+  // A station card: its name set on an accent-lit gradient with a radio badge,
+  // then its name and its rules.
   import { t } from '../lib/i18n/index.svelte.js'
   import { DEFAULT_RULES, station as makeStation, summary } from '../lib/stations.js'
   import Icono from './Icono.svelte'
+  import Tapa from './Tapa.svelte'
 
   let { station, onplay, ondelete = null } = $props()
 
@@ -17,13 +19,13 @@
 <div class="card">
   {#if onplay}
     <button class="pic" onclick={() => onplay(full)} aria-label={t('station.playNamed', { name: station.name })}>
-      <Icono name="radio" size={40} />
+      <Tapa name={station.name} badge="radio" tint="var(--accent)" />
     </button>
   {:else}
-    <span class="pic"><Icono name="radio" size={40} /></span>
+    <span class="pic"><Tapa name={station.name} badge="radio" tint="var(--accent)" /></span>
   {/if}
   <span class="title">{station.name}</span>
-  <span class="sub">{summary(full)}</span>
+  <span class="sub" title={summary(full)}>{summary(full)}</span>
   {#if ondelete}
     <details class="menu">
       <summary aria-label={t('station.moreOf', { name: station.name })}><Icono name="more" size={16} /></summary>
@@ -40,28 +42,38 @@
     min-width: 0;
   }
   .pic {
-    aspect-ratio: 1;
+    display: block;
     width: 100%;
+    padding: 0;
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
-    color: var(--accent);
-    border-radius: var(--radius);
+    border: 0;
+    background: none;
+    text-align: left;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
   }
-  .title,
-  .sub {
+  span.pic {
+    cursor: default;
+  }
+  .title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  /* The rules wrap rather than get cut on one line. */
+  .sub {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
   }
   .title {
     color: var(--strong);
     font-weight: 500;
   }
   .sub {
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--muted);
   }
   .menu {

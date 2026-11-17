@@ -4,6 +4,7 @@
   // new one per visit, or on demand).
   import { untrack } from 'svelte'
   import Cargando from '../components/Cargando.svelte'
+  import Estante from '../components/Estante.svelte'
   import FilaAlbumes from '../components/FilaAlbumes.svelte'
   import Icono from '../components/Icono.svelte'
   import TarjetaEstacion from '../components/TarjetaEstacion.svelte'
@@ -92,16 +93,13 @@
   {:else}
     {#each sections as s (s.key)}
       {#if s.key === 'stations'}
-        <section class="stations">
-          <h2>{t('home.stations')}</h2>
-          <div class="strip">
-            {#each stations as st (st.id ?? st.name)}
-              <div class="cell">
-                <TarjetaEstacion station={st} onplay={can('playStation') ? playStation : null} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
-              </div>
-            {/each}
-          </div>
-        </section>
+        <Estante title={t('home.stations')}>
+          {#each stations as st (st.id ?? st.name)}
+            <div>
+              <TarjetaEstacion station={st} onplay={can('playStation') ? playStation : null} ondelete={st.id != null && !app.status?.readOnly ? remove : null} />
+            </div>
+          {/each}
+        </Estante>
       {:else if s.key === 'continue'}
         <FilaAlbumes title={t('home.continue')} href="/explore?order=plays" albums={data.continue} />
       {:else if s.key === 'likedTracks'}
@@ -143,30 +141,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: var(--fs-md);
     color: var(--muted);
-  }
-  .stations {
-    margin-bottom: 28px;
-  }
-  .strip {
-    display: flex;
-    gap: 16px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    padding-bottom: 8px;
-  }
-  .cell {
-    flex: 0 0 168px;
-    min-width: 0;
-    scroll-snap-align: start;
-  }
-  @media (max-width: 640px) {
-    .strip {
-      gap: 12px;
-    }
-    .cell {
-      flex-basis: 140px;
-    }
   }
 </style>

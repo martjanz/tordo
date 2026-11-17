@@ -1,6 +1,7 @@
 <script>
   // Revisar → Formatos a convertir: the files in formats worth converting.
   // Detection only: nothing is converted.
+  import Cargando from './Cargando.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { artistLabel, duration, folderName, size } from '../lib/format.js'
@@ -61,6 +62,8 @@
       {/each}
     </ul>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>
@@ -79,7 +82,7 @@
     margin: 0 0 14px;
   }
   .chip {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     padding: 1px 9px;
     border: 1px solid var(--line-strong);
     border-radius: 12px;
@@ -111,14 +114,14 @@
     min-width: 0;
   }
   .fmt {
-    font-size: 12px;
+    font-size: var(--fs-xs);
     padding: 0 7px;
     border: 1px solid var(--line-strong);
-    border-radius: 3px;
+    border-radius: var(--radius);
     color: var(--text);
   }
   .meta {
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
 </style>
