@@ -1,8 +1,8 @@
 <script>
   // A square picture: one cover, or a mosaic of four. Pictures fade in as they
   // load. With a name, the picture sits on a muted gradient picked from it,
-  // and when there is no picture the name is set on it: the title, poster-like, on a
-  // big square, the initials on a round or small one. Without a name, an icon.
+  // and when there is no picture the name is set on it: the title, like a
+  // typographic sleeve, on a big square, the initials on a round or small one. Without a name, an icon.
   // A small one (a thumbnail in a row) has tighter corners; badge is an icon
   // in a corner and tint a colour that glows over the gradient.
   import { initials, placeholderBackground, titleSize } from '../lib/placeholder.js'
@@ -23,7 +23,6 @@
     return glow + placeholderBackground(label)
   })
   const short = $derived(round || small)
-  const size = $derived(titleSize(label))
 
   // A cached picture may be complete before the load handler is attached.
   function seen(img) {
@@ -43,7 +42,7 @@
     {#if bg && short}
       <span class="initials" aria-hidden="true">{initials(label)}</span>
     {:else if bg}
-      <span class="title" class:medium={size === 'medium'} class:long={size === 'long'} aria-hidden="true">{label}</span>
+      <span class="title" style:font-size="max(var(--fs-xs), {titleSize(label)}cqi)" aria-hidden="true">{label}</span>
     {:else}
       <span class="none"><Icono name={icon} size={32} /></span>
     {/if}
@@ -125,31 +124,20 @@
     /* Grows with the picture: a 40px thumbnail to the artist page's circle. */
     font-size: max(var(--fs-xs), 28cqi);
   }
-  /* The title set like a poster: bold capitals, tight lines, one word per
-     line when it fits; longer titles step down in size. */
+  /* The title set like a typographic sleeve: heavy capitals, tight lines
+     balanced, bottom left. Its size (titleSize) shrinks as the title grows. */
   .title {
     align-self: end;
-    margin: 8cqi;
+    margin: 0 4.5cqi 5cqi;
+    padding-top: 0.2em; /* keeps accents on the first line from being clipped */
+    color: #fff;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: -0.02em;
-    line-height: 0.92;
-    padding-top: 0.2em; /* room for accents on capitals (Ñ, É) above the tight lines */
-    word-spacing: 100cqi;
-    font-size: max(var(--fs-xs), 17cqi);
+    letter-spacing: -0.025em;
+    line-height: 0.84; /* TITLE_LEADING */
+    text-wrap: balance;
     overflow-wrap: anywhere;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 5;
-    line-clamp: 5;
     overflow: hidden;
-  }
-  .title.medium {
-    font-size: max(var(--fs-xs), 13cqi);
-  }
-  .title.long {
-    font-size: max(var(--fs-xs), 10cqi);
-    word-spacing: normal;
   }
   .badge {
     position: absolute;

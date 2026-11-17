@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { hashName, initials, placeholderBackground, titleSize } from './placeholder.js'
+import {
+  hashName,
+  initials,
+  placeholderBackground,
+  TITLE_HEIGHT,
+  TITLE_LEADING,
+  TITLE_MAX,
+  TITLE_MIN,
+  TITLE_WIDTH,
+  titleLines,
+  titleSize,
+  textWidth,
+} from './placeholder.js'
 
 describe('hashName', () => {
   it('is deterministic and spreads names apart', () => {
@@ -68,21 +80,51 @@ describe('initials', () => {
   })
 })
 
+describe('textWidth', () => {
+  it('measures capitals, wide and narrow, accents as their letter', () => {
+    expect(textWidth('WM')).toBeGreaterThan(textWidth('IL') * 2)
+    expect(textWidth('religión')).toBe(textWidth('RELIGION'))
+    expect(textWidth('')).toBe(0)
+    expect(textWidth('★')).toBeGreaterThan(0)
+  })
+})
+
 describe('titleSize', () => {
-  it('sets short titles big, one word per line', () => {
-    expect(titleSize('Signos')).toBe('short')
-    expect(titleSize('Piano bar')).toBe('short')
-    expect(titleSize('Toda la colección')).toBe('medium') // "colección" is 9 letters
+  // Sizes are shares of the picture's width (cqi): a line has TITLE_WIDTH
+  // to fill and the block TITLE_HEIGHT to stand in, at TITLE_LEADING.
+  const widest = (name) => Math.max(...name.split(/\s+/).map(textWidth))
+
+  it('sets very short titles at the largest size', () => {
+    expect(titleSize('Relax')).toBe(TITLE_MAX)
+    expect(titleSize('')).toBe(TITLE_MAX)
+    expect(titleSize(undefined)).toBe(TITLE_MAX)
   })
 
-  it('steps down for long words and many words', () => {
-    expect(titleSize('Clics modernos')).toBe('medium')
-    expect(titleSize('Los años de la peste')).toBe('long')
-    expect(titleSize('(What’s the Story) Morning Glory?')).toBe('long')
+  it('sets a title like the mock-up at about 15% of the width', () => {
+    const size = titleSize('Parte de la religión')
+    expect(size).toBeGreaterThanOrEqual(14)
+    expect(size).toBeLessThanOrEqual(17)
+    // Three lines; CSS balances them as PARTE / DE LA / RELIGIÓN.
+    expect(titleLines('Parte de la religión', size)).toHaveLength(3)
   })
 
-  it('takes an empty name', () => {
-    expect(titleSize('')).toBe('short')
-    expect(titleSize(undefined)).toBe('short')
+  it('shrinks as the title grows', () => {
+    const names = ['Relax', 'Piano bar', 'Parte de la religión', '(What’s the Story) Morning Glory?', 'Sgt. Pepper’s Lonely Hearts Club Band']
+    const sizes = names.map(titleSize)
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1])
+    expect(sizes.at(-1)).toBeLessThan(sizes[0] * 0.6)
+  })
+
+  it('keeps every word whole on its line and the block within its height', () => {
+    for (const n of ['Locura', 'Artaud', 'Kamikaze', 'Clics modernos', 'Wham!', 'Toda la colección', 'Desenchufado', '(What’s the Story) Morning Glory?']) {
+      const size = titleSize(n)
+      expect(size * widest(n)).toBeLessThanOrEqual(TITLE_WIDTH + 0.01)
+      expect(titleLines(n, size).length * size * TITLE_LEADING).toBeLessThanOrEqual(TITLE_HEIGHT + 0.01)
+    }
+  })
+
+  it('never goes under the floor', () => {
+    expect(titleSize('Supercalifragilisticexpialidocious')).toBe(TITLE_MIN)
+    expect(titleSize('a '.repeat(80))).toBe(TITLE_MIN)
   })
 })
