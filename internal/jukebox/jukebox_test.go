@@ -241,25 +241,27 @@ func TestTooManyRemotes(t *testing.T) {
 	}
 }
 
-func TestNotice(t *testing.T) {
+func TestNoticeForwardsPayload(t *testing.T) {
 	h := New()
 	_, token := h.AttachSpeaker()
 	a, _ := h.AttachRemote(1, Guest)
 	b, _ := h.AttachRemote(2, Guest)
 	next(t, a)
 	next(t, b)
-	if err := h.Notice(token, a.ID, "hola"); err != nil {
+	payload := json.RawMessage(`{"key":"queue.next","params":{"n":2}}`)
+	if err := h.Notice(token, a.ID, payload); err != nil {
 		t.Fatal(err)
 	}
 	e := next(t, a)
-	if e.Type != "notice" || e.Data.(map[string]string)["text"] != "hola" {
-		t.Fatalf("notice = %+v", e)
+	raw, err := json.Marshal(e.Data)
+	if e.Type != "notice" || err != nil || string(raw) != `{"notice":{"key":"queue.next","params":{"n":2}}}` {
+		t.Fatalf("notice = %+v (%s, %v)", e, raw, err)
 	}
 	none(t, b)
-	if err := h.Notice(token, "gone", "x"); err != nil {
+	if err := h.Notice(token, "gone", payload); err != nil {
 		t.Fatalf("unknown remote = %v", err)
 	}
-	if err := h.Notice("bad", a.ID, "x"); !errors.Is(err, ErrNotSpeaker) {
+	if err := h.Notice("bad", a.ID, payload); !errors.Is(err, ErrNotSpeaker) {
 		t.Fatalf("wrong token = %v", err)
 	}
 }

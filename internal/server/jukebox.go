@@ -131,25 +131,49 @@ func (s *Server) jukeboxState(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// cleanNotice checks a notice payload: a non-empty string (trimmed, at most
+// 300 characters) or an object with a string key and optional object params.
+// It returns the payload to forward, or false when it is neither.
+func cleanNotice(raw json.RawMessage) (json.RawMessage, bool) {
+	var str string
+	if json.Unmarshal(raw, &str) == nil {
+		str = strings.TrimSpace(str)
+		if utf8.RuneCountInString(str) > 300 {
+			str = string([]rune(str)[:300])
+		}
+		if str == "" {
+			return nil, false
+		}
+		out, err := json.Marshal(str)
+		return out, err == nil
+	}
+	var obj struct {
+		Key    string         `json:"key"`
+		Params map[string]any `json:"params,omitempty"`
+	}
+	if err := json.Unmarshal(raw, &obj); err != nil || obj.Key == "" {
+		return nil, false
+	}
+	out, err := json.Marshal(obj)
+	return out, err == nil
+}
+
 func (s *Server) jukeboxNotice(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Token  string `json:"token"`
-		Remote string `json:"remote"`
-		Text   string `json:"text"`
+		Token  string          `json:"token"`
+		Remote string          `json:"remote"`
+		Notice json.RawMessage `json:"notice"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
-	text := strings.TrimSpace(in.Text)
-	if utf8.RuneCountInString(text) > 300 {
-		text = string([]rune(text)[:300])
-	}
-	if text == "" {
+	notice, ok := cleanNotice(in.Notice)
+	if !ok {
 		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
-	if err := s.jukebox().Notice(in.Token, in.Remote, text); err != nil {
+	if err := s.jukebox().Notice(in.Token, in.Remote, notice); err != nil {
 		fail(w, err)
 		return
 	}

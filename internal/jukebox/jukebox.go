@@ -148,16 +148,17 @@ func (h *Hub) Publish(token string, state json.RawMessage) error {
 	return nil
 }
 
-// Notice sends a text to one remote (the one whose command caused it). An
+// Notice sends a notice to one remote (the one whose command caused it): a
+// JSON string, or a message key with params that the phone translates. An
 // unknown remote (it left) is not an error.
-func (h *Hub) Notice(token, remote, text string) error {
+func (h *Hub) Notice(token, remote string, notice json.RawMessage) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.speaker == nil || token != h.token {
 		return ErrNotSpeaker
 	}
 	if c, ok := h.remotes[remote]; ok {
-		h.sendLocked(c, Event{"notice", map[string]string{"text": text}})
+		h.sendLocked(c, Event{"notice", map[string]json.RawMessage{"notice": notice}})
 	}
 	return nil
 }

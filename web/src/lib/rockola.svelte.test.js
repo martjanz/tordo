@@ -9,6 +9,7 @@ vi.mock('./auth.svelte.js', () => ({ checkAuth: vi.fn() }))
 vi.mock('./player.svelte.js', () => ({ player: { playing: false }, toggle: vi.fn(), setMediaKeys: vi.fn() }))
 
 import { ApiError, api } from './api.js'
+import { setLocale, text } from './i18n/index.svelte.js'
 import { notify } from './app.svelte.js'
 import { checkAuth } from './auth.svelte.js'
 import * as P from './player.svelte.js'
@@ -86,8 +87,20 @@ describe('rockola', () => {
 
   it('shows notices', () => {
     setRockola(true, connect)
-    last().emit('notice', { text: 'hola' })
-    expect(notify).toHaveBeenCalledWith('hola')
+    last().emit('notice', { notice: 'texto' })
+    expect(notify).toHaveBeenCalledWith('texto')
+  })
+
+  it('translates a notice key in the own language of the phone', () => {
+    setLocale('en')
+    try {
+      setRockola(true, connect)
+      last().emit('notice', { notice: { key: 'queue.next' } })
+      expect(notify).toHaveBeenCalledWith({ key: 'queue.next' })
+      expect(text(notify.mock.calls[0][0])).toBe('Playing next.') // what notify stores on this phone
+    } finally {
+      setLocale('es')
+    }
   })
 
   it('turns off with "no está disponible" on a speaker-off right after hello', () => {

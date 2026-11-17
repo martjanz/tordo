@@ -139,7 +139,7 @@ describe('run', () => {
     const P = fakeP()
     const say = vi.fn()
     await run({ command: 'next', args: {}, session: 7, role: 'guest' }, P, say)
-    expect(say).toHaveBeenCalledWith('Solo el anfitrión puede hacer esto.')
+    expect(say).toHaveBeenCalledWith({ key: 'error.host_only' })
     expect(P.next).not.toHaveBeenCalled()
   })
 
@@ -164,7 +164,7 @@ describe('run', () => {
     await run({ command: 'removeAt', args: { key: 11 }, session: 7, role: 'guest' }, P, say)
     expect(P.removeAt).toHaveBeenCalledWith(0)
     await run({ command: 'removeAt', args: { key: 11 }, session: 8, role: 'guest' }, P, say)
-    expect(say).toHaveBeenCalledWith('Solo podés quitar lo que agregaste.')
+    expect(say).toHaveBeenCalledWith({ key: 'queue.remove_own' })
     expect(P.removeAt).toHaveBeenCalledTimes(1)
   })
 
@@ -197,7 +197,7 @@ describe('run', () => {
     expect(P.moveTo).toHaveBeenCalledWith(2, 0)
     await run({ command: 'moveTo', args: { key: 13, toKey: 11 }, session: 7, role: 'guest' }, P, say)
     expect(P.moveTo).toHaveBeenCalledTimes(1)
-    expect(say).toHaveBeenCalledWith('Solo el anfitrión puede hacer esto.')
+    expect(say).toHaveBeenCalledWith({ key: 'error.host_only' })
   })
 
   it('does nothing with invalid arguments', async () => {

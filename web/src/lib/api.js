@@ -1,11 +1,37 @@
 // Calls to the Go server. Errors carry the HTTP status and the server's text.
 
+import { has, t } from './i18n/index.svelte.js'
+
+// ApiError is a failed call. message is in the listener's language when the
+// server's error code is known; notice is what to show on another device
+// (a message key to translate there, or the plain text).
 export class ApiError extends Error {
-  constructor(status, message, retryAfter = 0) {
+  constructor(status, message, retryAfter = 0, { code = '', params = {}, notice = message } = {}) {
     super(message)
     this.status = status
     this.retryAfter = retryAfter // seconds, from Retry-After
+    this.code = code
+    this.params = params
+    this.notice = notice
   }
+}
+
+// failure builds the ApiError of a non-2xx response from its body: the
+// server's {code, message, params}, or whatever text came (a proxy's page).
+function failure(status, raw, retryAfter) {
+  let body = null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed
+  } catch {
+    // not JSON: the text is the message
+  }
+  const code = typeof body?.code === 'string' ? body.code : ''
+  const params = body?.params !== null && typeof body?.params === 'object' ? body.params : {}
+  const key = 'error.' + code
+  if (code && has(key)) return new ApiError(status, t(key, params), retryAfter, { code, params, notice: { key, params } })
+  const message = (typeof body?.message === 'string' && body.message) || (body ? '' : raw.trim()) || t('error.http', { status })
+  return new ApiError(status, message, retryAfter, { code, params })
 }
 
 let unauthorized = null
@@ -27,13 +53,13 @@ async function call(method, path, body) {
   try {
     res = await fetch(path, init)
   } catch {
-    throw new ApiError(0, 'No se pudo contactar a Tordo. ¿Sigue abierto?')
+    throw new ApiError(0, t('error.network'), 0, { code: 'network', notice: { key: 'error.network', params: {} } })
   }
   if (!res.ok) {
-    const text = (await res.text()).trim()
+    const raw = await res.text()
     if (res.status === 401 && path !== '/api/auth/login') unauthorized?.()
     const retryAfter = Number(res.headers?.get('Retry-After')) || 0
-    throw new ApiError(res.status, text || `Error ${res.status}`, retryAfter)
+    throw failure(res.status, raw, retryAfter)
   }
   if (res.status === 204 || res.status === 202) return null
   return res.json()
@@ -134,7 +160,7 @@ export const api = {
   sessions: () => get('/api/sessions'),
   closeSession: (id) => del(`/api/sessions/${id}`),
   jukeboxState: (token, state) => post('/api/jukebox/state', { token, state }),
-  jukeboxNotice: (token, remote, text) => post('/api/jukebox/notice', { token, remote, text }),
+  jukeboxNotice: (token, remote, notice) => post('/api/jukebox/notice', { token, remote, notice }),
   jukeboxCommand: (remote, command, args) => post('/api/jukebox/command', { remote, command, args }),
   setSessionHost: (id, host) => put(`/api/sessions/${id}/host`, { host }),
   auth: () => get('/api/auth'),

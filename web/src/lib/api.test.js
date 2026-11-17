@@ -63,6 +63,56 @@ describe('calls', () => {
   })
 })
 
+describe('errors', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const fail = (status, body) => vi.stubGlobal('fetch', async () => ({ ok: false, status, headers: { get: () => null }, text: async () => body }))
+  const error = () => api.status().then(() => null, (e) => e)
+
+  it('translates a known code and keeps the key for other devices', async () => {
+    fail(404, JSON.stringify({ code: 'album_not_found', message: 'album not found' }))
+    const e = await error()
+    expect(e).toBeInstanceOf(ApiError)
+    expect(e).toMatchObject({ status: 404, code: 'album_not_found', message: 'álbum no encontrado', notice: { key: 'error.album_not_found', params: {} } })
+  })
+
+  it('fills the params of the message', async () => {
+    fail(429, JSON.stringify({ code: 'too_many_attempts', message: 'x', params: { seconds: 30 } }))
+    const e = await error()
+    expect(e.message).toBe('Demasiados intentos. Probá de nuevo en 30 s.')
+    expect(e.notice).toEqual({ key: 'error.too_many_attempts', params: { seconds: 30 } })
+  })
+
+  it('falls back to the server message for an unknown code', async () => {
+    fail(500, JSON.stringify({ code: 'zzz', message: 'boom' }))
+    const e = await error()
+    expect(e).toMatchObject({ message: 'boom', code: 'zzz', notice: 'boom' })
+  })
+
+  it('shows the text of a body that is not JSON', async () => {
+    fail(502, '<html>Bad Gateway</html>')
+    expect((await error()).message).toBe('<html>Bad Gateway</html>')
+    fail(500, '5')
+    expect((await error()).message).toBe('5')
+  })
+
+  it('says the status when the body is empty', async () => {
+    fail(500, '')
+    const e = await error()
+    expect(e.message).toBe('Error 500')
+    fail(500, '{}')
+    expect((await error()).message).toBe('Error 500')
+  })
+
+  it('reports a network failure', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('failed')
+    })
+    const e = await error()
+    expect(e).toMatchObject({ status: 0, code: 'network', message: 'No se pudo contactar a Tordo. ¿Sigue abierto?', notice: { key: 'error.network' } })
+  })
+})
+
 describe('stations', () => {
   afterEach(() => vi.unstubAllGlobals())
   const st = { name: 'Rock', source: { view: 'tracks', facets: { genre: 'Rock' } }, mode: 'tracks', artistGap: 3, avoidDays: 7 }

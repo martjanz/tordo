@@ -59,7 +59,7 @@ export function setRockola(on, connect = (u) => new EventSource(u)) {
     helloSeen = false
     rockola.view = parse(e)
   })
-  src.addEventListener('notice', (e) => notify(parse(e).text))
+  src.addEventListener('notice', (e) => notify(parse(e).notice))
   src.addEventListener('role', (e) => {
     rockola.role = parse(e).role
   })

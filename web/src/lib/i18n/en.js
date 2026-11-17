@@ -93,5 +93,20 @@ export default {
     unknown_remote: 'unknown remote',
     too_many_remotes: 'Too many remotes connected to the jukebox.',
     speaker_busy: 'The computer is not responding: try again.',
+    network: 'Could not reach Tordo. Is it still running?',
+    http: 'Error {status}',
+  },
+  station: {
+    empty: 'This station has nothing to play.',
+  },
+  play: {
+    nothing: 'Nothing to play here.',
+    truncated: { one: 'Added the first {n} track.', other: 'Added the first {n} tracks.' },
+    skipped: { one: "{n} track can't be played: ffmpeg is missing.", other: "{n} tracks can't be played: ffmpeg is missing." },
+  },
+  queue: {
+    added: { one: '{n} track added to the queue.', other: '{n} tracks added to the queue.' },
+    next: 'Playing next.',
+    remove_own: 'You can only remove what you added.',
   },
 }

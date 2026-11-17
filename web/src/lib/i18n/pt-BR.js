@@ -93,5 +93,20 @@ export default {
     unknown_remote: 'controle desconhecido',
     too_many_remotes: 'Controles demais conectados à jukebox.',
     speaker_busy: 'O computador não responde: tente novamente.',
+    network: 'Não foi possível contatar o Tordo. Ele ainda está aberto?',
+    http: 'Erro {status}',
+  },
+  station: {
+    empty: 'Esta estação não tem nada para tocar.',
+  },
+  play: {
+    nothing: 'Não há nada para reproduzir aqui.',
+    truncated: { one: 'Foi adicionada {n} faixa.', other: 'Foram adicionadas as primeiras {n} faixas.' },
+    skipped: { one: '{n} faixa não pode ser reproduzida: falta o ffmpeg.', other: '{n} faixas não podem ser reproduzidas: falta o ffmpeg.' },
+  },
+  queue: {
+    added: { one: '{n} faixa adicionada à fila.', other: '{n} faixas adicionadas à fila.' },
+    next: 'Toca em seguida.',
+    remove_own: 'Você só pode remover o que adicionou.',
   },
 }

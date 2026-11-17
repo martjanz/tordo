@@ -80,7 +80,7 @@ function open(connect) {
   })
   es.addEventListener('command', (e) => {
     const cmd = data(e)
-    run(cmd, P, (text) => api.jukeboxNotice(token, cmd.remote, text).catch(() => {}))
+    run(cmd, P, (notice) => api.jukeboxNotice(token, cmd.remote, notice).catch(() => {}))
   })
   es.addEventListener('replaced', () => {
     disableSpeaker()

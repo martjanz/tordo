@@ -93,5 +93,20 @@ export default {
     unknown_remote: 'control desconocido',
     too_many_remotes: 'Demasiados controles conectados a la rockola.',
     speaker_busy: 'La compu no responde: probá de nuevo.',
+    network: 'No se pudo contactar a Tordo. ¿Sigue abierto?',
+    http: 'Error {status}',
+  },
+  station: {
+    empty: 'Esta estación no tiene nada para sonar.',
+  },
+  play: {
+    nothing: 'No hay nada para reproducir acá.',
+    truncated: { one: 'Se agregaron las primeras {n} pista.', other: 'Se agregaron las primeras {n} pistas.' },
+    skipped: { one: '{n} pista no se puede reproducir: falta ffmpeg.', other: '{n} pistas no se pueden reproducir: falta ffmpeg.' },
+  },
+  queue: {
+    added: { one: '{n} pista agregada a la cola.', other: '{n} pistas agregadas a la cola.' },
+    next: 'Suena a continuación.',
+    remove_own: 'Solo podés quitar lo que agregaste.',
   },
 }
