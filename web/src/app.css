@@ -38,6 +38,7 @@
   --radius: 4px; /* small controls */
   --radius-lg: 8px; /* covers, cards, menus */
   --gutter: var(--space-4);
+  --page-max: 1400px; /* main and the nav bar; see .page-wide */
   --nav-h: 55px; /* the sticky bar at the top (Nav.svelte), without its margin */
   --player-h: 72px;
   --tabs-h: 0px; /* the bottom tabs, on phones */
@@ -205,8 +206,16 @@ input[type='radio']:disabled {
   outline-offset: 2px;
 }
 
+/* Pages made of covers (Inicio, Explorar) use the whole screen, with a
+   gutter that grows with it; on the others text keeps a readable width. Set
+   on main and on the nav bar, so their edges line up. */
+.page-wide {
+  --page-max: none;
+  --gutter: clamp(var(--space-4), 1.5vw + 4px, var(--space-6));
+}
+
 main {
-  max-width: 1400px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 0 var(--gutter) var(--space-7);
 }
