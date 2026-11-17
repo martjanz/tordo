@@ -6,7 +6,7 @@
   import { loadLevel, revealPath, tree } from '../lib/carpetas.svelte.js'
   import { entries, playableIds } from '../lib/folders.js'
   import { duration, folderName, size } from '../lib/format.js'
-  import { formatNumber } from '../lib/i18n/index.svelte.js'
+  import { formatNumber, t } from '../lib/i18n/index.svelte.js'
   import { matchRows, shortPath } from '../lib/tree.js'
   import { enqueue, play } from '../lib/playback.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
@@ -27,8 +27,8 @@
   const files = $derived(entries(folder).files)
   const ids = $derived(playableIds(files))
   const album = $derived(folder.albums?.length === 1 && folder.albums[0].dir === folder.path ? folder.albums[0] : null)
-  const title = $derived(path === '' ? 'Carpetas' : folder.name || folderName(path))
-  const backName = $derived(back === null ? '' : back === '' ? 'Carpetas' : folderName(back))
+  const title = $derived(path === '' ? t('nav.folders') : folder.name || folderName(path))
+  const backName = $derived(back === null ? '' : back === '' ? t('nav.folders') : folderName(back))
   const found = $derived(result ? matchRows(result) : null)
 
   // The subfolders of this folder (levels in between merged).
@@ -113,20 +113,20 @@
     {#if folder.collection && path !== ''}<MeGusta kind="collection" ref={path} />{/if}
     <div class="more" bind:this={menu}>
       {#if path !== ''}
-        <button class="icon" aria-label="Acciones" aria-haspopup="menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
+        <button class="icon" aria-label={t('common.actions')} aria-haspopup="menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
           <Icono name="more" size={20} />
         </button>
       {/if}
       {#if menuOpen}
         <div class="menu" role="menu">
           {#if folder.trackCount > 0}
-            <button role="menuitem" onclick={() => act(() => play({ folder: path }))}>Reproducir</button>
-            <button role="menuitem" onclick={() => act(() => play({ folder: path }, { shuffle: true }))}>Aleatorio</button>
-            <button role="menuitem" onclick={() => act(() => enqueue({ folder: path }))}>A la cola</button>
+            <button role="menuitem" onclick={() => act(() => play({ folder: path }))}>{t('player.play')}</button>
+            <button role="menuitem" onclick={() => act(() => play({ folder: path }, { shuffle: true }))}>{t('player.shuffle')}</button>
+            <button role="menuitem" onclick={() => act(() => enqueue({ folder: path }))}>{t('queue.toQueue')}</button>
           {/if}
           {#if folder.detected && !app.status?.readOnly && !listenMode()}
             <button role="menuitem" onclick={() => setCollection(!folder.collection)}>
-              {folder.collection ? 'No es una colección' : 'Es una colección'}
+              {folder.collection ? t('folders.notCollection') : t('folders.isCollection')}
             </button>
           {/if}
         </div>
@@ -136,7 +136,7 @@
 
   {#if isTop}
     <div class="filter">
-      <input type="search" placeholder="Filtrar carpetas…" aria-label="Filtrar carpetas" bind:value={query} />
+      <input type="search" placeholder={t('folders.filter')} aria-label={t('folders.filterLabel')} bind:value={query} />
     </div>
   {/if}
 
@@ -160,7 +160,7 @@
         <li>
           <a class="row" href={albumHref(album.id)}>
             <Icono name="disc" size={18} />
-            <span class="name">Ver álbum</span>
+            <span class="name">{t('folders.viewAlbum')}</span>
             <Icono name="chevron_right" size={16} />
           </a>
         </li>
@@ -182,7 +182,7 @@
               class="row"
               class:dim={!f.playable}
               disabled={!f.playable}
-              title={f.playable ? undefined : f.track ? 'No se puede reproducir: falta ffmpeg' : 'No se pudo leer este archivo'}
+              title={f.playable ? undefined : f.track ? t('album.unplayable') : t('folders.unreadable')}
               onclick={() => play({ tracks: ids }, { startId: f.id })}>
               <Icono name="music" size={18} />
               <span class="name">{f.name}</span>
@@ -200,9 +200,9 @@
     {/if}
   </ul>
   {#if result?.matches.length === 0}
-    <p class="note">Ninguna carpeta se llama así.</p>
+    <p class="note">{t('folders.noMatch')}</p>
   {:else if result?.more}
-    <p class="note">Hay más coincidencias: escribí más para acotar.</p>
+    <p class="note">{t('folders.moreMatches')}</p>
   {/if}
 </div>
 

@@ -5,6 +5,7 @@
   import ListaCarpeta from '../components/ListaCarpeta.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
+  import { msg, t, text } from '../lib/i18n/index.svelte.js'
   import { syncGeneration } from '../lib/carpetas.svelte.js'
   import { navigate, savedScroll } from '../lib/nav.svelte.js'
   import { folderHref } from '../lib/router.js'
@@ -91,7 +92,7 @@
         }
         if (!p && f.children.length === 0) {
           folder = null
-          error = 'Todavía no hay música en el catálogo. Revisá las carpetas de config.json.'
+          error = msg('common.emptyCatalog')
           return
         }
         dir = shown === null ? 'none' : direction(shown, f.path)
@@ -104,7 +105,7 @@
         if (stale) return
         popped = false
         folder = null
-        error = e.status === 404 ? 'Esta carpeta ya no está en el catálogo.' : e.message
+        error = e.status === 404 ? msg('folders.gone') : e.message
       })
     return () => (stale = true)
   })
@@ -113,7 +114,7 @@
 {#if narrow}
   <div class="stack">
     {#if error}
-      <p class="empty">{error}</p>
+      <p class="empty">{text(error)}</p>
     {:else if folder && rootKnown}
       {#key folder.path}
         <div
@@ -127,12 +128,12 @@
   </div>
 {:else}
   <div class="explorer">
-    <aside class="tree" aria-label="Carpetas">
+    <aside class="tree" aria-label={t('nav.folders')}>
       <ArbolCarpetas selected={path} />
     </aside>
     <section class="content">
       {#if error}
-        <p class="empty">{error}</p>
+        <p class="empty">{text(error)}</p>
       {:else if folder}
         <ContenidoCarpeta {folder} />
       {/if}

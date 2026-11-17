@@ -12,12 +12,7 @@
 
   let { period } = $props()
 
-  const PERIODS = [
-    { value: 'week', label: 'Última semana' },
-    { value: 'month', label: 'Último mes' },
-    { value: 'year', label: 'Último año' },
-    { value: 'all', label: 'Siempre' },
-  ]
+  const PERIODS = ['week', 'month', 'year', 'all']
 
   let data = $state(null)
   let loads = 0
@@ -47,16 +42,16 @@
   const plays = (n) => t('count.plays', { n })
 </script>
 
-<h1>Historial de escucha</h1>
+<h1>{t('stats.title')}</h1>
 <nav class="tabs">
-  {#each PERIODS as p (p.value)}
-    <a href={statsHref(p.value)} class:on={period === p.value}>{p.label}</a>
+  {#each PERIODS as p (p)}
+    <a href={statsHref(p)} class:on={period === p}>{t('stats.' + p)}</a>
   {/each}
 </nav>
 
 {#if data}
   {#if !data.plays}
-    <p class="empty">Todavía no hay reproducciones en este período.</p>
+    <p class="empty">{t('stats.empty')}</p>
   {:else}
     <p class="totals">
       {plays(data.plays)} · {duration(data.listenedMs)} · {t('count.distinctTracks', { n: data.played })}
@@ -64,14 +59,14 @@
 
     {#if tracks.length}
       <section>
-        <h2>Pistas</h2>
-        <ListaPistas {tracks} numbered={false} showAlbum showPlays onplay={(t) => play({ tracks: tracks.map((x) => x.id) }, { startId: t.id })} />
+        <h2>{t('facets.view.tracks')}</h2>
+        <ListaPistas {tracks} numbered={false} showAlbum showPlays onplay={(track) => play({ tracks: tracks.map((x) => x.id) }, { startId: track.id })} />
       </section>
     {/if}
 
     {#if albums.length}
       <section>
-        <h2>Álbumes</h2>
+        <h2>{t('facets.view.albums')}</h2>
         <div class="grid">
           {#each albums as a (a.id)}
             <div class="cell">
@@ -85,7 +80,7 @@
 
     {#if artists.length}
       <section>
-        <h2>Artistas</h2>
+        <h2>{t('facets.view.artists')}</h2>
         <ol class="rank">
           {#each artists as a (a.key ? 'k:' + a.key : 'n:' + a.name)}
             <li>
@@ -99,7 +94,7 @@
 
     {#if countries.length}
       <section>
-        <h2>Países</h2>
+        <h2>{t('stats.countries')}</h2>
         <ol class="rank">
           {#each countries as c (c.value)}
             <li>
@@ -113,7 +108,7 @@
 
     {#if genres.length}
       <section>
-        <h2>Géneros</h2>
+        <h2>{t('stats.genres')}</h2>
         <ol class="rank">
           {#each genres as g (g.value)}
             <li>
@@ -128,7 +123,7 @@
 
   {#if data.never || data.stale}
     <section>
-      <h2>Por escuchar</h2>
+      <h2>{t('stats.toListen')}</h2>
       <ul class="rank">
         {#if data.never}
           <li><a href={exploreHref({ listened: 'never' })}>{t('count.albumsNever', { n: data.never })} →</a></li>

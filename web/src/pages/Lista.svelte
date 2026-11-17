@@ -8,7 +8,7 @@
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
   import { duration, length } from '../lib/format.js'
-  import { t } from '../lib/i18n/index.svelte.js'
+  import { msg, t, text } from '../lib/i18n/index.svelte.js'
   import { RowDrag } from '../lib/drag.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { move } from '../lib/order.js'
@@ -40,7 +40,7 @@
       error = ''
     } catch (e) {
       list = null
-      error = e.status === 404 ? 'Esta lista ya no existe.' : e.message
+      error = e.status === 404 ? msg('playlist.gone') : e.message
     }
   }
 
@@ -87,7 +87,7 @@
   }
 
   async function remove() {
-    if (!confirm(`¿Eliminar la lista «${list.name}»? Las pistas no se tocan.`)) return
+    if (!confirm(t('playlist.confirmDelete', { name: list.name }))) return
     try {
       await api.deletePlaylist(id)
       navigate('/lists')
@@ -145,17 +145,17 @@
 </script>
 
 {#if error}
-  <p class="empty">{error}</p>
+  <p class="empty">{text(error)}</p>
 {:else if list}
   <div class="head">
     <div class="pic">
       <Tapa srcs={list.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={list.name} />
     </div>
     <div class="info">
-      <span class="label">Lista</span>
+      <span class="label">{t('playlist.label')}</span>
       {#if renaming}
         <input class="rename" bind:value={draft} onkeydown={onrenamekey} onblur={() => (renaming = false)} maxlength="200"
-          aria-label="Nombre de la lista" use:focus />
+          aria-label={t('playlist.name')} use:focus />
       {:else}
         <h1>{list.name}</h1>
       {/if}
@@ -163,15 +163,15 @@
       <Acciones what={{ playlist: list.id }} station={playlistStation(list)} />
       {#if writable}
         <div class="manage">
-          <button onclick={startRename}>Renombrar</button>
-          <button onclick={remove}><Icono name="trash" size={14} /> Eliminar lista</button>
+          <button onclick={startRename}>{t('playlist.rename')}</button>
+          <button onclick={remove}><Icono name="trash" size={14} /> {t('playlist.deleteList')}</button>
         </div>
       {/if}
     </div>
   </div>
 
   {#if list.entries.length === 0}
-    <p class="empty">La lista está vacía. Agregale pistas con «+ Lista» en un álbum, una carpeta o una pista.</p>
+    <p class="empty">{t('playlist.empty')}</p>
   {:else}
     <ol class="entries" bind:this={ol}>
       {#each list.entries as e, i (e.itemId)}
@@ -183,16 +183,16 @@
           style:transform={rows.transform(i)}
           style:transition={rows.transition(i)}>
           {#if e.trackId && e.playable !== false}
-            <button class="play" onclick={() => play({ playlist: list.id }, { startId: e.trackId })} aria-label="Reproducir {e.title}"></button>
+            <button class="play" onclick={() => play({ playlist: list.id }, { startId: e.trackId })} aria-label={t('player.playNamed', { title: e.title })}></button>
           {/if}
           {#if writable}
-            <button class="icon grip" aria-label="Mover {e.title} (Alt + flechas)" title="Arrastrar para reordenar"
+            <button class="icon grip" aria-label={t('queue.move', { title: e.title })} title={t('queue.drag')}
               onpointerdown={(ev) => rows.down(ev, i)} onpointermove={rows.move} onpointerup={rows.up} onpointercancel={rows.cancel}
               onkeydown={(ev) => onkey(ev, i)}><Icono name="grip" size={16} /></button>
           {/if}
           <span class="n">{i + 1}</span>
           <span class="text">
-            <span class="title">{e.title}{#if !e.trackId} <span class="na">no disponible</span>{/if}</span>
+            <span class="title">{e.title}{#if !e.trackId} <span class="na">{t('playlist.unavailable')}</span>{/if}</span>
             <span class="artist">
               {#if e.artist}{#if e.artistKey}<a href={artistHref(e.artistKey)}>{e.artist}</a>{:else}{e.artist}{/if}{/if}
               {#if e.artist && e.album && e.albumId} · {/if}
@@ -201,7 +201,7 @@
           </span>
           <span class="time">{e.trackId ? duration(e.durationMs) : ''}</span>
           {#if writable}
-            <button class="icon rm" onclick={() => removeEntry(e)} title="Quitar de la lista" aria-label="Quitar {e.title} de la lista">
+            <button class="icon rm" onclick={() => removeEntry(e)} title={t('playlist.removeEntry')} aria-label={t('playlist.removeNamed', { title: e.title })}>
               <Icono name="close" size={16} />
             </button>
           {/if}

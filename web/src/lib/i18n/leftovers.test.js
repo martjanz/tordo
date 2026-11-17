@@ -13,33 +13,20 @@ const SRC = fileURLToPath(new URL('../../', import.meta.url))
 // PENDING lists the files not migrated yet, one path per line. The list can
 // only shrink: a file listed here that no longer has Spanish text fails.
 const PENDING = [
-  'components/ArbolCarpetas.svelte',
   'components/AudioDeEstaCompu.svelte',
-  'components/BarraFacetas.svelte',
-  'components/ContenidoCarpeta.svelte',
   'components/Dispositivos.svelte',
   'components/Duplicados.svelte',
   'components/GenerosPorMapear.svelte',
   'components/Identificar.svelte',
-  'components/ListaCarpeta.svelte',
   'components/Raices.svelte',
   'components/RedLocal.svelte',
   'components/SinIdentificar.svelte',
   'components/TokenDiscogs.svelte',
   'lib/ayuda.js',
   'pages/Ajustes.svelte',
-  'pages/Album.svelte',
-  'pages/Artista.svelte',
   'pages/Ayuda.svelte',
   'pages/Bienvenida.svelte',
-  'pages/Buscar.svelte',
-  'pages/Carpetas.svelte',
   'pages/Entrar.svelte',
-  'pages/Estadisticas.svelte',
-  'pages/Explorar.svelte',
-  'pages/Inicio.svelte',
-  'pages/Lista.svelte',
-  'pages/Listas.svelte',
   'pages/Revisar.svelte',
 ]
 

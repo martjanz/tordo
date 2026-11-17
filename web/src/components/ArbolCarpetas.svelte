@@ -4,7 +4,7 @@
   import { api } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
   import { loadLevel, revealPath, setOpen, tree } from '../lib/carpetas.svelte.js'
-  import { formatNumber } from '../lib/i18n/index.svelte.js'
+  import { formatNumber, t } from '../lib/i18n/index.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { folderHref } from '../lib/router.js'
   import { MIN } from '../lib/search.js'
@@ -144,14 +144,14 @@
   <div class="filter">
     <input
       type="search"
-      placeholder="Filtrar carpetas…"
-      aria-label="Filtrar carpetas"
+      placeholder={t('folders.filter')}
+      aria-label={t('folders.filterLabel')}
       bind:value={query}
       bind:this={input}
       onkeydown={inputKeydown}
     />
   </div>
-  <ul role="tree" aria-label="Carpetas" {onkeydown} bind:this={list}>
+  <ul role="tree" aria-label={t('nav.folders')} {onkeydown} bind:this={list}>
     {#each rows as row, i (row.node.path)}
       {@const node = row.node}
       {@const isOpen = !!openMap[node.path]}
@@ -171,15 +171,15 @@
         </span>
         <Icono name={node.album ? 'disc' : 'folder'} size={15} />
         <span class="name" class:hit={matching.has(node.path)} title={node.label}>{node.label}</span>
-        {#if node.collection}<span class="label">Colección</span>{/if}
+        {#if node.collection}<span class="label">{t('facets.facet.collection')}</span>{/if}
         <span class="tracks">{formatNumber(node.tracks)}</span>
       </li>
     {/each}
   </ul>
   {#if result?.matches.length === 0}
-    <p class="note">Ninguna carpeta se llama así.</p>
+    <p class="note">{t('folders.noMatch')}</p>
   {:else if result?.more}
-    <p class="note">Hay más coincidencias: escribí más para acotar.</p>
+    <p class="note">{t('folders.moreMatches')}</p>
   {/if}
 </div>
 

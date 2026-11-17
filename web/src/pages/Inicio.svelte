@@ -9,6 +9,7 @@
   import TarjetaEstacion from '../components/TarjetaEstacion.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { mine } from '../lib/mine.svelte.js'
   import { can, playStation } from '../lib/playback.svelte.js'
   import { exploreHref, statsHref } from '../lib/router.js'
@@ -69,11 +70,11 @@
 </script>
 
 <div class="head">
-  <h1>Inicio</h1>
+  <h1>{t('nav.home')}</h1>
   <span class="tools">
-    <a class="stats" href={statsHref('month')}><Icono name="chart" size={16} /> Historial de escucha →</a>
+    <a class="stats" href={statsHref('month')}><Icono name="chart" size={16} /> {t('stats.title')} →</a>
     {#if data && !empty}
-      <button class="icon" onclick={refresh} title="Otras filas" aria-label="Cambiar las filas">
+      <button class="icon" onclick={refresh} title={t('home.otherRows')} aria-label={t('home.changeRows')}>
         <Icono name="refresh" size={16} />
       </button>
     {/if}
@@ -86,13 +87,13 @@
       {@const msg = scanMessage(app.status.scan)}
       <p class="empty">{msg.title}<br /><small>{msg.detail}</small></p>
     {:else}
-      <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
+      <p class="empty">{t('common.emptyCatalog')}</p>
     {/if}
   {:else}
     {#each sections as s (s.key)}
       {#if s.key === 'stations'}
         <section class="stations">
-          <h2>Tus estaciones</h2>
+          <h2>{t('home.stations')}</h2>
           <div class="strip">
             {#each stations as st (st.id ?? st.name)}
               <div class="cell">
@@ -102,11 +103,11 @@
           </div>
         </section>
       {:else if s.key === 'continue'}
-        <FilaAlbumes title="Seguir escuchando" href="/explore?order=plays" albums={data.continue} />
+        <FilaAlbumes title={t('home.continue')} href="/explore?order=plays" albums={data.continue} />
       {:else if s.key === 'likedTracks'}
-        <FilaAlbumes title="Tus canciones favoritas" href={exploreHref({ liked: 'yes' }, 'tracks')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
+        <FilaAlbumes title={t('station.favoriteTracks')} href={exploreHref({ liked: 'yes' }, 'tracks')} station={FAVORITE_TRACKS} albums={data.likedTracks} />
       {:else if s.key === 'liked'}
-        <FilaAlbumes title="Álbumes preferidos" href={exploreHref({ liked: 'yes' })} station={PREFERRED_ALBUMS} albums={data.liked} />
+        <FilaAlbumes title={t('station.preferredAlbums')} href={exploreHref({ liked: 'yes' })} station={PREFERRED_ALBUMS} albums={data.liked} />
       {:else if s.row.kind === 'recent'}
         <FilaAlbumes title={rowTitle(s.row)} href="/explore?order=added" albums={s.row.albums} />
       {:else}

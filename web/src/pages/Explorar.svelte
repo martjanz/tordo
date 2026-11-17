@@ -10,6 +10,7 @@
   import TarjetaArtista from '../components/TarjetaArtista.svelte'
   import { api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { parse, toSearch } from '../lib/facets.js'
   import { navigate, patchState, route, savedScroll } from '../lib/nav.svelte.js'
   import { play } from '../lib/playback.svelte.js'
@@ -92,8 +93,8 @@
 
   // playFrom plays the listed tracks from t on (a long list in parts: the
   // tracks go in the request's URL).
-  function playFrom(t) {
-    const i = items.indexOf(t)
+  function playFrom(track) {
+    const i = items.indexOf(track)
     play({ tracks: items.slice(i, i + 500).map((x) => x.id) })
   }
 
@@ -140,12 +141,12 @@
     {/if}
     <div bind:this={sentinel}></div>
   {:else if filtered}
-    <p class="empty">Nada con estos filtros. <a href="/explore">Quitar filtros</a></p>
+    <p class="empty">{t('explore.noMatches')} <a href="/explore">{t('explore.clearFilters')}</a></p>
   {:else if scanning}
     {@const msg = scanMessage(app.status.scan)}
     <p class="empty">{msg.title}<br /><small>{msg.detail}</small></p>
   {:else}
-    <p class="empty">Todavía no hay música en el catálogo. Revisá las carpetas de config.json.</p>
+    <p class="empty">{t('common.emptyCatalog')}</p>
   {/if}
 {:else}
   <Cargando />
