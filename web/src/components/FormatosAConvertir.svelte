@@ -1,6 +1,7 @@
 <script>
   // Revisar → Formatos a convertir: the files in formats worth converting.
   // Detection only: nothing is converted.
+  import Cargando from './Cargando.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
   import { count, duration, folderName, size } from '../lib/format.js'
@@ -60,6 +61,8 @@
       {/each}
     </ul>
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

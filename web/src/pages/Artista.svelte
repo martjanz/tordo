@@ -1,6 +1,7 @@
 <script>
   // An artist: picture, country, years, their albums by year and their
   // tracks on others' albums (compilations).
+  import Cargando from '../components/Cargando.svelte'
   import Acciones from '../components/Acciones.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import MeGusta from '../components/MeGusta.svelte'
@@ -107,6 +108,8 @@
         onplay={(t) => play({ tracks: ap.tracks.map((x) => x.id) }, { startId: t.id })} />
     {/each}
   {/if}
+{:else}
+  <Cargando />
 {/if}
 
 <style>

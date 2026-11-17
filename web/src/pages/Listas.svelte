@@ -2,6 +2,7 @@
   // Lists: the playlists, favourite tracks (♥), Preferidos albums (bookmark), what
   // else the user likes (artists, collections) and the collections found in
   // the folders.
+  import Cargando from '../components/Cargando.svelte'
   import ListaPistas from '../components/ListaPistas.svelte'
   import Icono from '../components/Icono.svelte'
   import MeGusta from '../components/MeGusta.svelte'
@@ -83,111 +84,115 @@
   <p class="empty">{error}</p>
 {/if}
 
-<h2>Listas de reproducción</h2>
-{#if playlists}
-  {#if playlists.length === 0 && !writable}
-    <p class="empty">Todavía no hay listas.</p>
-  {:else}
-    {#if playlists.length === 0}
-      <p class="empty">Todavía no hay listas. Creá una acá o con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
-    {/if}
-    <div class="grid">
-      {#each playlists as p (p.id)}
-        <a class="card" href={listHref(p.id)}>
-          <Tapa srcs={p.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={p.name} />
-          <span class="name">{p.name}</span>
-          <span class="sub">{count(p.tracks, 'pista', 'pistas')}</span>
-        </a>
-      {/each}
-      {#if writable}
-        <div class="card">
-          {#if creating}
-            <form class="new" onsubmit={create}>
-              <input bind:value={name} placeholder="Nombre de la lista" aria-label="Nombre de la lista" maxlength="200" use:focus
-                onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
-              <button class="primary" disabled={!name.trim()}>Crear</button>
-            </form>
-          {:else}
-            <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
-              <Icono name="plus" size={28} />
-              <span>Nueva lista</span>
-            </button>
-          {/if}
-        </div>
+{#if playlists && likedLists && collections}
+  <h2>Listas de reproducción</h2>
+  {#if playlists}
+    {#if playlists.length === 0 && !writable}
+      <p class="empty">Todavía no hay listas.</p>
+    {:else}
+      {#if playlists.length === 0}
+        <p class="empty">Todavía no hay listas. Creá una acá o con «Agregar a una lista…», en el menú ⋯ de un álbum, una carpeta o una pista.</p>
       {/if}
-    </div>
+      <div class="grid">
+        {#each playlists as p (p.id)}
+          <a class="card" href={listHref(p.id)}>
+            <Tapa srcs={p.covers.map((c) => albumCoverURL(c, 320))} icon="lists" alt={p.name} />
+            <span class="name">{p.name}</span>
+            <span class="sub">{count(p.tracks, 'pista', 'pistas')}</span>
+          </a>
+        {/each}
+        {#if writable}
+          <div class="card">
+            {#if creating}
+              <form class="new" onsubmit={create}>
+                <input bind:value={name} placeholder="Nombre de la lista" aria-label="Nombre de la lista" maxlength="200" use:focus
+                  onkeydown={(e) => e.key === 'Escape' && (creating = false)} />
+                <button class="primary" disabled={!name.trim()}>Crear</button>
+              </form>
+            {:else}
+              <button class="newcard" onclick={() => ((name = ''), (busy = false), (creating = true))}>
+                <Icono name="plus" size={28} />
+                <span>Nueva lista</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
   {/if}
-{/if}
 
-<h2>Canciones favoritas</h2>
-{#if likedLists}
-  {#if likedLists.tracks.length === 0}
-    <p class="empty">Todavía no hay canciones favoritas: tocá ♥ en las que te gusten.</p>
-  {:else}
-    <div class="bar">
-      <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> Reproducir</button>
-      <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
-    </div>
-    <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(t) => play({ liked: true }, { startId: t.id })} />
+  <h2>Canciones favoritas</h2>
+  {#if likedLists}
+    {#if likedLists.tracks.length === 0}
+      <p class="empty">Todavía no hay canciones favoritas: tocá ♥ en las que te gusten.</p>
+    {:else}
+      <div class="bar">
+        <button class="primary" onclick={() => play({ liked: true })}><Icono name="play" size={14} /> Reproducir</button>
+        <button onclick={() => play({ liked: true }, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
+      </div>
+      <ListaPistas tracks={likedLists.tracks} showAlbum numbered={false} onplay={(t) => play({ liked: true }, { startId: t.id })} />
+    {/if}
   {/if}
-{/if}
 
-<h2>Álbumes preferidos</h2>
-{#if likedLists}
-  {#if likedLists.albums.length === 0}
-    <p class="empty">Todavía no hay álbumes preferidos: tocá el marcador en los que quieras tener a mano.</p>
-  {:else}
-    <div class="grid">
-      {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
-    </div>
+  <h2>Álbumes preferidos</h2>
+  {#if likedLists}
+    {#if likedLists.albums.length === 0}
+      <p class="empty">Todavía no hay álbumes preferidos: tocá el marcador en los que quieras tener a mano.</p>
+    {:else}
+      <div class="grid">
+        {#each likedLists.albums as a (a.id)}<TarjetaAlbum album={a} />{/each}
+      </div>
+    {/if}
   {/if}
-{/if}
 
-<h2>Me gusta</h2>
-{#if likedLists}
-  <div class="tabs" role="tablist">
-    {#each tabs as t (t.id)}
-      <button role="tab" aria-selected={tab === t.id} class:on={tab === t.id} onclick={() => (tab = t.id)}>{t.label} · {t.n}</button>
-    {/each}
-  </div>
-  {#if tabs.find((t) => t.id === tab).n === 0}
-    <p class="empty">Nada por acá todavía: tocá ♥ en lo que te guste.</p>
-  {:else if tab === 'artists'}
-    <div class="grid">
-      {#each likedLists.artists as a (a.key)}<TarjetaArtista artist={a} />{/each}
+  <h2>Me gusta</h2>
+  {#if likedLists}
+    <div class="tabs" role="tablist">
+      {#each tabs as t (t.id)}
+        <button role="tab" aria-selected={tab === t.id} class:on={tab === t.id} onclick={() => (tab = t.id)}>{t.label} · {t.n}</button>
+      {/each}
     </div>
-  {:else}
+    {#if tabs.find((t) => t.id === tab).n === 0}
+      <p class="empty">Nada por acá todavía: tocá ♥ en lo que te guste.</p>
+    {:else if tab === 'artists'}
+      <div class="grid">
+        {#each likedLists.artists as a (a.key)}<TarjetaArtista artist={a} />{/each}
+      </div>
+    {:else}
+      <div class="grid">
+        {#each likedLists.collections as c (c.path)}
+          <div class="card">
+            <a href={folderHref(c.path)}>
+              <Tapa srcs={withPicture(albumsOf(c)).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
+            </a>
+            <span class="name">{c.name}</span>
+            <span class="sub">{count(c.albumCount, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  {/if}
+
+  <h2>Colecciones</h2>
+  {#if collections?.length === 0}
+    <p class="empty">
+      No se encontraron colecciones: carpetas con álbumes de varios artistas, como «Latinoamérica 600».
+    </p>
+  {:else if collections}
     <div class="grid">
-      {#each likedLists.collections as c (c.path)}
+      {#each collections as c (c.path)}
         <div class="card">
           <a href={folderHref(c.path)}>
-            <Tapa srcs={withPicture(albumsOf(c)).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
+            <Tapa srcs={withPicture(c.albums).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
           </a>
-          <span class="name">{c.name}</span>
-          <span class="sub">{count(c.albumCount, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
+          <a class="name" href={folderHref(c.path)}>{c.name}</a>
+          <span class="sub">{count(c.albums.length, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
         </div>
       {/each}
     </div>
   {/if}
-{/if}
-
-<h2>Colecciones</h2>
-{#if collections?.length === 0}
-  <p class="empty">
-    No se encontraron colecciones: carpetas con álbumes de varios artistas, como «Latinoamérica 600».
-  </p>
-{:else if collections}
-  <div class="grid">
-    {#each collections as c (c.path)}
-      <div class="card">
-        <a href={folderHref(c.path)}>
-          <Tapa srcs={withPicture(c.albums).map((a) => albumCoverURL(a.id, 320))} icon="lists" alt={c.name} />
-        </a>
-        <a class="name" href={folderHref(c.path)}>{c.name}</a>
-        <span class="sub">{count(c.albums.length, 'álbum', 'álbumes')} <MeGusta kind="collection" ref={c.path} size={16} /></span>
-      </div>
-    {/each}
-  </div>
+{:else if !error}
+  <Cargando />
 {/if}
 
 <style>
