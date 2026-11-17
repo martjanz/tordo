@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	ErrNotFound  = errors.New("no existe en MusicBrainz")
-	ErrInvalidID = errors.New("id de MusicBrainz inválido")
+	ErrNotFound  = errors.New("not found on MusicBrainz")
+	ErrInvalidID = errors.New("invalid MusicBrainz id")
 )
 
 var validID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -372,7 +372,7 @@ func (c *Client) Artist(ctx context.Context, id string) (Artist, error) {
 // ErrNotFound when it has none.
 func (c *Client) Cover(ctx context.Context, kind, id string) ([]byte, error) {
 	if kind != "release" && kind != "release-group" {
-		return nil, fmt.Errorf("musicbrainz: carátula de %q", kind)
+		return nil, fmt.Errorf("musicbrainz: cover for %q", kind)
 	}
 	if !ValidID(id) {
 		return nil, ErrInvalidID

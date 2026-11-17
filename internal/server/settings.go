@@ -47,6 +47,8 @@ type configView struct {
 	ListenMode   bool       `json:"listenMode"`
 	// RescanMinutes is how often the folders are checked for changes; 0: never.
 	RescanMinutes int `json:"rescanMinutes"`
+	// Language is the installation's interface language; "": the browser's.
+	Language string `json:"language"`
 }
 
 func (s *Server) configView() configView {
@@ -55,7 +57,7 @@ func (s *Server) configView() configView {
 		cfg = rt.Config
 	}
 	v := configView{SetupPending: s.Engine.SetupPending(), ReadOnly: s.readOnly(), Roots: []rootView{}, Suggested: []string{},
-		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(), ListenMode: cfg.ListenMode, RescanMinutes: int(cfg.RescanEvery().Minutes()),
+		Ignore: append([]string{}, cfg.Ignore...), HasToken: cfg.DiscogsToken != "", Normalize: cfg.Normalizing(), ListenMode: cfg.ListenMode, RescanMinutes: int(cfg.RescanEvery().Minutes()), Language: cfg.LanguageOrAuto(),
 		LAN: lanView{Enabled: cfg.LAN.Enabled, Port: cfg.LAN.PortOrDefault(), HasPin: cfg.LAN.PinHash != ""}}
 	for _, r := range cfg.Roots {
 		v.Roots = append(v.Roots, rootView{r, config.Available(s.AppDir, r)})
@@ -83,12 +85,12 @@ func (s *Server) checkRoot(w http.ResponseWriter, r *http.Request) {
 		Path string `json:"path"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	root, err := config.Root(s.AppDir, req.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		fail(w, err)
 		return
 	}
 	writeJSON(w, rootView{root, true})
@@ -109,12 +111,12 @@ func (s *Server) checkToken(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	token := strings.TrimSpace(req.Token)
 	if token == "" {
-		http.Error(w, "falta el token", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeMissingToken, "token is required", nil)
 		return
 	}
 	verify := s.VerifyToken
@@ -144,12 +146,12 @@ func cleanIgnore(in []string) ([]string, error) {
 			continue
 		}
 		if strings.Contains(p, "..") {
-			return nil, fmt.Errorf("el patrón %q no puede llevar ..", p)
+			return nil, reject(http.StatusBadRequest, codeInvalidIgnore, fmt.Sprintf("pattern %q cannot contain ..", p), map[string]any{"pattern": p})
 		}
 		out = append(out, p)
 	}
 	if len(out) > maxIgnore {
-		return nil, fmt.Errorf("hay más de %d carpetas para ignorar", maxIgnore)
+		return nil, reject(http.StatusBadRequest, codeTooManyIgnore, fmt.Sprintf("more than %d folders to ignore", maxIgnore), map[string]any{"max": maxIgnore})
 	}
 	return out, nil
 }
@@ -159,11 +161,11 @@ const maxRescanMinutes = 7 * 24 * 60
 
 // putConfig validates and saves the settings, and restarts what depends on
 // them. A null token or PIN keeps the saved one; a "" token removes it. An
-// absent (or null) roots, ignore, normalize, lan, listenMode or rescanMinutes keeps the saved
+// absent (or null) roots, ignore, normalize, lan, listenMode, rescanMinutes or language keeps the saved
 // value, so the page can save listen mode on its own.
 func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	if s.readOnly() {
-		http.Error(w, engine.ErrReadOnly.Error(), http.StatusConflict)
+		fail(w, engine.ErrReadOnly)
 		return
 	}
 	var req struct {
@@ -173,6 +175,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		Normalize  *bool     `json:"normalize"`
 		ListenMode *bool     `json:"listenMode"`
 		Rescan     *int      `json:"rescanMinutes"`
+		Language   *string   `json:"language"`
 		LAN        *struct {
 			Enabled bool    `json:"enabled"`
 			Port    int     `json:"port"`
@@ -180,7 +183,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		} `json:"lan"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	// A new PIN is saved and every session closed as one step with respect to
@@ -213,7 +216,7 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		lan := cur.LAN
 		if req.LAN != nil {
 			if req.LAN.Port < 1024 || req.LAN.Port > 65535 {
-				return invalid(errors.New("el puerto tiene que estar entre 1024 y 65535"))
+				return invalid(reject(http.StatusBadRequest, codeInvalidPort, "port must be between 1024 and 65535", nil))
 			}
 			lan = config.LAN{Enabled: req.LAN.Enabled, Port: req.LAN.Port, PinHash: cur.LAN.PinHash}
 			if req.LAN.Pin != nil {
@@ -226,16 +229,22 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if lan.Enabled && lan.PinHash == "" {
-				return invalid(errors.New("elegí un PIN para usar Tordo desde la red"))
+				return invalid(reject(http.StatusBadRequest, codePINNeededForLAN, "choose a PIN to use Tordo from the network", nil))
 			}
 		}
 		if req.Rescan != nil && (*req.Rescan < 0 || *req.Rescan > maxRescanMinutes) {
-			return invalid(fmt.Errorf("el intervalo de búsqueda de cambios tiene que estar entre 0 y %d minutos", maxRescanMinutes))
+			return invalid(reject(http.StatusBadRequest, codeInvalidRescan, fmt.Sprintf("change check interval must be between 0 and %d minutes", maxRescanMinutes), map[string]any{"max": maxRescanMinutes}))
+		}
+		if req.Language != nil && *req.Language != "" && !slices.Contains(config.Languages, *req.Language) {
+			return invalid(reject(http.StatusBadRequest, codeUnknownLanguage, fmt.Sprintf("unknown language: %q", *req.Language), map[string]any{"language": *req.Language}))
 		}
 		cfg := cur
 		cfg.Roots, cfg.Ignore, cfg.LAN = roots, ignore, lan
 		if req.Rescan != nil {
 			cfg.RescanMinutes = req.Rescan
+		}
+		if req.Language != nil {
+			cfg.Language = *req.Language
 		}
 		if req.Normalize != nil {
 			cfg.Normalize = req.Normalize
@@ -253,17 +262,17 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		if newPin {
 			if err := s.Store.DeleteSessions(); err != nil {
-				log.Printf("no se pudieron cerrar las sesiones: %v", err)
+				log.Printf("could not close the sessions: %v", err)
 			}
 			s.jukebox().DropRemoteSessions()
 		}
 		writeJSON(w, s.configView())
 	case errors.As(err, &verr):
-		http.Error(w, verr.Error(), http.StatusBadRequest)
+		fail(w, verr.Err)
 	case errors.Is(err, engine.ErrReadOnly):
-		http.Error(w, err.Error(), http.StatusConflict)
+		fail(w, err)
 	default:
-		log.Printf("no se pudo guardar config.json: %v", err)
-		http.Error(w, "no se pudo guardar config.json", http.StatusInternalServerError)
+		log.Printf("could not save config.json: %v", err)
+		writeError(w, http.StatusInternalServerError, codeConfigSaveFailed, "could not save config.json", nil)
 	}
 }

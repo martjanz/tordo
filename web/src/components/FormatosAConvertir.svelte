@@ -4,7 +4,8 @@
   import Cargando from './Cargando.svelte'
   import { api } from '../lib/api.js'
   import { app } from '../lib/app.svelte.js'
-  import { count, duration, folderName, size } from '../lib/format.js'
+  import { artistLabel, duration, folderName, size } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { albumHref, folderHref } from '../lib/router.js'
 
   let { onload } = $props()
@@ -32,18 +33,18 @@
   const label = (key) => data?.formats.find((f) => f.key === key)?.label ?? key.toUpperCase()
 </script>
 
-<p class="note">Formatos que conviene convertir (WMA, WAV, AIFF, APE, WavPack, ALAC). Tordo solo los detecta: no convierte nada.</p>
+<p class="note">{t('review.formats.note')}</p>
 
 {#if error}
   <p class="empty">{error}</p>
 {:else if data}
   {#if data.files === 0}
-    <p class="empty">No hay archivos en esos formatos.</p>
+    <p class="empty">{t('review.formats.empty')}</p>
   {:else}
-    <p class="total">{count(data.files, 'archivo', 'archivos')} · {size(data.bytes)}</p>
+    <p class="total">{t('count.files', { n: data.files })} · {size(data.bytes)}</p>
     <p class="chips">
       {#each data.formats as f (f.key)}
-        <span class="chip">{f.label}: {count(f.files, 'archivo', 'archivos')} · {size(f.bytes)}</span>
+        <span class="chip">{f.label}: {t('count.files', { n: f.files })} · {size(f.bytes)}</span>
       {/each}
     </p>
     <ul class="items">
@@ -54,9 +55,9 @@
           {:else}
             <a class="title" href={folderHref(it.dir)}>{folderName(it.dir) || it.title}</a>
           {/if}
-          <span class="artist">{it.artist}</span>
+          <span class="artist">{artistLabel(it.artist)}</span>
           <span class="fmt">{label(it.format)}</span>
-          <span class="meta">{count(it.files, 'archivo', 'archivos')} · {size(it.bytes)} · {duration(it.durationMs)}</span>
+          <span class="meta">{t('count.files', { n: it.files })} · {size(it.bytes)} · {duration(it.durationMs)}</span>
         </li>
       {/each}
     </ul>

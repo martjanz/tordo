@@ -86,7 +86,7 @@ func readFFprobe(ctx context.Context, path string) (Info, error) {
 		}
 	}
 	if info.Codec == "" {
-		return Info{}, fmt.Errorf("%w: ffprobe no encontró audio", ErrFormat)
+		return Info{}, fmt.Errorf("%w: ffprobe found no audio", ErrFormat)
 	}
 	for k, v := range o.Format.Tags {
 		info.Tags.set(k, v)

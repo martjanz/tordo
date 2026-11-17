@@ -1,11 +1,43 @@
 // Calls to the Go server. Errors carry the HTTP status and the server's text.
 
+import { has, t } from './i18n/index.svelte.js'
+
+// ApiError is a failed call. message is in the listener's language when the
+// server's error code is known; notice is what to show on another device
+// (a message key to translate there, or the plain text).
 export class ApiError extends Error {
-  constructor(status, message, retryAfter = 0) {
+  constructor(status, message, retryAfter = 0, { code = '', params = {}, notice = message } = {}) {
     super(message)
     this.status = status
     this.retryAfter = retryAfter // seconds, from Retry-After
+    this.code = code
+    this.params = params
+    this.notice = notice
   }
+}
+
+const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+// A body that is not ours (a proxy's page) is shown only when it is short.
+const MAX_RAW = 300
+const rawText = (raw) => (raw.trim().length <= MAX_RAW ? raw.trim() : '')
+
+// failure builds the ApiError of a non-2xx response from its body: the
+// server's {code, message, params}, or whatever text came (a proxy's page).
+function failure(status, raw, retryAfter) {
+  let body = null
+  try {
+    const parsed = JSON.parse(raw)
+    if (isObject(parsed)) body = parsed
+  } catch {
+    // not JSON: the text is the message
+  }
+  const code = typeof body?.code === 'string' ? body.code : ''
+  const params = isObject(body?.params) ? body.params : {}
+  const key = 'error.' + code
+  if (code && has(key)) return new ApiError(status, t(key, params), retryAfter, { code, params, notice: { key, params } })
+  const message = (typeof body?.message === 'string' && body.message) || (body ? '' : rawText(raw)) || t('error.http', { status })
+  return new ApiError(status, message, retryAfter, { code, params })
 }
 
 let unauthorized = null
@@ -27,13 +59,13 @@ async function call(method, path, body) {
   try {
     res = await fetch(path, init)
   } catch {
-    throw new ApiError(0, 'No se pudo contactar a Tordo. ¿Sigue abierto?')
+    throw new ApiError(0, t('error.network'), 0, { code: 'network', notice: { key: 'error.network', params: {} } })
   }
   if (!res.ok) {
-    const text = (await res.text()).trim()
+    const raw = await res.text()
     if (res.status === 401 && path !== '/api/auth/login') unauthorized?.()
     const retryAfter = Number(res.headers?.get('Retry-After')) || 0
-    throw new ApiError(res.status, text || `Error ${res.status}`, retryAfter)
+    throw failure(res.status, raw, retryAfter)
   }
   if (res.status === 204 || res.status === 202) return null
   return res.json()
@@ -66,7 +98,7 @@ const stationDef = ({ id, createdAt, updatedAt, ...def }) => def // eslint-disab
 // and the ids of the tracks to leave out.
 export function stationQuery(station, recent = []) {
   const params = new URLSearchParams({ def: JSON.stringify(stationDef(station)) })
-  if (recent.length) params.set('recientes', recent.join(','))
+  if (recent.length) params.set('recent', recent.join(','))
   return params.toString()
 }
 
@@ -79,15 +111,15 @@ export const api = {
   folderTreeSearch: (q) => get(`/api/folders/tree/search?${new URLSearchParams({ q })}`),
   collections: () => get('/api/collections'),
   play: (what) => get(`/api/play?${playQuery(what)}`),
-  // search is Explorar's query string ("?decada=1980"); from and limit page it.
+  // search is Explorar's query string ("?decade=1980"); from and limit page it.
   explore: (search, from = 0, limit = 120) => {
     const params = new URLSearchParams(search)
-    if (from) params.set('desde', from)
-    params.set('limite', limit)
+    if (from) params.set('from', from)
+    params.set('limit', limit)
     return get(`/api/explore?${params}`)
   },
   artist: (key) => get(`/api/artists/${encodeURIComponent(key)}`),
-  find: (q, limit = 6) => get(`/api/search?${new URLSearchParams({ q, limite: limit })}`),
+  find: (q, limit = 6) => get(`/api/search?${new URLSearchParams({ q, limit })}`),
   setCollection: (path, collection) => put('/api/folders/collection', { path, collection }),
   identify: () => post('/api/identify'),
   unidentified: () => get('/api/review/unidentified'),
@@ -115,8 +147,8 @@ export const api = {
   createStation: (station) => post('/api/stations', stationDef(station)),
   updateStation: (id, station) => put(`/api/stations/${id}`, stationDef(station)),
   deleteStation: (id) => del(`/api/stations/${id}`),
-  home: (seed) => get(`/api/home?${new URLSearchParams({ semilla: seed })}`),
-  stats: (period, limit) => get(`/api/stats?${new URLSearchParams({ periodo: period, limite: limit })}`),
+  home: (seed) => get(`/api/home?${new URLSearchParams({ seed })}`),
+  stats: (period, limit) => get(`/api/stats?${new URLSearchParams({ period, limit })}`),
   playlists: () => get('/api/playlists'),
   playlist: (id) => get(`/api/playlists/${id}`),
   createPlaylist: (name, add) => post('/api/playlists', add ? { name, add } : { name }),
@@ -134,13 +166,13 @@ export const api = {
   sessions: () => get('/api/sessions'),
   closeSession: (id) => del(`/api/sessions/${id}`),
   jukeboxState: (token, state) => post('/api/jukebox/state', { token, state }),
-  jukeboxNotice: (token, remote, text) => post('/api/jukebox/notice', { token, remote, text }),
+  jukeboxNotice: (token, remote, notice) => post('/api/jukebox/notice', { token, remote, notice }),
   jukeboxCommand: (remote, command, args) => post('/api/jukebox/command', { remote, command, args }),
   setSessionHost: (id, host) => put(`/api/sessions/${id}/host`, { host }),
   auth: () => get('/api/auth'),
   login: (pin, device) => post('/api/auth/login', { pin, device }),
   logout: () => post('/api/auth/logout'),
-  duplicates: (tipo) => get(`/api/review/duplicates?tipo=${encodeURIComponent(tipo)}`),
+  duplicates: (kind) => get(`/api/review/duplicates?kind=${encodeURIComponent(kind)}`),
   toConvert: () => get('/api/review/formats'),
 }
 

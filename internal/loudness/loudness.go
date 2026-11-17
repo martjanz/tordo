@@ -23,11 +23,11 @@ const Reference = -18.0
 const Floor = -70.0
 
 // ErrNoMeasure means ffmpeg gave no usable integrated loudness.
-var ErrNoMeasure = errors.New("ffmpeg no midió el volumen")
+var ErrNoMeasure = errors.New("ffmpeg could not measure the loudness")
 
 // ErrNotStarted means ffmpeg could not run at all (missing binary, killed at
 // launch): nothing says anything about the file, so it is worth retrying.
-var ErrNotStarted = errors.New("ffmpeg no pudo ejecutarse")
+var ErrNotStarted = errors.New("ffmpeg could not run")
 
 // Gain is the gain in dB that brings a track of this loudness to Reference.
 func Gain(lufs float64) float64 { return Reference - lufs }

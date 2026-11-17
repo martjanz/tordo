@@ -1,8 +1,9 @@
 <script>
-  // The play buttons for an album, folder, artist or list: Reproducir and
-  // Aleatorio, then the "Estación" icon (with a station prop; null when none
+  // The play buttons for an album, folder, artist or list: Play and
+  // Shuffle, then the station icon (with a station prop; null when none
   // fits) and a "⋯" menu with the queue and list actions. One row, even on a
   // phone.
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import BotonEstacion from './BotonEstacion.svelte'
   import Icono from './Icono.svelte'
@@ -12,8 +13,8 @@
 </script>
 
 <div class="actions">
-  <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> Reproducir</button>
-  <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> Aleatorio</button>
+  <button class="primary" onclick={() => play(what)}><Icono name="play" size={14} /> {t('player.play')}</button>
+  <button onclick={() => play(what, { shuffle: true })}><Icono name="shuffle" size={14} /> {t('player.shuffle')}</button>
   {#if station}<BotonEstacion {station} compact />{/if}
   <MenuMas {what} />
 </div>

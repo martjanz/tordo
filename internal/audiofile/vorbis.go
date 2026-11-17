@@ -9,7 +9,7 @@ import (
 // little-endian lengths, a vendor string, then "KEY=value" entries. Pictures
 // go to pic (nil while scanning).
 func parseVorbisComment(b []byte, t *Tags, pic *picture) error {
-	bad := fmt.Errorf("%w: comentarios Vorbis truncados", ErrFormat)
+	bad := fmt.Errorf("%w: truncated Vorbis comments", ErrFormat)
 	if len(b) < 4 {
 		return bad
 	}

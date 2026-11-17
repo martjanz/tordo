@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { bar, DEFAULT_SORT, entries, nextSort, playableIds, sortEntries } from './folders.js'
 
 const folder = {
@@ -83,5 +84,15 @@ describe('entries track flag', () => {
       { id: 2, name: 'b.wma', kind: 'audio', playable: false, track: true },
     ] })
     expect(files.map((f) => f.track)).toEqual([false, true])
+  })
+})
+
+describe('sorting in another language', () => {
+  afterEach(() => setLocale('es'))
+  it('keeps the natural order in English', () => {
+    setLocale('en')
+    const rows = [{ name: 'Disc 10' }, { name: 'disc 2' }, { name: 'Disc 1' }]
+    const sorted = sortEntries(rows, { column: 'name', desc: false }).map((r) => r.name)
+    expect(sorted).toEqual(['Disc 1', 'disc 2', 'Disc 10'])
   })
 })

@@ -4,6 +4,7 @@
   import { app, listenMode, stopStatus, watchStatus } from './lib/app.svelte.js'
   import { isHelpKey } from './lib/ayuda.js'
   import { auth, checkAuth } from './lib/auth.svelte.js'
+  import { applyLanguage, t } from './lib/i18n/index.svelte.js'
   import { resumeSpeaker } from './lib/speaker.svelte.js'
   import { loadMine } from './lib/mine.svelte.js'
   import { navigate, route } from './lib/nav.svelte.js'
@@ -30,7 +31,7 @@
 
   // Until the first-use settings are saved, every page is the assistant.
   $effect(() => {
-    if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/bienvenida', { replace: true })
+    if (app.status?.setupPending && current.page !== 'bienvenida') navigate('/welcome', { replace: true })
   })
 
   // Listen mode closes Revisar: a direct visit goes back to Inicio.
@@ -40,7 +41,14 @@
 
   // Who is asking: a device on the network without a session sees only the
   // PIN screen, and nothing is requested until it has one.
+  applyLanguage('')
   checkAuth()
+
+  // The installation language arrives with the auth answer (also on the PIN
+  // screen); the status poll keeps it current.
+  $effect(() => {
+    if (typeof auth.language === 'string') applyLanguage(auth.language)
+  })
   const ready = $derived(auth.checked && !auth.pinRequired)
 
   let watching = false
@@ -84,7 +92,7 @@
   function onkeydown(event) {
     if (!ready || !isHelpKey(event)) return
     event.preventDefault()
-    navigate('/ayuda')
+    navigate('/help')
   }
 </script>
 
@@ -132,7 +140,7 @@
   {:else if current.page === 'bienvenida'}
     <Bienvenida />
   {:else}
-    <p class="empty">No existe esta página. <a href="/">Ir al Inicio</a></p>
+    <p class="empty">{t('app.notFound')} <a href="/">{t('app.goHome')}</a></p>
   {/if}
 </main>
 

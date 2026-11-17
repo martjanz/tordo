@@ -15,9 +15,9 @@ import (
 const Version = 1
 
 var (
-	ErrUnsupported = errors.New("formato sin lector propio")
-	ErrFormat      = errors.New("formato inválido")
-	ErrIO          = errors.New("error de lectura")
+	ErrUnsupported = errors.New("format without a native reader")
+	ErrFormat      = errors.New("invalid format")
+	ErrIO          = errors.New("read error")
 )
 
 // Tags are the metadata the catalog uses, whatever the format called them.
@@ -75,7 +75,7 @@ type source struct {
 // error (some length field lies); a failing read is an I/O error.
 func (s source) read(off int64, n int) ([]byte, error) {
 	if off < 0 || n < 0 || n > maxRead || off+int64(n) > s.size {
-		return nil, fmt.Errorf("%w: %d bytes en %d, fuera del archivo", ErrFormat, n, off)
+		return nil, fmt.Errorf("%w: %d bytes at %d, outside the file", ErrFormat, n, off)
 	}
 	b := make([]byte, n)
 	k, err := s.r.ReadAt(b, off)

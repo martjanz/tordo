@@ -5,7 +5,8 @@
   import Cargando from './Cargando.svelte'
   import { albumCoverURL, api } from '../lib/api.js'
   import { app, notify } from '../lib/app.svelte.js'
-  import { count, folderName } from '../lib/format.js'
+  import { folderName } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { candidateChip, confidenceLevel, folderDiffers, percent, searchURL, worthAccepting } from '../lib/review.js'
   import { albumHref, folderHref } from '../lib/router.js'
@@ -48,7 +49,7 @@
   // acceptAll takes the best candidate of every likely album, one at a time.
   async function acceptAll() {
     const list = likely
-    if (!confirm(`¿Aceptar el primer candidato de ${count(list.length, 'álbum', 'álbumes')}? Revisalos antes con «Ver solo esos».`)) return
+    if (!confirm(t('review.unidentified.confirmAccept', { albums: t('count.albums', { n: list.length }), only: t('review.unidentified.onlyLikely') }))) return
     accepting = { done: 0, of: list.length }
     for (const a of list) {
       try {
@@ -65,20 +66,17 @@
 {#if error}
   <p class="empty">{error}</p>
 {:else if albums?.length === 0}
-  <p class="empty">No hay álbumes sin identificar.</p>
+  <p class="empty">{t('review.unidentified.empty')}</p>
 {:else if albums}
   {#if likely.length && !app.status?.readOnly}
     <div class="bulk">
       {#if accepting}
-        <p>Aceptando <strong>{accepting.done}</strong> de {accepting.of}…</p>
+        <p>{t('review.unidentified.accepting', { done: accepting.done, total: accepting.of })}</p>
       {:else}
-        <p>
-          <strong>{likely.length}</strong>
-          {likely.length === 1 ? 'álbum tiene' : 'álbumes tienen'} un primer candidato de 70 % o más.
-        </p>
+        <p><strong>{likely.length}</strong> {t('count.albumsLikely', { n: likely.length })}</p>
         <div class="bulk-actions">
-          <label><input type="checkbox" bind:checked={onlyLikely} /> Ver solo esos</label>
-          <button class="primary" onclick={acceptAll}>Aceptar el primer candidato de cada uno</button>
+          <label><input type="checkbox" bind:checked={onlyLikely} /> {t('review.unidentified.onlyLikely')}</label>
+          <button class="primary" onclick={acceptAll}>{t('review.unidentified.acceptAll')}</button>
         </div>
       {/if}
     </div>
@@ -90,29 +88,29 @@
           <a class="thumb" href={albumHref(a.id)}><Tapa srcs={a.picture ? [albumCoverURL(a.id, 160)] : []} alt={a.title} /></a>
           <div class="text">
             <a class="title" href={albumHref(a.id)}>{a.tagTitle}</a>
-            <span class="meta">{[a.tagArtist, a.year || '', count(a.tracks, 'pista', 'pistas')].filter(Boolean).join(' · ')}</span>
+            <span class="meta">{[a.tagArtist, a.year || '', t('count.tracks', { n: a.tracks })].filter(Boolean).join(' · ')}</span>
             {#if folderDiffers(a)}
-              <a class="meta folder" href={folderHref(a.dir)} title="Carpeta">{folderName(a.dir)}</a>
+              <a class="meta folder" href={folderHref(a.dir)}>{folderName(a.dir)}</a>
             {/if}
             {#if a.candidates.length}
               {@const c = a.candidates[0]}
-              <span class="best" title="Mejor candidato de MusicBrainz">
+              <span class="best" title={t('review.unidentified.bestTitle')}>
                 <span class="score {confidenceLevel(c.score)}">{percent(c.score)}</span>
                 <span class="chip">{candidateChip(c)}</span>
               </span>
             {:else}
-              <span class="best none">Sin candidatos</span>
+              <span class="best none">{t('review.unidentified.noCandidates')}</span>
             {/if}
           </div>
           <div class="buttons">
-            <button class="icon" onclick={() => play({ album: a.id })} title="Escuchar" aria-label="Escuchar {a.tagTitle}">
+            <button class="icon" onclick={() => play({ album: a.id })} title={t('review.unidentified.listen')} aria-label={t('review.unidentified.listenNamed', { title: a.tagTitle })}>
               <Icono name="play" size={16} />
             </button>
-            <a class="icon" href={searchURL(a)} target="_blank" rel="noreferrer" title="Buscar en MusicBrainz" aria-label="Buscar {a.tagTitle} en MusicBrainz">
+            <a class="icon" href={searchURL(a)} target="_blank" rel="noreferrer" title={t('review.unidentified.searchMB')} aria-label={t('review.unidentified.searchMBNamed', { title: a.tagTitle })}>
               <Icono name="search" size={16} />
             </a>
             {#if !app.status?.readOnly}
-              <button class="fix" onclick={() => (open = open === a.id ? null : a.id)} aria-expanded={open === a.id}>{open === a.id ? 'Cerrar' : 'Corregir'}</button>
+              <button class="fix" onclick={() => (open = open === a.id ? null : a.id)} aria-expanded={open === a.id}>{open === a.id ? t('common.close') : t('review.unidentified.fix')}</button>
             {/if}
           </div>
         </div>

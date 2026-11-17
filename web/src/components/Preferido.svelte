@@ -4,6 +4,7 @@
   // static bookmark when marked, nothing otherwise. Same mark as the album's ♥ in the
   // API (kind "album").
   import { app } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { isLiked } from '../lib/marks.js'
   import { mine, toggleLike } from '../lib/mine.svelte.js'
   import Icono from './Icono.svelte'
@@ -15,11 +16,11 @@
 
 {#if !app.status?.readOnly}
   <button class="icon preferred" class:on aria-pressed={on} onclick={() => toggleLike('album', ref)}
-    title={on ? 'Quitar de Preferidos' : 'Agregar a Preferidos'} aria-label={on ? 'Quitar de Preferidos' : 'Agregar a Preferidos'}>
+    title={on ? t('marks.unprefer') : t('marks.prefer')} aria-label={on ? t('marks.unprefer') : t('marks.prefer')}>
     <Icono name="bookmark" {size} />
   </button>
 {:else if on}
-  <span class="preferred on static" role="img" aria-label="Preferido"><Icono name="bookmark" {size} /></span>
+  <span class="preferred on static" role="img" aria-label={t('marks.preferred')}><Icono name="bookmark" {size} /></span>
 {/if}
 
 <style>

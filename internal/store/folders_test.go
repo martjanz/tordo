@@ -72,6 +72,11 @@ func TestFolderSizes(t *testing.T) {
 	if len(top.Children) != 1 || top.Children[0].SizeBytes != 82 {
 		t.Errorf("top children = %+v", top.Children)
 	}
+	// The top level adds up its roots, so their relative size bars can be drawn.
+	c := top.Children[0]
+	if top.SizeBytes != 82 || top.TrackCount != c.TrackCount || top.AlbumCount != c.AlbumCount || top.DurationMs != c.DurationMs {
+		t.Errorf("top totals = size %d, %d tracks, %d albums, %d ms; root = %+v", top.SizeBytes, top.TrackCount, top.AlbumCount, top.DurationMs, c)
+	}
 }
 
 func TestFolderSizesSkipMissing(t *testing.T) {

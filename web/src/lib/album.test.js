@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { albumMeta, albumYear } from './album.js'
+import { setLocale } from './i18n/index.svelte.js'
 
 const flac = { codec: 'flac', lossless: true, bitDepth: 16, sampleRate: 44100, playable: true }
 const mp3 = { codec: 'mp3', bitrate: 320, playable: true }
@@ -26,13 +27,24 @@ describe('album header', () => {
     }
     const groups = albumMeta(album)
     expect(text(groups)).toBe('1986 · 3 pistas · 41 min · Argentina · Rock, New Wave · FLAC 16/44,1 · MP3 320 · 1 pista necesita ffmpeg')
-    expect(groups[3][0].href).toBe('/explorar?pais=AR')
-    expect(groups[4].map((i) => i.href)).toEqual(['/explorar?genero=Rock', '/explorar?genero=Rock&estilo=New+Wave'])
+    expect(groups[3][0].href).toBe('/explore?country=AR')
+    expect(groups[4].map((i) => i.href)).toEqual(['/explore?genre=Rock', '/explore?genre=Rock&style=New+Wave'])
     expect(groups[0][0].href).toBeUndefined()
   })
 
   it('leaves out what an album does not have', () => {
     const groups = albumMeta({ durationMs: 60000, country: '', genres: [], tracks: [mp3] })
     expect(text(groups)).toBe('1 pista · 1 min · MP3 320')
+  })
+
+  it('follows the language', () => {
+    setLocale('en')
+    try {
+      expect(albumYear({ originalYear: 1986, year: 2007 })).toBe('1986 (2007 edition)')
+      const groups = albumMeta({ durationMs: 60000, country: 'DE', genres: [], tracks: [{ ...mp3, playable: false }] })
+      expect(text(groups)).toBe('1 track · 1 min · Germany · MP3 320 · 1 track needs ffmpeg')
+    } finally {
+      setLocale('es')
+    }
   })
 })

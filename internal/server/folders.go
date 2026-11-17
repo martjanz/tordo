@@ -23,7 +23,7 @@ func (s *Server) folderTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		http.Error(w, "carpeta no encontrada", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeFolderNotFound, "folder not found", nil)
 		return
 	}
 	if nodes == nil {
@@ -49,7 +49,7 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !ok {
-		http.Error(w, "carpeta no encontrada", http.StatusNotFound)
+		writeError(w, http.StatusNotFound, codeFolderNotFound, "folder not found", nil)
 		return
 	}
 	art, err := s.Store.FolderArt(f.Path)
@@ -81,7 +81,7 @@ func (s *Server) folder(w http.ResponseWriter, r *http.Request) {
 // detected collection, or takes it back (true), with the folder's summary.
 func (s *Server) setCollection(w http.ResponseWriter, r *http.Request) {
 	if s.ReadOnly {
-		http.Error(w, "modo consulta: no se pueden guardar cambios", http.StatusConflict)
+		writeError(w, http.StatusConflict, codeReadOnly, "browse-only mode: changes cannot be saved", nil)
 		return
 	}
 	var body struct {
@@ -89,14 +89,14 @@ func (s *Server) setCollection(w http.ResponseWriter, r *http.Request) {
 		Collection bool   `json:"collection"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&body); err != nil || body.Path == "" {
-		http.Error(w, "cuerpo inválido", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, codeInvalidBody, "invalid body", nil)
 		return
 	}
 	if _, ok, err := s.Store.Folder(body.Path); err != nil || !ok {
 		if err != nil {
 			fail(w, err)
 		} else {
-			http.Error(w, "carpeta no encontrada", http.StatusNotFound)
+			writeError(w, http.StatusNotFound, codeFolderNotFound, "folder not found", nil)
 		}
 		return
 	}

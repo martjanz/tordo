@@ -53,3 +53,31 @@ func TestFoundArtistsByAlbums(t *testing.T) {
 		t.Fatalf("found = %+v", f)
 	}
 }
+
+func TestSearchVariousPhrasings(t *testing.T) {
+	c := build()
+	x, err := search.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	if err := x.Refresh(c.Changes, c.SearchDocs); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"varios artistas", "various artists", "vários artistas"} {
+		keys, err := x.Query(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := c.Found(keys, 10)
+		found := false
+		for _, a := range f.Albums {
+			if a.Compilation {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%q: no compilation album in %+v", q, f.Albums)
+		}
+	}
+}

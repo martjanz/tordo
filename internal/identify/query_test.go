@@ -38,7 +38,7 @@ func TestBuildQueryStripsNotes(t *testing.T) {
 
 func TestBuildQueryCompilation(t *testing.T) {
 	q := BuildQuery(store.IdentifyTarget{Dir: "../musica/Brasil/VA - História da MPB", Title: "História da MPB",
-		Artist: "Varios artistas", Compilation: true})
+		Artist: "Various Artists", Compilation: true})
 	if want := []Variant{{Title: "História da MPB", Various: true}}; !reflect.DeepEqual(q.Variants, want) {
 		t.Fatalf("variants = %+v", q.Variants)
 	}

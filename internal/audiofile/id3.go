@@ -39,7 +39,7 @@ func readID3v2(s source, off int64, t *Tags) (int64, error) {
 		total += 10 // footer
 	}
 	if off+total > s.size {
-		return 0, fmt.Errorf("%w: etiqueta ID3v2 truncada", ErrFormat)
+		return 0, fmt.Errorf("%w: truncated ID3v2 tag", ErrFormat)
 	}
 	if major < 2 || major > 4 {
 		return total, nil // unknown version: skip it whole
@@ -256,7 +256,7 @@ func apeTagSize(s source, end int64) (int64, error) {
 		n += 32 // header
 	}
 	if n > end {
-		return 0, fmt.Errorf("%w: etiqueta APE inválida", ErrFormat)
+		return 0, fmt.Errorf("%w: invalid APE tag", ErrFormat)
 	}
 	return n, nil
 }

@@ -4,7 +4,7 @@
   // up opens it above the parent (in the player bar).
   import { api } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
-  import { count } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
 
   let { what, onclose, right = false, up = false } = $props()
 
@@ -31,7 +31,7 @@
     busy = true
     try {
       const { added } = await api.addToPlaylist(list.id, what)
-      notify(`${count(added, 'pista agregada', 'pistas agregadas')} a «${list.name}».`)
+      notify(t('playlist.added', { n: added, name: list.name }))
       onclose()
     } catch (e) {
       notify(e.message)
@@ -46,7 +46,7 @@
     busy = true
     try {
       const list = await api.createPlaylist(n, what)
-      notify(`Lista «${list.name}» creada con ${count(list.tracks, 'pista', 'pistas')}.`)
+      notify(t('playlist.created', { name: list.name, tracks: t('count.tracks', { n: list.tracks }) }))
       onclose()
     } catch (e) {
       notify(e.message)
@@ -65,19 +65,19 @@
 
 <svelte:window onclick={onwindowclick} {onkeydown} />
 
-<div class="pop" class:right class:up bind:this={root} role="dialog" aria-label="Agregar a una lista">
+<div class="pop" class:right class:up bind:this={root} role="dialog" aria-label={t('player.addToList')}>
   {#if lists === null}
-    <p class="sub">Cargando…</p>
+    <p class="sub">{t('status.loading.loading')}</p>
   {:else if lists.length}
     <ul>
       {#each lists as l (l.id)}
-        <li><button disabled={busy} onclick={() => addTo(l)}>{l.name} <span class="sub">{count(l.tracks, 'pista', 'pistas')}</span></button></li>
+        <li><button disabled={busy} onclick={() => addTo(l)}>{l.name} <span class="sub">{t('count.tracks', { n: l.tracks })}</span></button></li>
       {/each}
     </ul>
   {/if}
   <form onsubmit={create}>
-    <input bind:value={name} placeholder="Nueva lista…" aria-label="Nombre de la nueva lista" maxlength="200" />
-    <button class="primary" disabled={busy || !name.trim()}>Crear</button>
+    <input bind:value={name} placeholder={t('playlist.newName')} aria-label={t('playlist.nameLabel')} maxlength="200" />
+    <button class="primary" disabled={busy || !name.trim()}>{t('playlist.create')}</button>
   </form>
 </div>
 

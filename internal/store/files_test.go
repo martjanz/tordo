@@ -67,7 +67,7 @@ func TestFailedReadsRetryWhenFFprobeAppears(t *testing.T) {
 	s := open(t)
 	s.SyncFiles([]FileRow{audioRow("../musica/x.ape", 10, 1)}, root)
 	pending, _ := s.PendingReads(ReadEnv{Version: 1})
-	if err := s.SaveReads([]ReadResult{{Target: pending[0], Err: "formato sin lector propio", Env: ReadEnv{Version: 1}}}); err != nil {
+	if err := s.SaveReads([]ReadResult{{Target: pending[0], Err: "format without a native reader", Env: ReadEnv{Version: 1}}}); err != nil {
 		t.Fatal(err)
 	}
 	if p, _ := s.PendingReads(ReadEnv{Version: 1}); len(p) != 0 {

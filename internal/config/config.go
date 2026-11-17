@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,23 @@ type Config struct {
 	// RescanMinutes is how often the folders are checked for changes; nil
 	// (absent): DefaultRescanMinutes, 0: never.
 	RescanMinutes *int `json:"rescanMinutes,omitempty"`
+	// Language is the interface language of the whole installation; "" (absent):
+	// follow the browser's. See LanguageOrAuto.
+	Language string `json:"language,omitempty"`
+}
+
+// Languages are the interface languages, as saved in config.json.
+var Languages = []string{"es", "en", "pt-BR"}
+
+// LanguageOrAuto is the configured language in its canonical form, or "" when
+// none is set (or it is not one of Languages): the browser's language decides.
+func (c Config) LanguageOrAuto() string {
+	for _, l := range Languages {
+		if strings.EqualFold(c.Language, l) {
+			return l
+		}
+	}
+	return ""
 }
 
 // DefaultRescanMinutes is the rescan interval when config.json does not say.
@@ -76,8 +94,18 @@ func Load(appDir string) (Config, bool, error) {
 		return Config{}, false, err
 	}
 	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	// Language is read apart so a value of the wrong type never fails the load.
+	type plain Config
+	aux := struct {
+		*plain
+		Language json.RawMessage `json:"language"`
+	}{plain: (*plain)(&cfg)}
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return Config{}, false, fmt.Errorf("%s: %w", FileName, err)
+	}
+	_ = json.Unmarshal(aux.Language, &cfg.Language) // not a string: stays ""
+	if cfg.Language != "" && cfg.LanguageOrAuto() == "" {
+		log.Printf("unknown language %q in config.json: using the browser's language", cfg.Language)
 	}
 	if cfg.Roots == nil {
 		cfg.Roots = []string{}

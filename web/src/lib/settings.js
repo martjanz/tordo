@@ -1,5 +1,6 @@
 // The settings as the pages edit them: a draft made from GET /api/config,
 // and the body of PUT /api/config.
+import { t } from './i18n/index.svelte.js'
 
 // draft is what the page edits. The suggested folders (the siblings of the
 // app folder) come unchecked: a drive usually holds more than music. token is null while the saved one is kept; the PIN is
@@ -13,6 +14,7 @@ export function draft(config) {
     roots,
     ignore: (config.ignore ?? []).join('\n'),
     token: null,
+    language: config.language ?? '',
     normalize: config.normalize,
     rescanMinutes: config.rescanMinutes,
     lan: { enabled: config.lan.enabled, port: config.lan.port, pin: '' },
@@ -53,6 +55,13 @@ export function body(d) {
   }
 }
 
+// firstBody is the body of the first save (the assistant): it also carries
+// the language. The settings page leaves it out, because the language saves
+// on its own there and a stale form must not put an old value back.
+export function firstBody(d) {
+  return { ...body(d), language: d.language }
+}
+
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i])
 
 function scanChanged(config, b) {
@@ -78,38 +87,39 @@ export function changed(config, d) {
 // it scans; a new token updates the genres; the rest takes effect quietly.
 export function savedNotice(config, d) {
   const b = body(d)
-  if (config.setupPending || scanChanged(config, b)) return 'Ajustes guardados. Se escanean las carpetas.'
-  if (b.token !== null) return 'Ajustes guardados. Se actualizan los géneros con el token nuevo.'
-  return 'Ajustes guardados.'
+  if (config.setupPending || scanChanged(config, b)) return t('settings.saved.scan')
+  if (b.token !== null) return t('settings.saved.genres')
+  return t('settings.saved.plain')
 }
 
-const RESCAN_CHOICES = [
-  { minutes: 0, label: 'Nunca' },
-  { minutes: 30, label: 'Cada 30 minutos' },
-  { minutes: 60, label: 'Cada hora' },
-  { minutes: 180, label: 'Cada 3 horas' },
-  { minutes: 360, label: 'Cada 6 horas' },
-  { minutes: 1440, label: 'Una vez por día' },
-]
+// choice makes an interval whose label is read through t when used.
+const choice = (minutes, key) => ({
+  minutes,
+  get label() {
+    return t('settings.rescan.' + key)
+  },
+})
+
+const RESCAN_CHOICES = [choice(0, 'never'), choice(30, 'every30'), choice(60, 'hourly'), choice(180, 'every3h'), choice(360, 'every6h'), choice(1440, 'daily')]
 
 // rescanChoices lists the intervals to offer, with the saved one in its place
 // when it was set by hand in config.json.
 export function rescanChoices(saved) {
   if (RESCAN_CHOICES.some((c) => c.minutes === saved)) return RESCAN_CHOICES
-  return [...RESCAN_CHOICES, { minutes: saved, label: saved === 1 ? 'Cada minuto' : `Cada ${saved} minutos` }].sort((a, b) => a.minutes - b.minutes)
+  return [...RESCAN_CHOICES, { minutes: saved, get label() { return saved === 1 ? t('settings.rescan.minute') : t('settings.rescan.minutes', { n: saved }) } }].sort((a, b) => a.minutes - b.minutes)
 }
 
 // pinProblem is what is wrong with the PIN typed ('' keeps the saved one),
 // or '' when it is fine.
 export function pinProblem(pin, hasPin, enabled) {
-  if (enabled && !hasPin && pin === '') return 'Elegí un PIN para usar Tordo desde la red.'
-  if (pin !== '' && !/^[0-9]{6,12}$/.test(pin)) return 'El PIN tiene que tener entre 6 y 12 dígitos, solo números.'
+  if (enabled && !hasPin && pin === '') return t('settings.pin.choose')
+  if (pin !== '' && !/^[0-9]{6,12}$/.test(pin)) return t('settings.pin.format')
   return ''
 }
 
 // portProblem is what is wrong with the port typed, or ''.
 export function portProblem(port) {
   const n = Number(port)
-  if (String(port).trim() === '' || !Number.isInteger(n) || n < 1024 || n > 65535) return 'El puerto tiene que estar entre 1024 y 65535.'
+  if (String(port).trim() === '' || !Number.isInteger(n) || n < 1024 || n > 65535) return t('settings.port.range')
   return ''
 }

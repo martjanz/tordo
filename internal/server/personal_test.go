@@ -156,7 +156,7 @@ func exploreFollowsLikes(t *testing.T, state string) {
 	_, al := ids(t, st)
 	total := func() int {
 		var r catalog.Result
-		decode(t, do(t, h, "GET", "/api/explore?megusta=si", ""), &r)
+		decode(t, do(t, h, "GET", "/api/explore?liked=yes", ""), &r)
 		return r.Total
 	}
 	if n := total(); n != 0 {

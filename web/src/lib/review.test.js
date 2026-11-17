@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setLocale } from './i18n/index.svelte.js'
 import { aliasLabel, candidateChip, candidateLine, confidenceLevel, folderDiffers, genreChoice, genreLinks, genreOptions, identification, percent, searchURL, worthAccepting } from './review.js'
 
 describe('review', () => {
@@ -43,10 +44,10 @@ describe('review', () => {
       { genre: 'Latin', source: 'tag' },
     ]
     expect(genreLinks(gs)).toEqual([
-      { label: 'Rock', facets: { genero: 'Rock' } },
-      { label: 'Latin', facets: { genero: 'Latin' } },
-      { label: 'Pop Rock', facets: { genero: 'Rock', estilo: 'Pop Rock' } },
-      { label: 'New Wave', facets: { genero: 'Rock', estilo: 'New Wave' } },
+      { label: 'Rock', facets: { genre: 'Rock' } },
+      { label: 'Latin', facets: { genre: 'Latin' } },
+      { label: 'Pop Rock', facets: { genre: 'Rock', style: 'Pop Rock' } },
+      { label: 'New Wave', facets: { genre: 'Rock', style: 'New Wave' } },
     ])
     expect(genreLinks(undefined)).toEqual([])
   })
@@ -73,5 +74,18 @@ describe('review', () => {
     expect(searchURL({ title: 'Signos (MB)', tagTitle: 'Signos', artist: 'Soda Stereo' })).toBe(
       'https://musicbrainz.org/search?type=release&query=Signos%20Soda%20Stereo',
     )
+  })
+})
+
+describe('review in other languages', () => {
+  afterEach(() => setLocale('es'))
+
+  it('speaks English', () => {
+    setLocale('en')
+    expect(identification({ status: 'auto', confidence: 0.873 })).toBe('Identified on MusicBrainz (87 %)')
+    expect(identification({ status: 'unmatched' })).toBe('Unidentified: review the candidates')
+    expect(candidateLine({ artist: 'Soda Stereo', year: 1986, country: 'AR', tracks: 9 })).toBe('Soda Stereo · 1986 · Argentina · 9 tracks')
+    expect(aliasLabel({ genre: '' })).toBe('ignored')
+    expect(genreOptions([])[0].label).toBe('Not a genre (ignore it)')
   })
 })

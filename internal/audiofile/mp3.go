@@ -73,7 +73,7 @@ func parseMPEGFrame(b []byte) (mpegFrame, bool) {
 func findMPEGFrame(s source, start, end int64) (int64, mpegFrame, error) {
 	n := min(end-start, 256<<10)
 	if n < 4 {
-		return 0, mpegFrame{}, fmt.Errorf("%w: sin audio MPEG", ErrFormat)
+		return 0, mpegFrame{}, fmt.Errorf("%w: no MPEG audio", ErrFormat)
 	}
 	b, err := s.read(start, int(n))
 	if err != nil {
@@ -97,7 +97,7 @@ func findMPEGFrame(s source, start, end int64) (int64, mpegFrame, error) {
 			return start + int64(i), f, nil // the next frame lies beyond the search window
 		}
 	}
-	return 0, mpegFrame{}, fmt.Errorf("%w: sin audio MPEG", ErrFormat)
+	return 0, mpegFrame{}, fmt.Errorf("%w: no MPEG audio", ErrFormat)
 }
 
 // vbrHeader reads the frame and byte counts of a Xing/Info or VBRI header in

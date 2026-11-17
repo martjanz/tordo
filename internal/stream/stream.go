@@ -31,7 +31,7 @@ const (
 )
 
 // ErrUnplayable means the track needs ffmpeg and there is none.
-var ErrUnplayable = errors.New("este formato necesita ffmpeg para reproducirse")
+var ErrUnplayable = errors.New("this format needs ffmpeg to play")
 
 // Streamer serves tracks. FFmpeg is the path to ffmpeg ("" when there is
 // none); see LookFFmpeg.
@@ -123,14 +123,14 @@ func serveFile(w http.ResponseWriter, r *http.Request, path, mime string) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Printf("audio: %v", err)
-		http.Error(w, "no se pudo abrir el archivo", http.StatusNotFound)
+		http.Error(w, "could not open the file", http.StatusNotFound)
 		return
 	}
 	defer file.Close()
 	st, err := file.Stat()
 	if err != nil {
 		log.Printf("audio: %v", err)
-		http.Error(w, "no se pudo abrir el archivo", http.StatusNotFound)
+		http.Error(w, "could not open the file", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", mime)
@@ -143,7 +143,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, path, mime string) {
 func (s Streamer) transcode(w http.ResponseWriter, r *http.Request, path string, f Format, mime string) {
 	if _, err := os.Stat(path); err != nil {
 		log.Printf("audio: %v", err)
-		http.Error(w, "no se pudo abrir el archivo", http.StatusNotFound)
+		http.Error(w, "could not open the file", http.StatusNotFound)
 		return
 	}
 	args := []string{"-nostdin", "-v", "error", "-i", path, "-map", "0:a:0", "-vn"}
