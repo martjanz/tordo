@@ -12,23 +12,7 @@ const SRC = fileURLToPath(new URL('../../', import.meta.url))
 
 // PENDING lists the files not migrated yet, one path per line. The list can
 // only shrink: a file listed here that no longer has Spanish text fails.
-const PENDING = [
-  'components/AudioDeEstaCompu.svelte',
-  'components/Dispositivos.svelte',
-  'components/Duplicados.svelte',
-  'components/GenerosPorMapear.svelte',
-  'components/Identificar.svelte',
-  'components/Raices.svelte',
-  'components/RedLocal.svelte',
-  'components/SinIdentificar.svelte',
-  'components/TokenDiscogs.svelte',
-  'lib/ayuda.js',
-  'pages/Ajustes.svelte',
-  'pages/Ayuda.svelte',
-  'pages/Bienvenida.svelte',
-  'pages/Entrar.svelte',
-  'pages/Revisar.svelte',
-]
+const PENDING = ['lib/ayuda.js', 'pages/Ayuda.svelte']
 
 // ALLOW lists the accepted exceptions: a line of the file that contains text.
 // Each one needs a reason.

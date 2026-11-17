@@ -48,7 +48,7 @@
   // acceptAll takes the best candidate of every likely album, one at a time.
   async function acceptAll() {
     const list = likely
-    if (!confirm(`¿Aceptar el primer candidato de ${t('count.albums', { n: list.length })}? Revisalos antes con «Ver solo esos».`)) return
+    if (!confirm(t('review.unidentified.confirmAccept', { albums: t('count.albums', { n: list.length }), only: t('review.unidentified.onlyLikely') }))) return
     accepting = { done: 0, of: list.length }
     for (const a of list) {
       try {
@@ -65,16 +65,16 @@
 {#if error}
   <p class="empty">{error}</p>
 {:else if albums?.length === 0}
-  <p class="empty">No hay álbumes sin identificar.</p>
+  <p class="empty">{t('review.unidentified.empty')}</p>
 {:else if albums}
   {#if likely.length && !app.status?.readOnly}
     <p class="bulk">
       {#if accepting}
-        Aceptando {accepting.done} de {accepting.of}…
+        {t('review.unidentified.accepting', { done: accepting.done, total: accepting.of })}
       {:else}
         {t('count.albumsLikely', { n: likely.length })}
-        <label><input type="checkbox" bind:checked={onlyLikely} /> Ver solo esos</label>
-        <button onclick={acceptAll}>Aceptar el primer candidato de cada uno</button>
+        <label><input type="checkbox" bind:checked={onlyLikely} /> {t('review.unidentified.onlyLikely')}</label>
+        <button onclick={acceptAll}>{t('review.unidentified.acceptAll')}</button>
       {/if}
     </p>
   {/if}
@@ -88,18 +88,18 @@
             <span class="meta">{[a.tagArtist, a.year || '', t('count.tracks', { n: a.tracks })].filter(Boolean).join(' · ')}</span>
             <a class="meta folder" href={folderHref(a.dir)}>{folderName(a.dir)}</a>
             {#if a.candidates.length}
-              <span class="meta best">Mejor candidato: {a.candidates[0].title} — {candidateLine(a.candidates[0])} ({percent(a.candidates[0].score)})</span>
+              <span class="meta best">{t('review.unidentified.best', { title: a.candidates[0].title, line: candidateLine(a.candidates[0]), percent: percent(a.candidates[0].score) })}</span>
             {:else}
-              <span class="meta best">Sin candidatos</span>
+              <span class="meta best">{t('review.unidentified.noCandidates')}</span>
             {/if}
           </div>
           <div class="buttons">
-            <button class="icon" onclick={() => play({ album: a.id })} title="Escuchar" aria-label="Escuchar {a.tagTitle}">
+            <button class="icon" onclick={() => play({ album: a.id })} title={t('review.unidentified.listen')} aria-label={t('review.unidentified.listenNamed', { title: a.tagTitle })}>
               <Icono name="play" size={16} />
             </button>
-            <a class="search" href={searchURL(a)} target="_blank" rel="noreferrer">Buscar en MusicBrainz ↗</a>
+            <a class="search" href={searchURL(a)} target="_blank" rel="noreferrer">{t('review.unidentified.searchMB')}</a>
             {#if !app.status?.readOnly}
-              <button onclick={() => (open = open === a.id ? null : a.id)}>{open === a.id ? 'Cerrar' : 'Corregir'}</button>
+              <button onclick={() => (open = open === a.id ? null : a.id)}>{open === a.id ? t('common.close') : t('review.unidentified.fix')}</button>
             {/if}
           </div>
         </div>

@@ -1,6 +1,7 @@
 <script>
   import { api, lanQrURL } from '../lib/api.js'
   import { notify } from '../lib/app.svelte.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { pinProblem, portProblem } from '../lib/settings.js'
 
   // d.lan is the draft's {enabled, port, pin} ('' keeps the saved PIN);
@@ -47,22 +48,22 @@
   async function copy(url) {
     try {
       await navigator.clipboard.writeText(url)
-      notify('Dirección copiada.')
+      notify(t('lan.copied'))
     } catch {
-      notify('No se pudo copiar la dirección.')
+      notify(t('lan.copyFailed'))
     }
   }
 </script>
 
 <label class="check">
   <input type="checkbox" bind:checked={d.lan.enabled} disabled={disabled} />
-  <span>Usar Tordo desde otros dispositivos de la red</span>
+  <span>{t('lan.use')}</span>
 </label>
 
 {#if d.lan.enabled}
   <div class="fields">
     <label class="field">
-      <span class="label">Puerto</span>
+      <span class="label">{t('lan.port')}</span>
       <input
         class="port"
         type="number"
@@ -78,7 +79,7 @@
     <div class="field">
       {#if askPin}
         <label>
-          <span class="label">{hasPin ? 'Cambiar PIN' : 'Elegí un PIN'}</span>
+          <span class="label">{hasPin ? t('lan.changePin') : t('lan.choosePin')}</span>
           <input
             class="pin"
             type="password"
@@ -88,20 +89,20 @@
             maxlength="12"
             bind:value={d.lan.pin}
             aria-invalid={!!pinError}
-            placeholder="6 a 12 dígitos"
+            placeholder={t('lan.pinPlaceholder')}
             {disabled}
           />
         </label>
-        {#if hasPin}<button onclick={cancelPin} {disabled}>Cancelar</button>{/if}
+        {#if hasPin}<button onclick={cancelPin} {disabled}>{t('common.cancel')}</button>{/if}
       {:else}
-        <span class="label">PIN</span>
-        <span>guardado</span>
-        <button onclick={() => (changingPin = true)} {disabled}>Cambiar PIN</button>
+        <span class="label">{t('lan.pin')}</span>
+        <span>{t('lan.pinSaved')}</span>
+        <button onclick={() => (changingPin = true)} {disabled}>{t('lan.changePin')}</button>
       {/if}
     </div>
     {#if pinError && (d.lan.pin !== '' || !hasPin)}<p class="bad" role="alert">{pinError}</p>{/if}
-    {#if hasPin}<p class="note">Cambiar el PIN cierra la sesión de todos los dispositivos.</p>{/if}
-    <p class="note">La conexión es HTTP sin cifrar: usalo solo en tu red de casa.</p>
+    {#if hasPin}<p class="note">{t('lan.changePinNote')}</p>{/if}
+    <p class="note">{t('lan.httpNote')}</p>
   </div>
 {/if}
 
@@ -109,15 +110,15 @@
   {#if loadError}
     <p class="bad" role="alert">{loadError}</p>
   {:else if info && !info.listening}
-    <p class="bad">No está escuchando.</p>
+    <p class="bad">{t('lan.notListening')}</p>
   {:else if info}
     <ul class="urls">
       {#each info.urls as url (url)}
         <li>
-          <img src={lanQrURL(url)} width="160" height="160" alt={`Código QR de ${url}`} />
+          <img src={lanQrURL(url)} width="160" height="160" alt={t('lan.qrAlt', { url })} />
           <div>
             <span class="path">{url}</span>
-            <button onclick={() => copy(url)}>Copiar</button>
+            <button onclick={() => copy(url)}>{t('lan.copy')}</button>
           </div>
         </li>
       {/each}

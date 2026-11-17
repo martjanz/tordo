@@ -5,6 +5,7 @@
   import { app } from '../lib/app.svelte.js'
   import { KINDS, fileQuality, groupLine } from '../lib/dupes.js'
   import { folderName, size } from '../lib/format.js'
+  import { t } from '../lib/i18n/index.svelte.js'
   import { play } from '../lib/playback.svelte.js'
   import { albumHref, duplicatesHref, folderHref } from '../lib/router.js'
   import Icono from './Icono.svelte'
@@ -40,7 +41,7 @@
   const groups = $derived(answer?.groups ?? [])
 </script>
 
-<p class="note">Tordo nunca borra archivos: esto es solo para que decidas.</p>
+<p class="note">{t('review.duplicates.note')}</p>
 
 {#if error}
   <p class="empty">{error}</p>
@@ -51,7 +52,7 @@
     {/each}
   </nav>
   {#if kind === 'exact'}
-    <p class="note">{size(answer.recoverable)} recuperables en total</p>
+    <p class="note">{t('review.duplicates.recoverableTotal', { size: size(answer.recoverable) })}</p>
   {/if}
   <p class="help">{current?.help}</p>
 
@@ -67,14 +68,14 @@
         <ul>
           {#each g.files as f (f.id)}
             <li>
-              {#if f.best}<span class="best">MEJOR</span>{/if}
+              {#if f.best}<span class="best">{t('review.duplicates.best')}</span>{/if}
               <span class="quality">{fileQuality(f)}</span>
               <span class="size">{size(f.sizeBytes)}</span>
               <span class="where">
-                {#if f.albumId}<a href={albumHref(f.albumId)}>{f.album}</a>{:else}<span class="loose">Suelto</span>{/if}
+                {#if f.albumId}<a href={albumHref(f.albumId)}>{f.album}</a>{:else}<span class="loose">{t('review.duplicates.loose')}</span>{/if}
                 <a class="folder" href={folderHref(f.dir)}>{folderName(f.dir)}</a>
               </span>
-              <button class="icon" onclick={() => play({ tracks: [f.id] })} title="Escuchar este archivo" aria-label="Escuchar {f.path}">
+              <button class="icon" onclick={() => play({ tracks: [f.id] })} title={t('review.duplicates.listenFile')} aria-label={t('review.duplicates.listenPath', { path: f.path })}>
                 <Icono name="play" size={16} />
               </button>
               <span class="file" title={f.path}>{f.path.split('/').pop()}</span>
@@ -84,7 +85,7 @@
       </section>
     {/each}
     {#if groups.length > shown}
-      <button onclick={() => (shown += PAGE)}>Mostrar más</button>
+      <button onclick={() => (shown += PAGE)}>{t('review.duplicates.showMore')}</button>
     {/if}
   {/if}
 {/if}

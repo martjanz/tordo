@@ -4,11 +4,11 @@
   import TokenDiscogs from '../components/TokenDiscogs.svelte'
   import { api } from '../lib/api.js'
   import { notify, settingsSaved } from '../lib/app.svelte.js'
-  import { previewLanguage } from '../lib/i18n/index.svelte.js'
+  import { previewLanguage, t } from '../lib/i18n/index.svelte.js'
   import { navigate } from '../lib/nav.svelte.js'
   import { body, draft } from '../lib/settings.js'
 
-  const steps = ['Carpetas', 'Discogs', 'Listo']
+  const steps = $derived([t('settings.folders.title'), 'Discogs', t('setup.stepDone')])
 
   let config = $state(null)
   let d = $state(null)
@@ -46,10 +46,10 @@
   }
 </script>
 
-<svelte:head><title>Bienvenida · Tordo</title></svelte:head>
+<svelte:head><title>{t('setup.title')} · Tordo</title></svelte:head>
 
 {#if forbidden}
-  <p class="bienvenida warn">Los ajustes solo se cambian en la computadora que corre Tordo.</p>
+  <p class="bienvenida warn">{t('error.settings_local_only')}</p>
 {:else if loadError}
   <p class="bienvenida warn" role="alert">{loadError}</p>
 {:else if d}
@@ -57,52 +57,49 @@
     <div class="idioma"><Idioma value={d.language} onchange={(l) => ((d.language = l), previewLanguage(l))} /></div>
 
     <ol class="steps">
-      {#each steps as name, i (name)}
+      {#each steps as name, i (i)}
         <li class:on={i === step} class:done={i < step}>{i + 1}. {name}</li>
       {/each}
     </ol>
 
     {#if step === 0}
-      <h2>¿Dónde está tu música?</h2>
-      <p class="help">
-        Estas son las carpetas que están al lado de la de Tordo. Tordo solo las lee: nunca mueve, renombra ni borra
-        archivos.
-      </p>
+      <h2>{t('setup.where')}</h2>
+      <p class="help">{t('setup.whereHelp')}</p>
       <Raices bind:d />
       <details>
-        <summary>Carpetas a ignorar</summary>
+        <summary>{t('settings.folders.ignore')}</summary>
         <textarea
           bind:value={d.ignore}
           rows="3"
-          aria-label="Carpetas a ignorar"
-          placeholder={'Un patrón por línea, por ejemplo:\nSamples\n*.tmp'}
+          aria-label={t('settings.folders.ignore')}
+          placeholder={t('settings.folders.ignorePlaceholder')}
         ></textarea>
       </details>
     {:else if step === 1}
-      <h2>Token de Discogs</h2>
+      <h2>{t('discogs.tokenLabel')}</h2>
       <TokenDiscogs bind:token={d.token} {config} />
     {:else}
-      <h2>Listo para empezar</h2>
+      <h2>{t('setup.ready')}</h2>
       <label class="check">
         <input type="checkbox" bind:checked={d.normalize} />
         <span>
-          Normalizar el volumen
-          <small>Empareja el volumen entre temas, solo bajando los más fuertes.</small>
+          {t('settings.normalize')}
+          <small>{t('settings.normalizeHelp')}</small>
         </span>
       </label>
-      <p class="help">El acceso desde el teléfono se activa después, en Ajustes.</p>
+      <p class="help">{t('setup.later')}</p>
     {/if}
 
     <div class="actions">
-      {#if step > 0}<button onclick={() => step--} disabled={saving}>Atrás</button>{/if}
+      {#if step > 0}<button onclick={() => step--} disabled={saving}>{t('setup.back')}</button>{/if}
       <span class="spacer"></span>
       {#if step === 1 && d.token === null}
-        <button onclick={() => step++}>Seguir sin token</button>
+        <button onclick={() => step++}>{t('setup.skipToken')}</button>
       {:else if step < steps.length - 1}
-        <button class="primary" onclick={() => step++} disabled={!rootsChosen}>Siguiente</button>
+        <button class="primary" onclick={() => step++} disabled={!rootsChosen}>{t('setup.next')}</button>
       {:else}
         <button class="primary" onclick={start} disabled={saving || !rootsChosen}>
-          {saving ? 'Guardando…' : 'Empezar'}
+          {saving ? t('common.saving') : t('setup.start')}
         </button>
       {/if}
     </div>

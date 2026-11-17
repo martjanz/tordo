@@ -1,4 +1,5 @@
 <script>
+  import { t } from '../lib/i18n/index.svelte.js'
   import { disableSpeaker, enableSpeaker, speaker } from '../lib/speaker.svelte.js'
 </script>
 
@@ -6,7 +7,7 @@
 <label class="check">
   <input type="checkbox" checked={speaker.on} onchange={(e) => (e.currentTarget.checked ? enableSpeaker() : disableSpeaker())} />
   <span>
-    Usar el audio de esta compu para tordo
-    <small>Los teléfonos en modo Rockola eligen qué suena acá. Mantené esta pestaña abierta.</small>
+    {t('settings.computerAudio')}
+    <small>{t('settings.computerAudioHelp')}</small>
   </span>
 </label>

@@ -1,6 +1,7 @@
 <script>
   import { untrack } from 'svelte'
   import { api } from '../lib/api.js'
+  import { t } from '../lib/i18n/index.svelte.js'
 
   // token is the draft's: null keeps the saved one, "" removes it, text
   // replaces it. config tells whether one is saved.
@@ -30,21 +31,27 @@
 </script>
 
 <p class="help">
-  Con un token de <a href="https://www.discogs.com/" target="_blank" rel="noreferrer">Discogs</a> los géneros y estilos
-  salen más precisos. Es opcional y gratuito: creá uno en
-  <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noreferrer">discogs.com/settings/developers</a>.
+  {#each t('discogs.intro').split(/(\{discogs\}|\{url\})/) as part, i (i)}
+    {#if part === '{discogs}'}
+      <a href="https://www.discogs.com/" target="_blank" rel="noreferrer">Discogs</a>
+    {:else if part === '{url}'}
+      <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noreferrer">discogs.com/settings/developers</a>
+    {:else}
+      {part}
+    {/if}
+  {/each}
 </p>
 
 {#if mode === 'keep'}
   <p class="saved">
-    Token cargado <span class="path">{config.tokenHint}</span>
-    <button onclick={() => (mode = 'edit')} {disabled}>Cambiar</button>
-    <button onclick={() => (mode = 'remove')} {disabled}>Quitar</button>
+    {t('discogs.loaded')} <span class="path">{config.tokenHint}</span>
+    <button onclick={() => (mode = 'edit')} {disabled}>{t('discogs.change')}</button>
+    <button onclick={() => (mode = 'remove')} {disabled}>{t('discogs.remove')}</button>
   </p>
 {:else if mode === 'remove'}
   <p class="saved">
-    Se va a quitar el token: los géneros quedan con lo que traen las etiquetas y MusicBrainz.
-    <button onclick={() => (mode = 'keep')} {disabled}>Deshacer</button>
+    {t('discogs.removing')}
+    <button onclick={() => (mode = 'keep')} {disabled}>{t('discogs.undo')}</button>
   </p>
 {:else}
   <div class="row">
@@ -52,23 +59,23 @@
       type="text"
       bind:value={text}
       oninput={() => ((checks += 1), (check = null))}
-      placeholder="Token personal de Discogs"
-      aria-label="Token de Discogs"
+      placeholder={t('discogs.placeholder')}
+      aria-label={t('discogs.tokenLabel')}
       autocomplete="off"
       spellcheck="false"
       {disabled}
     />
-    <button onclick={verify} disabled={disabled || !text.trim() || check === 'checking'}>Verificar</button>
-    {#if config.hasToken}<button onclick={() => ((mode = 'keep'), (text = ''))} {disabled}>Cancelar</button>{/if}
+    <button onclick={verify} disabled={disabled || !text.trim() || check === 'checking'}>{t('discogs.verify')}</button>
+    {#if config.hasToken}<button onclick={() => ((mode = 'keep'), (text = ''))} {disabled}>{t('common.cancel')}</button>{/if}
   </div>
   {#if check === 'checking'}
-    <p class="note">Verificando…</p>
+    <p class="note">{t('discogs.checking')}</p>
   {:else if check === true}
-    <p class="note ok">✓ Discogs aceptó el token.</p>
+    <p class="note ok">{t('discogs.accepted')}</p>
   {:else if check === false}
-    <p class="note bad">✕ Discogs rechazó el token. Revisá que lo copiaste completo.</p>
+    <p class="note bad">{t('discogs.rejected')}</p>
   {:else if check === 'unknown'}
-    <p class="note">No se pudo verificar (¿sin conexión?). Se guarda igual.</p>
+    <p class="note">{t('discogs.unknown')}</p>
   {/if}
 {/if}
 

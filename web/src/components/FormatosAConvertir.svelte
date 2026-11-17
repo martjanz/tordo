@@ -32,13 +32,13 @@
   const label = (key) => data?.formats.find((f) => f.key === key)?.label ?? key.toUpperCase()
 </script>
 
-<p class="note">Formatos que conviene convertir (WMA, WAV, AIFF, APE, WavPack, ALAC). Tordo solo los detecta: no convierte nada.</p>
+<p class="note">{t('review.formats.note')}</p>
 
 {#if error}
   <p class="empty">{error}</p>
 {:else if data}
   {#if data.files === 0}
-    <p class="empty">No hay archivos en esos formatos.</p>
+    <p class="empty">{t('review.formats.empty')}</p>
   {:else}
     <p class="total">{t('count.files', { n: data.files })} · {size(data.bytes)}</p>
     <p class="chips">

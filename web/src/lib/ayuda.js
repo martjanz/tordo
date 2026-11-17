@@ -48,7 +48,7 @@ export const SECTIONS = [
       { term: 'Duplicados', href: '/review/duplicates', blockedInListen: true, text: 'Tordo los muestra, nunca los borra. Exactas: el mismo audio en dos o más rutas (muestra el espacio recuperable). Formatos: la misma grabación en varios formatos dentro de un álbum, con la marca MEJOR en la de mayor calidad. Sospechas: mismo artista y título en álbumes distintos; es informativo y suele ser legítimo (un tema del disco y de un compilado).' },
       { term: 'Modo escucha', href: '/settings', text: 'Una opción de Ajustes que oculta Revisar y la curaduría y bloquea identificaciones, escaneos y cambios de géneros. Los ♥, las ★, las listas y las estaciones siguen funcionando. Es útil para dejar la música a otras personas.' },
       { term: 'Rockola', href: '/settings', text: 'En la compu que corre Tordo, activá «Usar el audio de esta compu» en Ajustes → Reproducción y dejá esa pestaña abierta: suena ahí. Desde un teléfono de la red, el botón 🎵 Rockola de la barra de arriba hace que el reproductor maneje la compu en lugar del teléfono. Si recargás esa pestaña, un clic en «Reactivar audio» vuelve a dar sonido.' },
-      { term: 'Anfitriones e invitados', href: '/settings#red', text: 'La compu siempre es anfitriona; los demás dispositivos son invitados salvo que los marques como «Anfitrión de la rockola» en Ajustes → Red local. Los anfitriones controlan todo. Los invitados solo aportan: ▶ agrega a la cola (y empieza a sonar si la cola estaba vacía o terminada), pueden pausar y quitar solo lo que agregaron.' },
+      { term: 'Anfitriones e invitados', href: '/settings#network', text: 'La compu siempre es anfitriona; los demás dispositivos son invitados salvo que los marques como «Anfitrión de la rockola» en Ajustes → Red local. Los anfitriones controlan todo. Los invitados solo aportan: ▶ agrega a la cola (y empieza a sonar si la cola estaba vacía o terminada), pueden pausar y quitar solo lo que agregaron.' },
     ],
   },
   {
@@ -71,7 +71,7 @@ export const SECTIONS = [
     items: [
       { term: 'Tus archivos', text: 'Tordo nunca escribe, mueve, renombra ni borra tus archivos de audio. Solo escribe en su propia carpeta: tordo.db (el catálogo), config.json (los ajustes) y cache/.' },
       { term: 'Portabilidad', text: 'El catálogo guarda rutas relativas a la carpeta de Tordo, así que podés mover la carpeta entera (por ejemplo a otro disco) y todo sigue andando.' },
-      { term: 'Desde otros dispositivos', href: '/settings#red', text: 'Si activás la red local en Ajustes, podés entrar desde un teléfono o una tablet de la misma red. Cada dispositivo pide el PIN que elegiste; cambiarlo cierra todas las sesiones. Para que suene en los parlantes de la compu, usá la Rockola.' },
+      { term: 'Desde otros dispositivos', href: '/settings#network', text: 'Si activás la red local en Ajustes, podés entrar desde un teléfono o una tablet de la misma red. Cada dispositivo pide el PIN que elegiste; cambiarlo cierra todas las sesiones. Para que suene en los parlantes de la compu, usá la Rockola.' },
       { term: 'Ajustes', text: 'Solo se cambian desde la computadora que corre Tordo; desde otro dispositivo se pueden escuchar y consultar, pero no configurar.' },
     ],
   },

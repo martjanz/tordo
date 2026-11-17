@@ -63,7 +63,7 @@
   <p class="empty">{error}</p>
 {:else if unmapped}
   {#if unmapped.length === 0}
-    <p class="empty">Todos los géneros de los tags están mapeados.</p>
+    <p class="empty">{t('review.genres.allMapped')}</p>
   {:else}
     <ul class="rows">
       {#each unmapped as u (u.raw)}
@@ -73,30 +73,30 @@
           {#if app.status?.readOnly}
             <!-- browse-only: nothing to map -->
           {:else if editing === u.raw}
-            <select bind:value={chosen} aria-label="Género para {u.raw}">
-              <option value="">Elegí un género…</option>
+            <select bind:value={chosen} aria-label={t('review.genres.genreFor', { raw: u.raw })}>
+              <option value="">{t('review.genres.pick')}</option>
               {#each options as o (o.value)}
                 <option value={o.value}>{o.label}</option>
               {/each}
             </select>
-            <button class="primary" onclick={() => save(u.raw)} disabled={!chosen}>Guardar</button>
-            <button onclick={() => (editing = null)}>Cancelar</button>
+            <button class="primary" onclick={() => save(u.raw)} disabled={!chosen}>{t('common.save')}</button>
+            <button onclick={() => (editing = null)}>{t('common.cancel')}</button>
           {:else}
-            <button onclick={() => edit(u.raw)}>Mapear…</button>
+            <button onclick={() => edit(u.raw)}>{t('review.genres.map')}</button>
           {/if}
         </li>
       {/each}
     </ul>
   {/if}
   {#if aliases.length}
-    <h2>Tus mapeos</h2>
+    <h2>{t('review.genres.yours')}</h2>
     <ul class="rows">
       {#each aliases as a (a.raw)}
         <li>
           <span class="raw">{a.raw}</span>
           <span class="n">→ {aliasLabel(a)}</span>
           {#if !app.status?.readOnly}
-            <button class="icon" onclick={() => forget(a.raw)} title="Olvidar este mapeo" aria-label="Olvidar el mapeo de {a.raw}">✕</button>
+            <button class="icon" onclick={() => forget(a.raw)} title={t('review.genres.forget')} aria-label={t('review.genres.forgetNamed', { raw: a.raw })}>✕</button>
           {/if}
         </li>
       {/each}
