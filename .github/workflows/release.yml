@@ -1,6 +1,7 @@
 name: release
-# Pushing a tag like v1.2.0 builds the binaries with scripts/build.sh and
-# publishes them, with SHA-256 checksums, on the tag's GitHub release.
+# Pushing a tag like v1.2.0 builds the binaries with scripts/build.sh, zips the
+# macOS and Linux ones with scripts/package.sh and publishes them, with SHA-256
+# checksums, on the tag's GitHub release.
 on:
   push:
     tags: ['v*']
@@ -22,6 +23,7 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: bash scripts/build.sh
+      - run: bash scripts/package.sh
       - name: Checksums
         working-directory: dist/tordo
         run: sha256sum tordo-* > SHA256SUMS.txt
